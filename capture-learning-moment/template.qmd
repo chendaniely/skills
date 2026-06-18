@@ -1,0 +1,56 @@
+---
+title: "Learning Moment: TITLE"
+date: YYYY-MM-DD
+categories: [claude, learning, ai-collaboration]
+---
+
+## Context
+
+*Brief description of the project or task being worked on when this moment occurred.*
+
+## The Initial Ask
+
+*The user's prompt — exact quote or close paraphrase.*
+
+## Claude's Initial Response
+
+*What Claude produced or recommended.
+Include the relevant excerpt or a summary if the response was long.*
+
+## The Exchange
+
+*Document each turn of the back-and-forth that led to the final solution.
+There may be one correction or several — include them all.*
+
+**Turn 1 — User:**
+*What the user said in response to Claude's initial output.*
+
+**Turn 1 — Claude:**
+*What Claude produced or said in reply.*
+
+**Turn 2 — User:**
+*Further clarification, correction, or pushback from the user.*
+
+**Turn 2 — Claude:**
+*Claude's revised response.*
+
+*(Add more turns as needed. Delete unused turns.)*
+
+## The Final Solution
+
+*The approach that was actually used — what went into the code, docs, or config.*
+
+## The Lesson
+
+**What Claude got right:**
+*Acknowledge what was reasonable about the first response.*
+
+**What required human expertise:**
+*The specific knowledge, judgment, or contextual awareness Claude lacked.*
+
+**Why Claude missed it:**
+*The structural reason — no runtime context, optimized for stated goal not unstated constraint,
+training cutoff, domain-specific convention not in training data, etc.*
+
+**Key takeaway:**
+*One sentence a student can remember and apply when working with AI tools.*
