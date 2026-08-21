@@ -1,6 +1,6 @@
 ---
 name: catch-up
-description: 'Use when Dan opens a session in the personal-zettelkasten vault after a gap (any phrasing of "catch me up", "what''s going on", or the start of a work burst). Drains the inbox, sweeps #todo lines into TODO.md, regenerates recent weekly rollups, and rewrites today''s daily-note Today block. The one verb for returning from a gap — Dan''s real rhythm is bursts separated by long gaps, not daily sessions.'
+description: 'Use when Dan opens a session in the vault after a gap (any phrasing of "catch me up", "what''s going on", or the start of a work burst). Drains the inbox, sweeps #todo lines into TODO.md, regenerates recent weekly rollups, and rewrites today''s daily-note Today block. The one verb for returning from a gap — Dan''s real rhythm is bursts separated by long gaps, not daily sessions.'
 ---
 
 # Catch Up
