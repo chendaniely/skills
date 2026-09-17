@@ -74,7 +74,7 @@ Mirror the URL into the `url:` frontmatter key so it is queryable, and keep the 
 | `url` | The official product page. Empty if none exists — never a guess |
 | `cost` | What was **paid**. A vendor list price is not a cost and never goes here |
 
-Note titles are ASCII (`TETE HOMME`, `COMME CA MEN`); `aliases` carries the accented form so search finds either.
+Note titles are ASCII (`HERMES`, `COMME DES GARCONS`); `aliases` carries the accented form (`HERMÈS`, `COMME DES GARÇONS`) so search finds either.
 
 ## Care symbols — transcribe all of them, in label order
 

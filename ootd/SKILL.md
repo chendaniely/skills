@@ -56,7 +56,7 @@ Everything above `## Advice` is scannable in ten seconds.
 ## The row contract (non-negotiable)
 
 ```
-| Jacket   | [[TETE HOMME Light Honeycomb Jacket]] | ✅ | sets the register — the dressiest piece here |
+| Jacket   | [[UNIQLO Navy Blazer]]                | ✅ | sets the register — the dressiest piece here |
 | Shoes    | white leather sneakers, make unread   | ❓ | pulls it one step down — confirm the make and I'll add it |
 | Trousers | charcoal tapered chinos               | ⛔ | no trouser notes in the inventory yet → TODO |
 ```
