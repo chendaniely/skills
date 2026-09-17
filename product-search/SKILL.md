@@ -81,7 +81,7 @@ Write these sections, **in this order**. Omit one only if it is genuinely empty.
 
 A row missing the image or the link is incomplete — the reader is browsing, and a name they cannot see or click costs them a search.
 
-**`## Ruled out` is the one exception:** its rows need the hyperlinked name, but no image.
+**`## Ruled out` is the one exception:** its rows need only the hyperlinked name, the hard requirement it fails and the number — no image and no price.
 
 ## Rules
 

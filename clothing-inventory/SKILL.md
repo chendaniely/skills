@@ -106,7 +106,7 @@ The filename spec lives in `inventory/Inventory.md`. What is garment-specific:
 - **Measurements are garment measurements, not body measurements** — laid flat, chest doubled. Say it every time.
 - **Supersede by annotation, never deletion.** A corrected reading keeps the wrong one visible with the reason, because the wrong version is usually the intuitive one and will otherwise be re-derived.
 - **Explain empty fields affirmatively.** An empty `evaluation:` gets a Notes bullet saying the catalogs record pre-purchase research and this was not researched — otherwise it reads as an unfinished note.
-- **Name the transferable finding.** If something learned here would help next time, mark it ⭐ and state it as a rule in the note. Carrying it into the vault's `CLAUDE.md` or this skill is a proposal in the closing summary, applied only after Dan says yes. When run from `ootd`, `ootd`'s write scope applies.
+- **Name the transferable finding.** If something learned here would help next time, mark it ⭐ and state it as a rule in the note. Carrying it into the vault's `CLAUDE.md` or this skill is a proposal in the closing summary, applied only after the owner says yes. When run from `ootd`, `ootd`'s write scope applies.
 - **Score the garment against the vault's own frameworks** where one applies, and resolve the tension honestly rather than scolding — a material that loses to the framework can still be right for the role.
 
 ## Common mistakes

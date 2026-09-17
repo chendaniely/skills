@@ -80,8 +80,9 @@ always the user's call.** Resolve it in this order:
 
 1. The target vault's/folder's CLAUDE.md (or equivalent conventions doc) declares
    where conversation captures live — use that.
-2. Not declared? **Ask the user** where captures should go, then record the answer
-   in that CLAUDE.md so future runs don't ask.
+2. Not declared? **Ask the user** where captures should go and use the answer for
+   this run. Propose the CLAUDE.md line in the step-9 report, and write it only
+   after the user says yes, so future runs don't ask.
 
 No assumptions beyond that — folder names, organizational philosophy, and note
 style all belong to the target vault, not this skill.

@@ -71,6 +71,11 @@ in `TODO.md` but its source `#todo` line is still unchecked, check the source
 too; if a source line is checked but its `TODO.md` line isn't, check that
 too. Never let the two drift.
 
+**Never touch lines inside machine-written blocks** — between the
+`ea-email:begin` / `ea-email:end` markers or the `rollup:generated` markers.
+Code regenerates those blocks, so skip any hit that falls inside one, when
+sweeping and when reconciling.
+
 **The `#todo` gate is the note-sweep lane only.** It has nothing to do with
 the Plaud author-filter (that's `plaud_sync.py`'s `extract_actions()`, fixed
 2026-08-20) — don't conflate the two mechanisms.
@@ -121,6 +126,13 @@ nothing worth 5 lines, say less — an accurate 2-line block beats a padded
 Leave `## Log` and everything else in the note untouched — this step touches
 only the `## Today` section, identified by its heading, same
 read-preserve-replace approach as the rollup markers.
+
+⚠️ **The section ends at the first `<!-- ea-email:begin` line or the next
+heading, whichever comes first.** The email digest writes its `## Email`
+checklist between `<!-- ea-email:begin todos … -->` and
+`<!-- ea-email:end todos -->`, and the begin marker sits directly under
+`## Today`, above the `## Email` heading. Replacing up to the next heading
+would delete that marker and break the digest's block.
 
 ## Closing
 
