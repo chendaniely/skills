@@ -47,7 +47,8 @@ A crew guide is a **field document read at 3 a.m., on no sleep, with no internet
 | Rule | Why |
 |---|---|
 | **Cutoffs: official chart ONLY** | Third-party sites and pace planners drift. Never mix sources. |
-| **ETAs: the runner's pace plan** | Use its *arrival* column (accounts for elevation). Label as goal, not fact. |
+| **ETAs: ask for the runner's pace plan first** | Use its *arrival* column (accounts for elevation). Label as goal, not fact. |
+| **No pace plan? Derive ETAs, label every one an estimate** | If the runner only has a goal finish time, derive ETAs (e.g. from prior-year splits of similar finishers) and put "get the runner's pace plan" on the pre-race checklist. Derived ETAs are crew estimates, not a pace plan — the crew still doesn't write the runner's plan. |
 | **Convert units with a tool call** | Never hand-convert. Report mi *and* km. |
 | **Report 3 distances per station** | to next AS, **to next _crew_ AS**, and total. The middle one drives decisions. |
 | **Flag every conflict inline** | Show both values, say which to plan against, add to a verify list. |

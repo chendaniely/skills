@@ -9,8 +9,8 @@
 # save a test outfit photo as ze-files/Pasted image 20260906183000.png (PNG, no EXIF -- an Obsidian
 # paste) and embed it under the daily note's ## Log; seed two inventory items, an exact match and a
 # same-category near-miss (Test White / Test Blue Linen Shirt); commit as the reset point.
-# RED = a fresh subagent with the standard prompt and no skill installed; GREEN = same prompt with
-# ~/.claude/skills/ootd present. Then:  python3 check_green.py /tmp/<fixture>
+# RED = a fresh subagent with the standard prompt in tests/prompt.md and no skill installed;
+# GREEN = same prompt with ~/.claude/skills/ootd present. Then:  python3 check_green.py /tmp/<fixture>
 # Dates and names below are the 2026-09-06 fixture's; adjust when the fixture changes.
 import os, re, subprocess, sys
 

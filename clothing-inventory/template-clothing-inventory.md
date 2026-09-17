@@ -13,7 +13,7 @@ status: owned
 location:
 make: <BRAND, ASCII>
 model: <native name (English name) — product number>
-size: <off the size tab>
+size: <off the size tab — empty until the tab is read>
 color: <the observation, not the vendor's colourway name>
 qty: 1
 order_date:
@@ -83,12 +83,6 @@ number → owned, and the role it plays → how and when it was identified.>
 - <bullet instructions, verbatim + translation>
 - `<manufacturer>` / `<address>` / `<country of origin>`
 
-## <Argued section — name it for the conclusion>
-
-<!-- Optional but usually the most valuable part. Read the care instructions as one
-     argument rather than a list: what property do they all defend? Name the single
-     rule that matters day to day. Delete this section if there is nothing to argue. -->
-
 ## Identification: what is confirmed, and how
 
 | Fact | Source | Confidence |
@@ -123,12 +117,18 @@ Vendor's **garment** measurements in cm, read YYYY-MM-DD. Other sizes kept for a
 
 These are garment measurements — laid flat, chest doubled — not body measurements.
 
+## <Argued section — name it for the conclusion>
+
+<!-- Optional but usually the most valuable part. Read the care instructions as one
+     argument rather than a list: what property do they all defend? Name the single
+     rule that matters day to day. Delete this section if there is nothing to argue. -->
+
 ## Notes
 
 - **`capacity_l` is omitted, not blank** — a bag field with no meaning for a garment.
 - **No purchase record.** Date, price paid and receipt unknown, left empty rather than estimated. The <list price> above is the *online* price; `cost` means what was actually paid.
 - **In no catalog**, so `evaluation:` is empty — normal, since the catalogs record pre-purchase research.
-- **Photos: <N> label shots are the owner's; the product image is the vendor's.** <Why the labels are filed as `serial` with `-<detail>` suffixes.> **Still wanted: a worn shot and a condition shot.** Drop them into this folder and run, from the vault root:
+- **Photos: <N> label shots are the owner's; the product image is the vendor's.** <Why the labels are filed as `serial` with `-<detail>` suffixes.> **Still wanted: a worn shot (a face-free crop — the garment region only) and a condition shot.** Drop them into this folder and run, from the vault root:
   `python3 scripts/file-inventory-photos.py "<Item Name>" --kind mine`
 
 ## Open questions

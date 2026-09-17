@@ -1,15 +1,15 @@
 ---
 name: catch-up
-description: 'Use when Dan opens a session in the vault after a gap (any phrasing of "catch me up", "what''s going on", or the start of a work burst). Drains the inbox, sweeps #todo lines into TODO.md, regenerates recent weekly rollups, and rewrites today''s daily-note Today block. The one verb for returning from a gap — Dan''s real rhythm is bursts separated by long gaps, not daily sessions.'
+description: 'Use only when Dan explicitly asks to catch up in the vault (for example "catch me up", or /catch-up). Never start it on your own initiative. Drains the inbox, sweeps #todo lines into TODO.md, regenerates recent weekly rollups, and rewrites today''s daily-note Today block.'
 ---
 
 # Catch Up
 
 ## Overview
 
-Dan works this vault in bursts separated by gaps — sometimes weeks. This skill is
-what he says (or what fires automatically at a session's start) to reconstruct
-context and clear the backlog that accumulated while he was away, in one pass.
+Dan works this vault in bursts separated by gaps — sometimes weeks. This skill
+runs when he asks for it ("catch me up", or `/catch-up`) to reconstruct context
+and clear the backlog that accumulated while he was away, in one pass.
 
 It is **not** a status report. It changes the vault: files get moved, TODO.md
 gets swept, rollups get written, and today's note gets a fresh `## Today` block.
@@ -19,6 +19,10 @@ that *does* need judgment (which of several candidate homes a note belongs in)
 gets a best-effort placement plus a one-line note in the daily log, not a stop.
 
 ## The four steps, always in this order
+
+**First, confirm the working directory is the vault**: it has `TODO.md` and
+`000-periodic_notes/`. If either is missing, stop and say so — don't run any
+step.
 
 ### 1. Drain `inbox/` (was `000-triage/`)
 
@@ -42,22 +46,30 @@ re-migrate on every run.
 
 ### 2. Sweep `#todo`
 
-Search the vault for unchecked `- [ ] task text #todo` lines outside `TODO.md`
-itself:
+Search the vault for `#todo` task lines outside `TODO.md` itself — once for
+unchecked `- [ ] task text #todo` lines, once for checked `- [x]` ones:
 
 ```bash
-grep -rn '\- \[ \].*#todo' --include='*.md' . | grep -v '^\./TODO.md'
+grep -rn '\- \[ \].*#todo' --include='*.md' . | grep -vE '^(\./)?TODO\.md:'      # unchecked
+grep -rn '\- \[[xX]\].*#todo' --include='*.md' . | grep -vE '^(\./)?TODO\.md:'   # checked
 ```
 
-For each hit:
-- Add a corresponding line to `TODO.md` under the right context heading, with
-  a backlink to the source note: `- [ ] task text (from [[Source Note]])`.
-- Leave the `#todo` line in the source note as-is (the tag marks it swept, it
-  doesn't get deleted — the source stays the historical record).
+The filter accepts paths with or without a leading `./`: Claude Code's `grep` prints them without it.
 
-**Reconcile both directions**: if an item is checked in `TODO.md` but its
-source `#todo` line is still unchecked, check the source too (and vice versa).
-Never let the two drift.
+For each unchecked hit:
+- **No duplicates.** If `TODO.md` already has that task with the same
+  `(from [[Source Note]])` backlink, checked or unchecked, skip it.
+- Otherwise, add a corresponding line to `TODO.md` under the right context
+  heading, with a backlink to the source note:
+  `- [ ] task text (from [[Source Note]])`.
+- Leave the `#todo` line in the source note as-is (it doesn't get deleted —
+  the source stays the historical record). The tag stays on swept and new
+  lines alike, so the `TODO.md` check above is what tells them apart.
+
+**Reconcile both directions**, using both result sets: if an item is checked
+in `TODO.md` but its source `#todo` line is still unchecked, check the source
+too; if a source line is checked but its `TODO.md` line isn't, check that
+too. Never let the two drift.
 
 **The `#todo` gate is the note-sweep lane only.** It has nothing to do with
 the Plaud author-filter (that's `plaud_sync.py`'s `extract_actions()`, fixed

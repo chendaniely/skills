@@ -10,7 +10,7 @@ Tags: #product_search
 
 # <Topic Title>
 
-**Status (YYYY-MM-DD): open — no purchase yet.** ⭐ **Pick: [<Product>](<url>), $<price>** — <one clause on why>. <One clause on what would change it.>
+**Status (YYYY-MM-DD): open — no purchase yet.** ⭐ **Pick: [<Product>](<url>), CA$<price>** — <one clause on why>. <One clause on what would change it.>
 
 ## ⭐ Shortlist
 
@@ -23,16 +23,16 @@ Tags: #product_search
 
 | | Product | Price | <most decisive criterion> | <criterion 2> | <criterion 3> | Verdict |
 |---|---|---|---|---|---|---|
-| ![[product-a.jpg\|150]] | ⭐ **[Product A](<url>)**<br>*<one-line spec>* | **$X** | ✅ <value> | ✅ <value> | ⚠️ <value, N% over> | ⭐ <one clause> |
-| ![[product-b.jpg\|150]] | **[Product B](<url>)**<br>*<one-line spec>* | **$Y** | ⚠️ <value, gap> | ✅ <value> | ❓ not published | <one clause> |
-| ![[product-c.jpg\|150]] | **[Product C](<url>)**<br>*<one-line spec>* | **$Z** | ✅ <value> | ⚠️ <value, gap> | ✅ <value> | <one clause> |
+| ![[product-a.jpg\|150]] | ⭐ **[Product A](<url>)**<br>*<one-line spec>* | **CA$X** | ✅ <value> | ✅ <value> | ⚠️ <value, N% over> | ⭐ <one clause> |
+| ![[product-b.jpg\|150]] | **[Product B](<url>)**<br>*<one-line spec>* | **CA$Y** | ⚠️ <value, gap> | ✅ <value> | ❓ not published | <one clause> |
+| ![[product-c.jpg\|150]] | **[Product C](<url>)**<br>*<one-line spec>* | **CA$Z** | ✅ <value> | ⚠️ <value, gap> | ✅ <value> | <one clause> |
 
 ⚠️ **Near misses stay in this table.** A soft miss is a number to weigh, not a disqualification.
 
 ## Do this
 
 1. **<Free or cheap test first>** — costs nothing and may close the search.
-2. **Buy [<Product>](<url>), $<price>** — <one clause>.
+2. **Buy [<Product>](<url>), CA$<price>** — <one clause>.
 3. <Next action, verb first.>
 
 ## The brief
@@ -73,7 +73,7 @@ The need: <one or two sentences>.
 
 | | Candidate | Price | <criterion 1> | <criterion 2> | Verdict |
 |---|---|---|---|---|---|
-| ![[img.jpg\|150]] | **[Name](<url>)** | **$X** | ✅ <value> | ⚠️ <value, gap> | ✅ / ⚠️ / ⛔ <reason> |
+| ![[img.jpg\|150]] | **[Name](<url>)** | **CA$X** | ✅ <value> | ⚠️ <value, gap> | ✅ / ⚠️ / ⛔ <reason> |
 
 ## Why
 
@@ -87,7 +87,7 @@ The need: <one or two sentences>.
 
 | Candidate | Why | The number |
 |---|---|---|
-| **<Name>** | ⛔ <hard requirement it fails> | <the actual value vs. the requirement> |
+| **[<Name>](<url>)** | ⛔ <hard requirement it fails> | <the actual value vs. the requirement> |
 
 ## Open questions
 

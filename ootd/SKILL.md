@@ -1,6 +1,6 @@
 ---
 name: ootd
-description: 'Use when the vault owner shares a photo of an outfit they are wearing — pasted into a note, attached in chat, or given as a file path — with any phrasing of "ootd", "outfit of the day", "rate this outfit", "what do you think of this fit", "what am I wearing". Also use when an unlogged outfit photo turns up in the daily note or inbox during another task. Assumes an Obsidian-style vault with a clothing inventory folder and a fashion topic.'
+description: 'Use when the vault owner shares a photo of an outfit they are wearing — pasted into a note, attached in chat, or given as a file path — with any phrasing of "ootd", "outfit of the day", "rate this outfit", "what do you think of this fit", "what am I wearing". If an unlogged outfit photo turns up in the daily note or inbox during another task, mention it and offer to log it; start only after the owner says yes or types /ootd. Assumes an Obsidian-style vault with a clothing inventory folder and a fashion topic.'
 ---
 
 # Ootd
@@ -16,14 +16,14 @@ description: 'Use when the vault owner shares a photo of an outfit they are wear
 ## When to use
 
 - The owner shares an outfit photo and says any form of "ootd" / "rate this" / "thoughts?"
-- An outfit photo sits in the daily note or inbox as a bare `Pasted image …` embed no OOTD note references
+- During another task, an outfit photo sits in the daily note or inbox as a bare `Pasted image …` embed no OOTD note references → mention it and offer to log it; **start the run only after the owner says yes or types `/ootd`**
 - The owner asks which visible pieces are not in the inventory yet
 
 **Not for:** one garment's labels with no outfit (`clothing-inventory`); pre-purchase research (`product-search` — an OOTD only *links* such a note); product photos or other people's outfits.
 
 ## Resolve the vault first
 
-Read the vault's `CLAUDE.md` and resolve: the OOTD log folder + filename pattern · the inventory items folder, its conventions note and photo-filing script · the attachment folder and photo-normalizing script · the memory note and the hub note holding hard personal specs · the daily-note path and log heading · the TODO surface and its fashion heading · the lint command. **Undeclared → ask, then record the answer in that `CLAUDE.md`.**
+Read the vault's `CLAUDE.md` and resolve: the OOTD log folder + filename pattern · the inventory items folder, its conventions note and photo-filing script · the attachment folder and photo-normalizing script · the memory note and the hub note holding hard personal specs · the daily-note path and log heading · the TODO surface and its fashion heading · the lint command. **Undeclared → ask and use the answer for this run; propose the `CLAUDE.md` line in the step-14 report and write it only after the owner agrees.**
 
 *Illustrative only — one vault's values (2026-09):* `wiki/topics/fashion/log/YYYY-MM-DD-ootd.md` · `inventory/items/<Item>/<Item>.md` + `inventory/Inventory.md` + `python3 scripts/file-inventory-photos.py "<Item>" --kind mine` · `ze-files/ootd/` via `uv run scripts/ootd_photo.py` · `wiki/topics/fashion/reference/Personal Style.md` + `Fashion.md` → `## Personal specs` · `000-periodic_notes/daily/YYYY/MM/YYYY-MM-DD.md` → `## Log` · `TODO.md` → `## Fashion` · `uv run scripts/lint.py`.
 

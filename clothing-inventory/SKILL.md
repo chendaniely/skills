@@ -68,7 +68,7 @@ Mirror the URL into the `url:` frontmatter key so it is queryable, and keep the 
 |---|---|
 | `category` | **The vendor's own category word** (`shirt`, `cardigan`, `jacket`) — even when it wears as something else. Say so in the note and cover the other reading in `aliases` |
 | `capacity_l` | **Omitted entirely, not left blank.** A bag field; a shirt has no volume. Blank means *no published figure*; absent means *not applicable* |
-| `size` | Always filled — the size tab is the whole basis, so cite it |
+| `size` | Off the size tab, cited. **Empty until the tab is read** (for example a piece confirmed from an outfit photo), with an `## Open questions` checkbox to read it |
 | `aliases` | Garment convention: the product number, the native-script and accented forms, and any wrong-but-intuitive name |
 | `color` | The **observation**, not the vendor's name for it. Vendor colourway names stay in prose until confirmed off the garment's own label |
 | `url` | The official product page. Empty if none exists — never a guess |
@@ -92,6 +92,7 @@ The filename spec lives in `inventory/Inventory.md`. What is garment-specific:
 - **Read every label at full resolution before transcribing.** Crop and upscale the symbol block; a two-dot iron read as one dot is a 40 °C error
 - **A vendor image is a stand-in, not a record.** It clears the *Needs photos* view while proving nothing about condition, wear or even the right colourway. Flag it in the caption *and* in `## Notes`, with the exact command to fix it:
   `python3 scripts/file-inventory-photos.py "<Item Name>" --kind mine`
+- **A worn shot is filed as a face-free crop** — the garment region only, the same as `ootd` files it
 - **Verify the product image after downloading** — read it back and check it shows this garment, in this colourway
 - ⭐ **A white label in frame is a white-balance anchor.** Black-versus-navy can often be settled from the photos already taken — sample the fabric, correct against the known-white label, and report the numbers. Do this before recommending anyone buy a lamp
 
@@ -105,7 +106,7 @@ The filename spec lives in `inventory/Inventory.md`. What is garment-specific:
 - **Measurements are garment measurements, not body measurements** — laid flat, chest doubled. Say it every time.
 - **Supersede by annotation, never deletion.** A corrected reading keeps the wrong one visible with the reason, because the wrong version is usually the intuitive one and will otherwise be re-derived.
 - **Explain empty fields affirmatively.** An empty `evaluation:` gets a Notes bullet saying the catalogs record pre-purchase research and this was not researched — otherwise it reads as an unfinished note.
-- **Name the transferable finding.** If something learned here would help next time, mark it ⭐ and state it as a rule, then carry it into the vault's `CLAUDE.md` or this skill.
+- **Name the transferable finding.** If something learned here would help next time, mark it ⭐ and state it as a rule in the note. Carrying it into the vault's `CLAUDE.md` or this skill is a proposal in the closing summary, applied only after Dan says yes. When run from `ootd`, `ootd`'s write scope applies.
 - **Score the garment against the vault's own frameworks** where one applies, and resolve the tension honestly rather than scolding — a material that loses to the framework can still be right for the role.
 
 ## Common mistakes

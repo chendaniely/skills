@@ -1,6 +1,6 @@
 ---
 name: product-search
-description: Use when creating or updating a product-search, product-comparison, or buying-guide note in a markdown knowledge vault — any note whose reader is deciding what to buy and will want to click through to candidates.
+description: 'Use when creating or updating a product-search, product-comparison, or buying-guide note in a markdown knowledge vault — any note whose reader is deciding what to buy and will want to click through to candidates. Dan asks with any phrasing of "what should I buy", "find me a …", "compare X and Y" or "research it", including from a `Worth buying` row in an OOTD note. Not for an item already owned (that is clothing-inventory) or for judging an outfit (that is ootd).'
 ---
 
 # Product Search Notes
@@ -19,7 +19,7 @@ Write these sections, **in this order**. Omit one only if it is genuinely empty.
 |---|---|---|
 | 1 | *(frontmatter + H1)* | `Tags: #product_search`; add `Decision` / `Decided` / `Rationale` once settled |
 | 2 | **Verdict line** | One line, directly under the H1: status, date, and the current pick **with its price** |
-| 3 | `## ⭐ Shortlist` | **The top thing on the page.** Ranked table, 3–6 rows, every row image + link + price + pros + cons |
+| 3 | `## ⭐ Shortlist` | **The top thing on the page.** Ranked table, 3–6 rows, every row image + link + price + criterion cells + verdict |
 | 4 | `## Do this` | Numbered actions, ≤6, each starting with a verb. Free/cheap tests come first |
 | 5 | `## The brief` | The need, then hard requirements as a checklist or table |
 | 6 | `## Fit facts` | Measurements/constraints table, with a confidence or source column. ⭐ **If the search is gated on a space the owner already has, an owner reference photo of that space is required here** — and if none exists yet, asking for it is an action in `## Do this` |
@@ -33,7 +33,7 @@ Write these sections, **in this order**. Omit one only if it is genuinely empty.
 
 ## Tables adapt to the search
 
-**The requirements define the columns.** There is no fixed schema beyond image · name · price — every other column is a criterion *this* search is optimising for, so a reader can see match-or-miss without reading prose.
+**The requirements define the columns.** There is no fixed schema beyond image · name · price · verdict — every other column is a criterion *this* search is optimising for, so a reader can see match-or-miss without reading prose.
 
 - **One column per criterion that discriminates.** Bag search → capacity · laptop fit · weight · material. Light search → lux at working distance · CRI · CCT range · mount. Table search → height · footprint · material · weather.
 - ⭐ **Drop any column every candidate passes.** A column where all rows say ✅ is decoration — state it once in the brief as an entry condition and reclaim the width for something that separates candidates.
@@ -67,25 +67,28 @@ Write these sections, **in this order**. Omit one only if it is genuinely empty.
 
 ## The row contract (non-negotiable)
 
-**Every row naming a product, in every table, carries all four:**
+**Every row naming a product, in every table, carries all five:**
 
 ```
-| ![[image.jpg\|150]] | **[Product Name](https://buy-here)** | **$134** | specs · pros | ⚠️ cons |
+| ![[image.jpg\|150]] | **[Product Name](https://buy-here)** | **CA$134** | ✅ <value> | ⚠️ <value, gap> | <verdict> |
 ```
 
 1. **Image** — embedded, sized 120–150 in tables
 2. **Name, hyperlinked** to somewhere it can be bought or specced
-3. **Price** with currency, plus an as-of date somewhere on the page
-4. **Enough spec to judge** without clicking
+3. **Price** with a currency code (`CA$`, `US$`), plus an as-of date somewhere on the page
+4. **Criterion cells** — one per column this search uses (see *Tables adapt to the search*), each with a match marker
+5. **Verdict** — one clause
 
 A row missing the image or the link is incomplete — the reader is browsing, and a name they cannot see or click costs them a search.
+
+**`## Ruled out` is the one exception:** its rows need the hyperlinked name, but no image.
 
 ## Rules
 
 - **Tables and bullets over prose.** Prose only where reasoning genuinely needs sentences (`## Why`). No paragraph where a table works.
 - **Rank the shortlist** and mark the single pick ⭐. Ties are a failure to decide — say which wins and on what.
-- **Pros/cons: ≤3 each, phrases not sentences.** Lead with the discriminating one.
-- **Prices are perishable.** Always stamp "read YYYY-MM-DD — re-verify at checkout". Note the retailer, and prefer a local/in-stock channel when one exists.
+- **Verdict cells: one clause.** Lead with what decides it.
+- **Prices are perishable.** Always stamp "read YYYY-MM-DD — re-verify at checkout". Note the retailer, and prefer a local/in-stock channel when one exists. Rank on one currency: convert any other price, and state the conversion and the date read (`US$99 ≈ CA$136 at 1.37, read YYYY-MM-DD`).
 - **Images live in the vault**, not hotlinked: download to the attachment folder, kebab-case descriptive filename (`amaran-ace-25c.jpg`), embed with `![[name.jpg|150]]`. ⚠️ Inside a table the pipe must be escaped: `\|`.
 - **Verify the photo shows the product.** Read the image after downloading — listings mislabel, and a folding lamp photographed folded reads as a straight bar.
 - **A photo shows one *state* of a moving thing.** Before generalising from what surrounds an object in a photo, establish which state it is in. A cabinet door photographed *open* shows a room the closed door hides — an aesthetic constraint read off that background can be entirely spurious. Geometric inferences from a photo usually survive; contextual ones need the state confirmed first.

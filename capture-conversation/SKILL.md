@@ -118,7 +118,7 @@ into two topics = same timestamp, two slugs.
 ```
 
 The `-transcript` / `-audio` suffixes keep the pair adjacent in file lists and give
-Obsidian Bases a metadata-free filter (`!file.name.endsWith("-transcript")`).
+Obsidian Bases a metadata-free filter (`!file.basename.endsWith("-transcript")`).
 
 ## Frontmatter Schemas
 
@@ -171,111 +171,22 @@ Keep keys consistent — they are the future Obsidian Base's columns.
 
 ## Steps
 
-1. **Obtain the full text.** Shared claude.ai links are JS-rendered — fetch via a
-   browser tool (navigate → wait → extract `main` innerText), not plain HTTP. For
-   audio: transcribe (diarize if multi-party), keep the audio file.
-   *Learned in ingestion #1:* browser-extracted text contains icon-font
-   Private-Use-Area glyphs (U+E000–U+F8FF — strip them) and duplicated
-   per-message preview lines; clean these **mechanically with a small script**
-   rather than retyping — on long transcripts, regeneration by hand drifts.
-   *Learned in ingestion #2 (audio meeting, 2 speakers, no Zoom auto-transcript):*
-   local ASR via `uvx --from mlx-whisper mlx_whisper <audio> --model
-   mlx-community/whisper-large-v3-turbo --output-format json --word-timestamps
-   True` works well on Apple Silicon (minutes, not tens-of-minutes, for a
-   30-min recording; no HF token needed for the ASR model itself) — check
-   `~/.cache/huggingface/hub/` first, the model may already be cached from
-   unrelated research. **Diarization is the harder gap**: "diarize if
-   multi-party" doesn't cover the common case, which is two people with no
-   diarization tool installed and no `HF_TOKEN` (gated pyannote models need
-   one). Fallback that worked: attribute speaker turns *by content* —
-   consistent verbal tics/argument style per speaker, cross-checked against
-   any already-documented position for each person elsewhere in the vault
-   (e.g. an existing note recording what each side already believes). This is
-   real evidence, not a coin flip, and confidence is high for substantive
-   turns — but say so explicitly in the transcript's provenance note rather
-   than presenting it as diarized ground truth, and for rapid mutual
-   backchannel volleys ("yeah"/"right"/"for sure" traded with no
-   distinguishing content) where attribution is genuinely unrecoverable from
-   content alone, group them under one timestamp instead of force-labeling
-   each word. **Hardest-won lesson:** the pull to silently "clean up" ASR
-   mishearings (a proper noun, a jargon term, a course code) while typing out
-   the transcript is *strong* — resist it exactly as hard as the browser
-   icon-glyph case. A first pass of this ingestion quietly normalized several
-   ASR garbles (a course code, a tool name misheard four different ways, a
-   term repeated as "cognitive science" that was never actually said) before
-   the mistake was caught and the transcript redone from raw output. Garbles
-   stay verbatim in the source; decode them in the thinking note, every time,
-   no exceptions for "obviously what they meant."
-   *Learned in ingestion #3 (claude.ai share link, voice-mode dialogue):* the
-   share page loads its content from
-   `https://claude.ai/api/chat_snapshots/<share-id>?rendering_mode=messages&render_all_tools=true`.
-   **Capture that JSON while a real browser loads the page** (Playwright
-   `page.on('response', …)`, match the URL, save the body) and build the
-   transcript from it instead of from `main` innerText: `chat_messages[]` carries
-   `sender`, `index`, exact ISO `created_at` per turn (the rendered page only
-   shows relative "15 hours ago" once a chat is a day old), `input_mode`
-   (`voice` vs text — settles the voice-capture question), `attachments`/`files`,
-   and clean `content[].text` with no duplicated preview lines or icon glyphs.
-   ⚠️ `chat_messages[].text` is **empty** — read `content[].text`. ⚠️ Timestamps
-   are UTC (`Z`); convert to the owner's local zone before naming files
-   (`2026-08-18T23:37Z` → `2026-08-18-1637` in PDT). Access notes: plain `curl`
-   of either the page or the API gets Cloudflare's "Just a moment" (403);
-   headless Chromium and headed Chrome-for-Testing were challenged too. What
-   passed: the real `/Applications/Google Chrome.app` binary driven by
-   `playwright` (already in the npx cache: `~/.npm/_npx/*/node_modules/playwright`,
-   symlink it as `node_modules` next to the script) with a throwaway
-   `launchPersistentContext` profile, `--disable-blink-features=AutomationControlled`
-   and `ignoreDefaultArgs: ['--enable-automation']`. Needed because the Playwright
-   MCP browser profile can be locked by another live session ("Browser is already
-   in use …") — don't kill that Chrome, it belongs to someone else's session.
-   *Learned in ingestion #4 (claude.ai share link, voice-mode dialogue with tool
-   use):* the snapshot JSON isn't just more convenient than page text — on a
-   conversation where Claude calls tools, **rendered-text extraction is wrong, not
-   merely noisy.** Two failures, both silent: (a) an assistant message consisting
-   *only* of `tool_use`/`tool_result` with no prose (the model ran code, then spoke
-   in the *next* message) **renders no text at all and disappears entirely** — the
-   DOM pass found 72 turns where the JSON has 73; (b) tool-use blocks render
-   *after* the preceding user message, so a naive parse **attributes them to the
-   human speaker**. Neither error announces itself; both were caught only by
-   diffing the two extractions. Prefer the JSON whenever tools are involved, and
-   if you must fall back to page text, reconcile the turn count against
-   `chat_messages.length` before trusting it. Also: `Used a tool` / `Used 2 tools`
-   appears **twice** per tool block in page text (collapsed preview + expanded
-   body) — that doubling is chrome, not two invocations. In the JSON, keep the
-   tool code and stdout verbatim **including failed calls**; this capture's
-   sandbox lost state twice and re-sent the same code with definitions inlined,
-   and those `NameError`s are part of how the thinking actually went.
-   *Learned in ingestion #5 (claude.ai share link, voice-mode product search,
-   2026-09-06):* ⚠️ **the share-snapshot route from #3/#4 is closed.**
-   `GET /api/chat_snapshots/<share-id>?rendering_mode=messages&render_all_tools=true`
-   now returns `403 {"type":"permission_error","message":"Authentication required"}`.
-   Verified four ways: plain `curl`; the #3 recipe exactly (real Chrome binary,
-   throwaway `launchPersistentContext`, `--disable-blink-features=AutomationControlled`)
-   where the app's *own* preload fetch was captured off the wire and was itself a 403;
-   and from inside a logged-in claude.ai session with `credentials: 'include'` **and**
-   `'omit'`. The share **page still renders the conversation normally** — only the JSON
-   endpoint is gated, so the failure is silent unless you check the status code.
-   **Working fallback, for the owner's own conversations:** list with
-   `GET /api/organizations/<org-uuid>/chat_conversations?limit=40`, match by title, then
-   `GET /api/organizations/<org-uuid>/chat_conversations/<conversation-uuid>?tree=True&rendering_mode=messages&render_all_tools=true`.
-   Same `chat_messages[]` shape, same `content[].text` / `created_at` / `input_mode`, so
-   every #3/#4 lesson still applies. Get `<org-uuid>` from `GET /api/organizations`.
-   ⚠️ **This only works for your own chats** — a share link from someone else now has no
-   JSON route at all, and must fall back to page text *with* the #4 turn-count
-   reconciliation. **Always verify structurally:** the API's message count, sender split,
-   `input_mode` set and tool-call count should match the written transcript's turn headers
-   and tool blocks exactly, and it is cheap to assert.
-   *Transport gotcha:* getting a 33 KB transcript out of a browser tool whose result is
-   capped at ~1 KB defeats slicing (33 round-trips) and base64 (blocked as encoded data by
-   the Chrome extension's filter), and claude.ai's CSP blocks `fetch()` to a localhost
-   receiver. What worked in one call: **write the built markdown into the page DOM**
-   (`document.body.innerHTML = '<pre>'`; set `textContent`) **and read it back with the
-   extension's page-text extractor**, which has a far larger cap than the JS-eval return.
+1. **Obtain the full text.** Every run: clean mechanically **with a small
+   script, never by retyping** — on long transcripts, regeneration by hand
+   drifts. Garbles stay verbatim in the source and are decoded in the thinking
+   note. Pick the route by input:
+   - **(a) The user's own claude.ai chat** → the conversation JSON from the
+     claude.ai org API (unofficial, may break). See
+     [references/claude-chat-sources.md](references/claude-chat-sources.md).
+   - **(b) Someone else's share link** → page text via a browser tool, with
+     turn-count reconciliation. Same file.
+   - **(c) Audio** → transcribe locally and keep the audio file. See
+     [references/audio-transcription.md](references/audio-transcription.md).
 2. **Identify shape and purpose** from the content. Note conversation date and
-   start time (in-conversation timestamps beat file dates). For share-link captures,
-   the first `chat_messages[].created_at` in the snapshot JSON *is* the start time
-   (UTC — convert). Confirm the date with
-   the user if ambiguous.
+   start time (in-conversation timestamps beat file dates). For the user's own
+   claude.ai chats, the first `created_at` in the conversation JSON *is* the
+   start time (UTC — convert); for someone else's share link, use the page's
+   timestamps. Confirm the date with the user if ambiguous.
 3. **Privacy gate.** Scan for sensitive or sensitive-adjacent passages (private
    topics, other people's information, work-policy matters). Ask the user:
    full verbatim / flagged redactions (marked `[redacted: reason]`) / excluded
@@ -313,9 +224,11 @@ Keep keys consistent — they are the future Obsidian Base's columns.
    with a backlink to the thinking note — the thinking note's `## Action items`
    stays as the historical record; the backlog copy is the live one.
 9. **Maintain the system.** Ask: did this run reveal a convention gap, a schema
-   tweak, a new input shape? If yes, update the vault's CLAUDE.md and **this skill**
-   accordingly (and say so in the session). The skill is expected to evolve —
-   that's why it lives in a git repo.
+   tweak, a new input shape? If yes, **propose, then apply**: show the user the
+   proposed change to the vault's CLAUDE.md or to **this skill**, and apply it
+   only after the user says yes. A new lesson goes into the relevant
+   `references/` file as a short general rule, not into Steps as a dated story.
+   The skill is expected to evolve — that's why it lives in a git repo.
 
 ## Sensitive Information
 
@@ -325,58 +238,19 @@ ask before writing — and respect any hard exclusion rules the vault declares.
 
 ## Future: Obsidian Base
 
-(Obsidian-specific — other tools would put their own query/view layer over the
-same frontmatter.) Not built yet — but the frontmatter above is designed for it. When wanted, a
-`Conversations.base` (wherever the target vault keeps Bases) looks like:
-
-```yaml
-filters:
-  and:
-    - file.inFolder("<captures folder>")
-    - '!file.name.endsWith("-transcript")'
-views:
-  - type: table
-    name: All captures
-    order: [file.name, Created, Type, Purpose, Source]
-    sort: [{property: Created, direction: DESC}]
-  - type: table
-    name: Own cognition
-    filters: {and: ['Purpose == "own-cognition"']}
-    order: [file.name, Created, Type]
-  - type: table
-    name: External material
-    filters: {and: ['Purpose == "external-material"']}
-    order: [file.name, Created, Type]
-```
-
-Candidate future keys (add only when a real view needs them): `Status:
-open/settled` for whether open threads remain, `Participants:` for multi-party,
-`Project:` to group captures by venture.
-
-**Separation from other Bases.** Conversations never join a vault's domain Bases
-(e.g. a products/decisions Base) — those are fed by their own note types, not
-captures. When a conversation *is about* such a domain (say, a product to
-purchase), the capture pair still lands in the captures folder, and the domain
-note (wherever that vault keeps it) is created/updated separately with a wikilink
-to the capture as prior context. The graph connects the two; each Base stays
-clean over its own note type.
+(Obsidian-specific.) Not built yet — but the frontmatter above is designed for it.
+The draft `Conversations.base`, candidate future keys, and how captures stay out
+of a vault's other Bases:
+[references/obsidian-base.md](references/obsidian-base.md).
 
 ## Open Threads (v0)
 
 - **Quick-capture vs deep-distill modes** — v0 always does the deep pass; a
   fast-and-rough mode is a deliberate future split (chosen by the user, not
   auto-detected).
-- **Diarization remains unsolved, now with real evidence it's the wrong thing
-  to chase first.** Ingestion #2 (2-party meeting, no diarization tool, no
-  HF token) used content-based speaker attribution instead — see Steps §1 —
-  and it worked well enough on substantive turns. True audio diarization
-  (pyannote needs a gated HF model + token; NeMo is a heavy install) is still
-  untested; worth revisiting only if a capture's content is too symmetric in
-  style for the content-based fallback to work (e.g. two people who argue
-  alike, or 3+ speakers where pairwise stylistic contrast breaks down).
-- Share links now have a clean machine-readable path (the snapshot JSON above),
-  but it still starts from a manual "share" click and a real browser session —
-  not automation.
-- Automated pull of claude.ai conversations isn't possible on Pro/Max plans
-  (manual export/share links only) — revisit if Anthropic ships connectors/API
+- **Diarization remains unsolved** — status and the content-based fallback are
+  in [references/audio-transcription.md](references/audio-transcription.md).
+- There is no official API for claude.ai chat history on Pro/Max plans. The org
+  endpoint used for the user's own chats is unofficial and may break; otherwise
+  it's manual export/share links — revisit if Anthropic ships connectors/API
   for chat history.

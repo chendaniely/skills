@@ -6,6 +6,7 @@ Type: {{monologue | dialogue | multi-party}}
 Purpose: {{own-cognition | external-material}}
 Source: {{URL or origin description}}
 Thinking note: "[[{{basename}}]]"
+Audio: "[[{{basename}}-audio.mp3]]"   # audio-first captures only — delete otherwise
 ---
 
 > Verbatim source. {{One-line provenance: e.g. "Voice conversation with Claude
