@@ -1,6 +1,6 @@
 ---
 name: email-digest
-description: 'Use when Dan asks to run, refresh or re-run his email digest (any phrasing of "run my email digest", "check my email", "what needs a reply", "update my email todos"), and when the daily-email-digest scheduled task fires. Scans Thunderbird mail read-only, classifies every pending message yourself (agent mode), renders the digest plus the email checklist in today''s Obsidian daily note, and reports an Inbox Brief. Driven by the claude-cowork repo; never replies to, marks, moves or deletes mail.'
+description: 'Use when Dan asks to run, refresh or re-run his email digest (any phrasing of "run my email digest", "check my email", "what needs a reply", "update my email todos"), and when the daily-email-digest scheduled task fires. Covers his Thunderbird mail through the claude-cowork repo, strictly read-only: never replies to, marks, moves or deletes mail.'
 ---
 
 # Email Digest
@@ -22,28 +22,88 @@ Hard rules, never negotiable:
 - **The daily note is the code's to write.** Never hand-edit anything between
   `<!-- ea-email:begin todos … -->` and `<!-- ea-email:end todos -->`, and
   never tick a box for Dan.
+- **Use only the operations in the table below.** Anything else asks for
+  permission, and in a scheduled run nobody answers.
+
+## What a run may do
+
+| Need | Use exactly |
+|---|---|
+| A pipeline step | Bash, one plain command per call, from the repo root: `uv run digest.py <subcommand> …` |
+| Look at pending mail | `uv run digest.py show-pending …` |
+| Save verdicts | The Write tool, into your session's scratchpad directory (named in your system prompt) |
+| Read a file | The Read tool |
+
+The Bash commands are written exactly as in the steps: no `cd`, pipes,
+redirects, `&&` or heredocs. Everything else waits for an approval:
+`python`, `python3`, `uv run python`, helper scripts, `cat`, `ls`, `sqlite3`,
+`grep`, the `obsidian` CLI (the repo uses it elsewhere, but not here), and
+any write inside the repo. When that happens in a scheduled run, the run
+hangs for days, writes no digest, and still shows "succeeded". This happened
+about 15 times between July and September 2026. Don't Read `pending.json`
+itself either: it's large, and `show-pending` exists to page through it.
+If a step seems to need more than the table allows, skip that part and say
+so in the brief. If there is no scratchpad directory, stop and report that.
+
+**If the run stops early,** the brief is a single line saying what stopped
+it and which steps didn't run.
 
 ## Two modes
 
 - **Unattended** (the scheduled task says so, or nobody is there to answer):
   never ask questions. Make reasonable calls and list them in the brief.
-- **Interactive** (Dan asked in a session): same steps. You may ask before
-  anything ambiguous, e.g. whether an old still-open item is really resolved.
-  Still never tick boxes or touch mail on his behalf.
+- **Interactive** (Dan asked in a session): same steps and same table. You may
+  ask before anything ambiguous, e.g. whether an old still-open item is
+  really resolved. Still never tick boxes or touch mail on his behalf.
 
 ## Steps
 
-1. **Scan** — `uv run digest.py scan`. If it reports mailbox files missing
-   (the expansionSD volume isn't mounted), stop and report that.
-2. **Export** — `uv run digest.py export-pending --out pending.json`. If 0,
-   skip to step 5.
-3. **Classify** every message in `pending.json`. Fields per message:
-   `account`, `message_id`, `from_addr`, `subject`, `date`, `body_snippet`
-   (up to ~3000 chars).
-   - **Read it in batches with a script.** Print one compact line per message
-     (index, account, sender, date, subject, first ~150 chars of body). Never
-     read the raw file wholesale. Print longer bodies only for ambiguous ones.
-   - **Classify each one:**
+1. **Scan** — `uv run digest.py scan`.
+   - **Every mailbox reported missing** means the expansionSD volume isn't
+     mounted: stop and report that.
+   - **Only some missing:** carry on, and name those accounts in the brief.
+2. **Export** — `uv run digest.py export-pending --out pending.json`. It
+   prints how many messages it exported. If 0, skip to step 4.
+3. **Classify, one batch at a time.**
+   - **Skim everything first**, so you can see threads across the backlog:
+     `uv run digest.py show-pending --start 0 --count 150 --chars 0`, then the
+     same command with `--start 150`, `--start 300`, … (keep `--count 150
+     --chars 0` every time) until it prints `nothing at #…`.
+   - **Read a batch:** `uv run digest.py show-pending --start 0 --count 40`.
+     Each entry is `#n <id> · account · date · sender`, then the subject and
+     the start of the body. For an ambiguous one,
+     `uv run digest.py show-pending --id <id>` prints the whole message.
+   - **Classify each message in the batch** (rules below).
+   - **Save the batch** with the Write tool as
+     `<scratchpad>/verdicts-<start>.json`, one entry per message in the
+     batch, with each `id` copied exactly from the listing:
+
+     ```json
+     {"verdicts": [
+       {"id": "3f2a9c01", "importance": "high",
+        "reason": "Ann needs your receipts by Friday.",
+        "suggested_action": "Send Ann the travel receipts"},
+       {"id": "0b91d4e7", "importance": "none",
+        "reason": "Newsletter.", "suggested_action": null}
+     ]}
+     ```
+   - **Ingest it:** `uv run digest.py ingest-verdicts <scratchpad>/verdicts-<start>.json`.
+     It prints `applied A, unknown U · P still pending`. If `unknown` isn't 0,
+     the `unmatched:` line names the entries it refused:
+     - an id you mistyped: correct it from the listing, save the file again,
+       and ingest it again (entries already applied are just reported as
+       unmatched the second time);
+     - an id that appears in no listing: delete that entry, and name it in
+       the brief. Never guess which message it meant.
+   - **Repeat** the same read command with `--start 40`, `--start 80`, … (keep
+     `--count 40` every time) through the last batch. Ingesting after every
+     batch keeps the work if the session dies.
+   - **Finish the leftovers.** If the last ingest doesn't say `0 still
+     pending`, run `uv run digest.py show-pending --remaining` to list exactly
+     those messages. Classify them into one more file and ingest it. Leave any
+     you still can't judge, and report the count in the brief: they surface as
+     unclassified if the next run misses them too.
+   - **Classification rules:**
      - `importance` is one of:
        - `high`: needs Dan's action (a direct request, a question awaiting his
          reply, a deadline, a bill, a registration, anything time-sensitive).
@@ -58,43 +118,38 @@ Hard rules, never negotiable:
        medium item becomes a checklist line in the daily note, so make it a
        task Dan can tick off.
    - **Judgment calls:**
-     - Be thread-aware across the batch. If a later message resolves an
-       earlier one (form submitted, contract signed, invite superseded,
-       meeting rescheduled), downgrade the earlier item and note the
-       resolution.
+     - Be thread-aware across the whole backlog, using the skim. If a later
+       message resolves an earlier one (form submitted, contract signed,
+       invite superseded, meeting rescheduled), downgrade the earlier item
+       and note the resolution.
      - Real people writing to Dan personally are at least `medium`.
      - Students or colleagues awaiting his reply are `high`.
      - Past-dated events and reminders are `none`.
      - Calendar invites that auto-add are `low`, unless the meeting is within
        ~24h or comes from an unknown sender needing an RSVP decision.
-   - **Tip:** a script with an index → verdict dict, plus a sender regex for
-     obvious marketing, scales to hundreds of messages. Have it fail loudly
-     on any index you didn't cover.
-4. **Ingest** — write `verdicts.json` as
-   `{"verdicts": [{"account", "message_id", "importance", "reason", "suggested_action"}, …]}`.
-   Take `account` and `message_id` verbatim from `pending.json`, joined by
-   index. Never retype or truncate a message ID. Then run
-   `uv run digest.py ingest-verdicts verdicts.json`. It must report
-   `unknown 0`; otherwise fix the join and re-ingest.
-5. **Render** — `uv run digest.py render`.
-   - **What it does:** prints the digest, saves `digests/YYYY-MM-DD.md`, and
-     regenerates the `## Email` checklist in today's Obsidian daily note. It
-     prints `[daily note updated: …]`.
+     - Judge against today's date. Mail can be weeks old after a string of
+       failed runs; a request whose deadline has passed is still `high` if
+       Dan may owe a reply, and the reason should say it's overdue.
+4. **Render** — `uv run digest.py render`.
+   - **What it does:** prints the digest, saves `digests/YYYY-MM-DD.md` (UTC
+     date), and regenerates the `## Email` checklist in today's Obsidian
+     daily note. It prints `[saved to …]` and `[daily note updated: …]`. If
+     the printed digest is cut off, Read the saved file.
    - **What the checklist looks like:** grouped by priority, then account.
      Ticks are kept, and items Dan ticked on earlier days drop out.
    - **Re-running is safe** (the block is rewritten in place).
    - **Warnings go in the brief:** "vault not found" or "Obsidian CLI write
      failed; writing the file directly". The digest is valid either way.
-   - **To inspect the note yourself, stay read-only and use the Obsidian
-     CLI** (the app must be running):
-     - `obsidian vault=vault daily:read`
-     - `obsidian vault=vault tasks path="$(obsidian vault=vault daily:path)" todo total`
-     - The CLI exits 0 even on errors, so check stdout for `Error:`.
-     - Never create, move, delete or tick through it.
-6. **Report an Inbox Brief** (below), drawn from the rendered digest.
+   - **Open-item count for the brief:** Read the note at the path printed on
+     the `[daily note updated: …]` line, and count the `- [ ]` lines between
+     the `ea-email` markers. Never tick or edit through any tool.
+5. **Report an Inbox Brief** (below), drawn from the rendered digest.
 
 ## Inbox Brief format
 
+- **If the digest opens with `> ⚠ First digest in N days`, lead with that
+  line.** It means scheduled runs failed in between. Say so plainly, and
+  name the dates.
 - **One-sentence roll-up:** messages scanned (and classified, if a backlog
   made that bigger), how many need action, the 2–3 themes, any invites.
 - **Groups, in this order:** **Needs reply**, **Decision**, **FYI**,
@@ -113,14 +168,26 @@ Hard rules, never negotiable:
 - **Scope:** only what the digest surfaced.
   - Leave out bulk/marketing mail, system notifications and receipts.
   - Invites and anything time-sensitive always make the brief.
-  - Report counts honestly, including unclassified messages.
+  - Report counts honestly: unclassified messages, the footer's "awaiting
+    classification" count, and any batch you couldn't ingest.
   - Flag stale "still open" items (past-dated, or resolved by later mail) so
     Dan can tick them.
+  - Check the other direction too. The skim only covers pending mail, so a
+    new Needs-action item can already be resolved by a message an earlier run
+    classified. Look for it under "Still open" (e.g. "proposal submitted",
+    "TA accepted"), and flag the new item for ticking.
+  - List anything you skipped because the table above didn't allow it.
 
 ## Coupling with claude-cowork
 
-This skill depends on the repo's CLI (`scan`, `export-pending`,
-`ingest-verdicts`, `render`), the `pending.json` / `verdicts.json` shapes,
-the checklist markers, and `config.yaml`'s `obsidian` block. If any of those
-change in claude-cowork, update this file in the same sitting; the repo's
-`CLAUDE.md` says the same from its side.
+This skill depends on these parts of the repo:
+- the CLI: `scan`, `export-pending`, `show-pending`, `ingest-verdicts`,
+  `render`, and their output lines;
+- the `pending.json` shape (`id`, `account`, `message_id`, `from_addr`,
+  `subject`, `date`, `body_snippet`) and the verdict-file shape;
+- the checklist markers, and the digest's `> ⚠` gap line;
+- `config.yaml`'s `obsidian` block.
+
+If any of those change in claude-cowork, update this file in the same
+sitting. The repo's `CLAUDE.md` and its spec (Decisions Log #22, #25) say the
+same from their side.
