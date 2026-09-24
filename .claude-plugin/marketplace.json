@@ -1,0 +1,53 @@
+{
+  "name": "chendaniely-skills",
+  "owner": {
+    "name": "Daniel Chen",
+    "email": "chendaniely@gmail.com"
+  },
+  "metadata": {
+    "description": "Daniel Chen's personal Claude Code skills: vault workflows, wardrobe, teaching and ultrarunning.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "vault",
+      "description": "Obsidian-style vault workflows: conversation capture, catch-up and the daily email digest",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./capture-conversation",
+        "./catch-up",
+        "./email-digest"
+      ]
+    },
+    {
+      "name": "wardrobe",
+      "description": "Clothing inventory, outfit logging and product research notes for a vault",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./clothing-inventory",
+        "./ootd",
+        "./product-search"
+      ]
+    },
+    {
+      "name": "teaching",
+      "description": "Write up teachable moments from a conversation as Quarto documents for students",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./capture-learning-moment"
+      ]
+    },
+    {
+      "name": "running",
+      "description": "Offline crew guides for ultramarathons: aid stations, driving, cutoffs and drop bags",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./creating-ultra-crew-guides"
+      ]
+    }
+  ]
+}

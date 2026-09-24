@@ -9,8 +9,9 @@ Dan's personal Claude Code skills, public on GitHub as `chendaniely/skills`. Eac
   - If a skill's name is already taken there by a folder or a different link, it prints `skipped` and leaves it.
   - It removes its own links whose skill folder no longer exists.
 - **Keep skills flat at the top level** (decided 2026-09-16). Claude Code only discovers personal skills one level deep (`~/.claude/skills/<name>/SKILL.md`), so group folders wouldn't group anything, and a move breaks the paths listed below.
-  - A plugin marketplace would put a plugin prefix on skill names (`/plugin:skill`) and stop edits from applying mid-session.
-  - Revisit per the "Later" item in TODO.md.
+- **Marketplace (added 2026-09-23):** `.claude-plugin/marketplace.json` also publishes the skills as four plugins (`vault`, `wardrobe`, `teaching`, `running`) for `/plugin marketplace add chendaniely/skills`. A new or renamed skill must be listed there too.
+  - Plugin installs prefix skill names (`/wardrobe:ootd`) and are cached copies, so edits apply only after a push and plugin update. Anything that loads a skill by bare name (like the `daily-email-digest` task) needs the symlink install.
+  - Don't use both installs on one machine, or every skill loads twice.
 
 ## Paths other repos depend on
 

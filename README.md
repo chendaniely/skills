@@ -27,6 +27,15 @@ cd skills
 
 `install.sh` links each skill folder into `~/.claude/skills/`, so Claude Code finds it and edits here apply right away. It leaves everything else in that folder alone and removes links to skills that no longer exist. Run it again after adding or renaming a skill.
 
+Or install them as plugins from this repo's marketplace:
+
+```
+/plugin marketplace add chendaniely/skills
+/plugin install wardrobe@chendaniely-skills
+```
+
+The plugins are `vault`, `wardrobe`, `teaching` and `running`, matching the groups above. Plugin skills carry the plugin's name (`/wardrobe:ootd`) and update through `/plugin`; turn on auto-update for the marketplace there. Use one install method or the other, not both.
+
 Call a skill by name (for example `/capture-learning-moment`), or let Claude load it when a request matches its description.
 
 ## License

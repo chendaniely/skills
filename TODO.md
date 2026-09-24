@@ -57,7 +57,7 @@ These findings were confirmed by a second agent but not applied yet.
 
 ## Later
 
-- [ ] **Revisit the flat layout** when any of these happens: the repo reaches about 20–30 skills; folders that aren't skills appear (then move skills under `skills/`); or someone else wants to install them (then add `.claude-plugin/marketplace.json`). See `CLAUDE.md`.
+- [ ] **Revisit the flat layout** when any of these happens: the repo reaches about 20–30 skills, or folders that aren't skills appear (then move skills under `skills/`). The marketplace manifest was added 2026-09-23. See `CLAUDE.md`.
 
 ## Declined in the 2026-09-16 review
 
