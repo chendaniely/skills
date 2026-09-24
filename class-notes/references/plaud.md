@@ -38,6 +38,12 @@ Copying the note from the web app loses everything inside `<…>` (`<commit_id>`
 Plaud stores that the web app hides: `[](plaud://image…)` placeholders, HTML entities
 such as `&gt;`.
 
+Plaud separates blocks with a single newline, so its note renders as one run-on
+paragraph. `fetch` runs it through the same `tidy_markdown` as the `tidy` command:
+blank lines around headings, paragraphs and lists, each `> Date Time:`-style line kept on
+its own, and bare section titles (`Summary`, `Knowledge Points`, …) promoted to `##`.
+Plaud's broken code fences (`` `yaml `` where ` ```yaml ` was meant) are left alone.
+
 ## Availability
 
 `plaud file` shows `transcript:` and `summary:` as `available` once processing is done.

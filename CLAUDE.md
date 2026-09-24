@@ -22,6 +22,7 @@ When a skill folder is renamed or moved, update all of these in the same sitting
   - A safety hook may block broad commands over the whole vault. Use narrow paths or the vault's own scripts (`scripts/lint.py`).
 - **`~/git/private/claude-cowork`:** its `CLAUDE.md` and `README.md` point to `email-digest/SKILL.md` and say to commit skill changes here.
 - **The `daily-email-digest` scheduled task** (`~/.claude/scheduled-tasks/daily-email-digest/SKILL.md`): it loads `email-digest` by name and cites its path here. It stops if the skill can't be loaded, so a rename ends the daily digest until the task is updated.
+- **Course repositories using `class-notes`:** each one's `Makefile` runs `~/.claude/skills/class-notes/scripts/class_notes.py`, and its `README-prompt.md` tells students to clone this repo and run `class-notes/scripts/class_notes.py`. Renaming the skill, its `scripts/` folder or the script breaks both. Find them with `grep -l class_notes.py` over the course repos' `Makefile`s.
 - **The symlinks:** re-run `./install.sh`.
 
 ## How the skills fit together
@@ -40,6 +41,10 @@ When a skill folder is renamed or moved, update all of these in the same sitting
   - `catch-up` files `inbox/` notes, and `inbox/` is also where `ootd` looks for unlogged outfit photos.
   - Plaud transcripts reach the vault's `sources/transcripts/` through the vault's audio pipeline. `catch-up` never files them, and `capture-conversation` should link them instead of transcribing again (see TODO.md).
 - **Standalone:** `capture-learning-moment` (writes to `$LEARNING_MOMENTS_DIR`, else `~/learning-moments/`) and `creating-ultra-crew-guides` don't use the vault.
+- **`class-notes`** doesn't use the vault either: it works inside a course repository, which holds `prompt-notes.md` (the prompt, sent whole), `README-prompt.md` (student docs) and one folder per class session.
+  - Class recordings reach course repos through `class-notes fetch`, separately from the vault's audio pipeline.
+  - It uses the Plaud CLI (`@plaud-ai/cli`), which has its own login, not the Plaud MCP. After a CLI upgrade, run `fetch --verify` on an existing session (see `references/plaud.md`), since the CLI's text output is parsed with regexes.
+  - `templates/` holds the boilerplate for a new course. Keep it free of course-specific details, and of real hostnames and paths.
 
 ## Editing a skill
 

@@ -57,6 +57,7 @@ These findings were confirmed by a second agent but not applied yet.
 
 ## Later
 
+- [ ] **`class-notes` local backend** (not mirrored as an issue yet). `run_local()` in `class-notes/scripts/class_notes.py` is a placeholder that fails on purpose. Build it once the DGX Spark is reachable over Tailscale through LiteLLM. Its docstring lists what it must handle: sizing the context window (Ollama's default silently truncates a 60 KB transcript), a cut-off check, reporting the resolved model and digest for the filename, and never inheriting the Claude environment.
 - [ ] **Revisit the flat layout** when any of these happens: the repo reaches about 20–30 skills, or folders that aren't skills appear (then move skills under `skills/`). The marketplace manifest was added 2026-09-23. See `CLAUDE.md`.
 
 ## Declined in the 2026-09-16 review

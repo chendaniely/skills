@@ -16,8 +16,8 @@ You will receive up to three inputs describing a single session. Turn them into 
 student can revise from weeks later, when they no longer remember it.
 
 - **`<transcript>`** — a machine-generated transcript, lightly cleaned up but not
-  corrected. Always present. Each block is
-  prefixed with elapsed time from the start of the recording, as `00:04:46`.
+  corrected. Always present. Each block is prefixed with elapsed time from the start of
+  the recording, as `00:04:46`.
 - **`<command-history>`** — {{HISTORY_DESCRIPTION}}
 - **`<terminal-session>`** — {{TERMINAL_DESCRIPTION}}
 

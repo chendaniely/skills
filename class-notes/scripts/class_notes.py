@@ -11,6 +11,9 @@ Subcommands:
             Needs the Claude Code CLI for Claude models.
   payload   Print the exact message `generate` would send, so you can take a session to
             any other tool or model.
+  tidy      Fix the Markdown of existing notes files so they render: blank lines around
+            headings, paragraphs and lists. `fetch` and `generate` already do this;
+            `tidy --check` lists the files that still need it.
 
 Run it from inside a course repository -- the one holding prompt-notes.md -- or pass
 --repo. Standard library only; Python 3.9+.
@@ -341,6 +344,120 @@ def build_message(prompt, session):
     return "".join(parts)
 
 
+# --------------------------------------------------------------------------- markdown
+
+# Plaud's section titles, which some of its notes write as bare lines instead of `##` headings.
+PLAUD_SECTIONS = ("Summary", "Knowledge Points", "Questions", "Assignments", "Action Items")
+FOOTER_KEYS = ("prompt", "prompt-hash", "model", "backend", "inputs", "generated")
+
+MD_FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
+MD_HEADING = re.compile(r"^ {0,3}#{1,6}(\s|$)")
+MD_RULE = re.compile(r"^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$")
+MD_QUOTE = re.compile(r"^ {0,3}>")
+MD_TABLE = re.compile(r"^\s*\|")
+MD_ITEM = re.compile(r"^ {0,3}(?:[-*+]|\d{1,9}[.)])(?:\s|$)")
+FOOTER_LINE = re.compile(r"^(?:- )?(?:%s): " % "|".join(re.escape(k) for k in FOOTER_KEYS))
+
+
+def tidy_markdown(text, section_titles=()):
+    """Put blank lines where Markdown needs them, so a note renders as headings,
+    paragraphs and lists instead of one run-on block.
+
+    Plaud writes one paragraph per line, with a single newline between blocks, and a
+    Markdown renderer joins all of that into one paragraph. So: every paragraph line is
+    separated from the next; headings, rules, tables and code blocks get a blank line on
+    each side; a list gets one before and after, but its own lines stay together. A run of
+    `>` lines becomes separate quoted paragraphs, so `> Date Time: …` and `> Location: …`
+    stay on their own lines. A bare line equal to one of `section_titles` becomes a `##`
+    heading. Code blocks and the lines inside list items are left exactly as they are, and
+    running it twice changes nothing.
+    """
+    out = []
+    prev = None        # kind of the last non-blank line written
+    fence = None       # the opening fence marker, while inside a code block
+    fence_in_list = False
+
+    def gap_needed(prev, kind, indented):
+        if prev is None or kind == "cont":
+            return False
+        if kind in ("heading", "rule", "text") or prev in ("heading", "rule"):
+            return True
+        if kind == "item":
+            return prev not in ("item", "cont")
+        if kind in ("quote", "table"):
+            return prev != kind
+        if kind == "code":
+            return not (indented and prev in ("item", "cont"))
+        if kind == "indented":
+            return prev not in ("text", "indented")
+        return True
+
+    for line in text.splitlines():
+        if fence:
+            out.append(line)
+            if line.strip().startswith(fence):
+                fence = None
+                prev = "cont" if fence_in_list else "code"
+            continue
+        if not line.strip():
+            if out and out[-1] != "":
+                out.append("")
+            continue
+        indented = line[:1] in (" ", "\t")
+        opening = MD_FENCE.match(line)
+        if opening:
+            kind = "code"
+        elif MD_HEADING.match(line):
+            kind = "heading"
+        elif MD_RULE.match(line):
+            kind = "rule"
+        elif MD_ITEM.match(line):
+            kind = "item"
+        elif MD_QUOTE.match(line):
+            kind = "quote"
+        elif MD_TABLE.match(line):
+            kind = "table"
+        elif indented:
+            kind = "cont" if prev in ("item", "cont") else "indented"
+        elif line.strip() in section_titles:
+            line, kind = "## " + line.strip(), "heading"
+        else:
+            kind = "text"
+        if gap_needed(prev, kind, indented) and out[-1] != "":
+            out.append("")
+        if kind == "quote" and prev == "quote" and out[-1] != "" \
+                and out[-1].strip() != ">" and line.strip() != ">":
+            out.append(">")
+        out.append(line)
+        if opening:
+            fence = opening.group(1)
+            fence_in_list = indented and prev in ("item", "cont")
+        prev = kind
+    while out and out[-1] == "":
+        out.pop()
+    return "\n".join(out) + "\n"
+
+
+def footer_as_list(text):
+    """Older notes carry the provenance footer as bare `key: value` lines, which a
+    Markdown renderer runs together; write them as a list instead."""
+    head, sep, footer = text.rpartition("\n---\n")
+    lines = footer.splitlines()
+    if not sep or not any(FOOTER_LINE.match(l) for l in lines):
+        return text
+    if not all(FOOTER_LINE.match(l) for l in lines if l.strip()):
+        return text
+    return head + sep + "\n".join(l if l.startswith("- ") or not l.strip() else "- " + l
+                                  for l in lines) + "\n"
+
+
+def tidy_note(name, text):
+    """Tidy a notes file, as `fetch` and `generate` write them."""
+    if name == PLAUD_NOTES_NAME:
+        return tidy_markdown(text, PLAUD_SECTIONS)
+    return tidy_markdown(footer_as_list(text))
+
+
 # --------------------------------------------------------------------------- backends
 
 
@@ -425,11 +542,12 @@ BACKENDS = {"claude": run_claude, "local": run_local}
 
 # --------------------------------------------------------------------------- generate
 
+# Footer lines are list items (`- model: …`); notes from before that are bare lines.
 FOOTER_PATTERNS = {
-    "prompt": re.compile(r"^prompt: (.+) @ (\S+)$", re.M),
-    "hash": re.compile(r"^prompt-hash: (\w+)$", re.M),
-    "model": re.compile(r"^model: (\S+) \(requested: (.+)\)$", re.M),
-    "inputs": re.compile(r"^inputs: (.*)$", re.M),
+    "prompt": re.compile(r"^(?:- )?prompt: (.+) @ (\S+)$", re.M),
+    "hash": re.compile(r"^(?:- )?prompt-hash: (\w+)$", re.M),
+    "model": re.compile(r"^(?:- )?model: (\S+) \(requested: (.+)\)$", re.M),
+    "inputs": re.compile(r"^(?:- )?inputs: (.*)$", re.M),
 }
 
 
@@ -512,16 +630,17 @@ def generate_one(session, prompt, model, args, today, counts):
         counts["failed"] += 1
         return
     out = session.folder / output_name(prompt.variant, resolved)
-    footer = "".join([
-        "\n---\n",
-        "prompt: %s @ %s\n" % (prompt.rel, prompt.version),
-        "prompt-hash: %s\n" % prompt.hash,
-        "model: %s (requested: %s)\n" % (resolved, model),
-        "backend: %s\n" % backend,
-        "inputs: %s\n" % session.inputs,
-        "generated: %s\n" % today,
+    footer = "\n".join([
+        "- prompt: %s @ %s" % (prompt.rel, prompt.version),
+        "- prompt-hash: %s" % prompt.hash,
+        "- model: %s (requested: %s)" % (resolved, model),
+        "- backend: %s" % backend,
+        "- inputs: %s" % session.inputs,
+        "- generated: %s" % today,
     ])
-    document = body + "\n" + footer
+    # Models write Markdown that mostly renders, but not always: the `Date Time:` and
+    # `Instructor:` lines, for one, run together without a blank line between them.
+    document = tidy_markdown(body + "\n\n---\n\n" + footer)
     write_atomic(out, document)
     say("            ok -> %s (%d lines, %s)" % (out.name, document.count("\n"), resolved))
     counts["generated"] += 1
@@ -693,7 +812,8 @@ def fetch_summary(file_id, name):
     body = "\n".join(lines[i:]).strip("\n")
     if not body.strip():
         raise Fail("Plaud returned an empty summary")
-    return body + "\n"
+    # Plaud separates blocks with a single newline, which renders as one run-on paragraph.
+    return tidy_markdown(body, PLAUD_SECTIONS)
 
 
 def session_parent(root):
@@ -822,6 +942,48 @@ def cmd_fetch(args):
     return 0
 
 
+# --------------------------------------------------------------------------- tidy
+
+
+def notes_files(root, only):
+    """Plaud's notes and the class notes in every session folder (or just --only ones)."""
+    if only:
+        folders = discover_sessions(root, only)
+    else:
+        folders = [d for d, _, files in walk_dirs(root, 6)
+                   if PLAUD_NOTES_NAME in files or any(f.startswith("notes-class-") for f in files)]
+    found = []
+    for folder in folders:
+        found += sorted(p for p in folder.glob("notes-*.md")
+                        if p.name == PLAUD_NOTES_NAME or p.name.startswith("notes-class-"))
+    return found
+
+
+def cmd_tidy(args):
+    root = repo_root(args.repo)
+    files = notes_files(root, args.only)
+    if not files:
+        raise Fail("no notes files found under %s" % root)
+    changed = 0
+    for path in files:
+        old = read_text(path)
+        new = tidy_note(path.name, old)
+        if new == old:
+            continue
+        changed += 1
+        if args.check:
+            say("  needs tidying  %s" % rel(path, root))
+        else:
+            write_atomic(path, new)
+            say("  tidied         %s" % rel(path, root))
+    if args.check:
+        say("%d of %d notes files need tidying%s"
+            % (changed, len(files), " (run without --check to fix them)" if changed else ""))
+        return 1 if changed else 0
+    say("%d of %d notes files tidied" % (changed, len(files)))
+    return 0
+
+
 # --------------------------------------------------------------------------- main
 
 
@@ -867,6 +1029,12 @@ def main(argv=None):
     p.add_argument("--only", required=True, metavar="FOLDER", help="the session folder")
     prompt_options(p, many=False)
     p.set_defaults(func=cmd_payload)
+
+    t = sub.add_parser("tidy", parents=[common],
+                       help="fix the Markdown of notes files so they render (fetch and generate already do)")
+    t.add_argument("--only", action="append", metavar="FOLDER", help="one session folder; repeatable")
+    t.add_argument("--check", action="store_true", help="list the files that need it; change nothing")
+    t.set_defaults(func=cmd_tidy)
 
     args = parser.parse_args(argv)
     try:

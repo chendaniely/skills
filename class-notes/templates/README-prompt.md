@@ -88,6 +88,7 @@ python3 $cn payload --only {{EXAMPLE_SESSION}} > message.txt
 
 `payload` prints the exact message the model receives — the prompt, the transcript and the
 logs — so you can take a session to any other tool or model and do your own thing with it.
+No Claude subscription? Paste that message into GitHub Copilot Chat or another assistant.
 The `Makefile` wraps the common runs (`make notes`, `make notes-force`); point it at your
 copy with `CLASS_NOTES=~/git/skills/class-notes/scripts/class_notes.py`.
 
@@ -99,12 +100,13 @@ records where it came from:
 
 ```
 ---
-prompt: prompt-notes.md @ a1b2c3d
-prompt-hash: 3f9c0e2b7a41
-model: claude-opus-5 (requested: opus)
-backend: claude
-inputs: transcript-plaud.md, history.txt
-generated: 2026-09-14
+
+- prompt: prompt-notes.md @ a1b2c3d
+- prompt-hash: 3f9c0e2b7a41
+- model: claude-opus-5 (requested: opus)
+- backend: claude
+- inputs: transcript-plaud.md, history.txt
+- generated: 2026-09-14
 ```
 
 `opus` is an **alias** meaning "the latest Opus", and what it points at changes over time;

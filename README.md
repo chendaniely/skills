@@ -13,6 +13,7 @@ My personal [Claude Code](https://code.claude.com/docs/en/skills) skills. Each f
 | [product-search](product-search/) | Vault · wardrobe | Writes buying-guide notes: the verdict and a ranked shortlist first, the evidence below. |
 | [email-digest](email-digest/) | Vault | Runs my daily email digest from Thunderbird (read-only on mail) and writes the checklist into the daily note. |
 | [capture-learning-moment](capture-learning-moment/) | Teaching | When asked, writes up a teachable moment from the current conversation as a Quarto `.qmd` for students. |
+| [class-notes](class-notes/) | Teaching | Turns a Plaud recording of a class into a dated session folder, then generates notes with the course's own prompt, which students edit by pull request. |
 | [creating-ultra-crew-guides](creating-ultra-crew-guides/) | Running | Builds offline crew guides for an ultramarathon: aid stations, driving, cutoffs and drop bags. |
 
 The vault skills assume an Obsidian-style markdown vault and read its `CLAUDE.md` for folder names. `catch-up` and `email-digest` are written for my own setup, and `email-digest` also needs my private `claude-cowork` repo.

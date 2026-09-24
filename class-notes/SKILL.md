@@ -17,6 +17,7 @@ S=~/.claude/skills/class-notes/scripts/class_notes.py
 python3 $S fetch <share link>      # Plaud -> session folder
 python3 $S generate                # prompt x model -> notes
 python3 $S payload --only <folder> # the exact message, for any other tool
+python3 $S tidy --check            # notes whose Markdown won't render properly
 ```
 
 Run it from the course repo (or pass `--repo`). `<command> --help` lists every option.
@@ -36,17 +37,22 @@ Run it from the course repo (or pass `--repo`). `<command> --help` lists every o
 
 1. Go to the course repo root (`git rev-parse --show-toplevel`). No `prompt-notes.md`
    there means the course isn't set up: offer [Set up a course](#set-up-a-course).
-2. `python3 $S fetch <url>`, adding `--folder <name or path>` or `--suffix <lecture|lab|…>`
-   when Dan gives one.
-   - The folder defaults to `<session parent>/<the lecture's local date>`. The date comes
-     from Plaud's start time, not from today.
+2. `python3 $S fetch <url> [--suffix <lecture|lab|…>]`.
+   - The folder is `<session parent>/<the lecture's local date>[-<suffix>]`. The date
+     comes from Plaud's start time, not from today.
+   - Follow the course's existing folder names: if they carry suffixes (`-lecture`,
+     `-lab`), always pass `--suffix`, taking it from what Dan says ("the lab").
+   - Prefer `--suffix` to `--folder`: with `--suffix` the date still comes from Plaud. Use
+     `--folder <name or path>` only when Dan names a folder outright.
    - An existing folder without `plaud.md` (Dan often creates it in class, with the logs)
      is reused.
    - It stops without writing when the link matches no single recording, when the folder
      holds a different share link, or when that date already has suffixed folders. Relay
-     the message and ask Dan for a folder or suffix. Never choose a recording yourself:
-     the Plaud account also holds recordings that are not classes.
-   - Exit code 2 means Plaud hasn't finished processing. Tell Dan and stop.
+     the message and ask Dan for a suffix. Never choose a recording yourself: the Plaud
+     account also holds recordings that are not classes.
+   - Exit code 2 means Plaud hasn't finished processing. Tell Dan and stop. To finish
+     later, run `python3 $S fetch --folder <that folder>`: it reads the link from
+     `plaud.md`, so the original flags aren't needed.
 3. `python3 $S generate --only <folder>` in the background (`main` × `opus`, a few
    minutes). Add `--prompt` or `--model` only when Dan asks.
 4. Report each file written, and each notes file's name, line count and model. Suggest a
@@ -55,14 +61,19 @@ Run it from the course repo (or pass `--repo`). `<command> --help` lists every o
 
 ## Regenerate and compare
 
+`generate` runs prompt `main` (`prompt-notes.md`) with model `opus` unless told otherwise.
+`--prompt` and `--model` each **replace** that default and can be repeated; every
+combination runs.
+
 | Situation | Command |
 |---|---|
 | Sessions with no notes yet | `generate` |
 | The prompt was edited | `generate --force`, or `--force --only <folder>` for one session |
 | A log was added to a session later | `generate --force --only <folder>` |
 | A variant `prompt-notes-<name>.md` | `generate --prompt <name>`; `--prompt all` for every variant |
-| Other models | `--model sonnet` (repeatable). Non-Claude names go to the local backend, a placeholder until the DGX Spark is reachable |
+| Other models too | `--model opus --model sonnet`. Non-Claude names go to the local backend, a placeholder until the DGX Spark is reachable |
 | Check first | `--dry-run` |
+| Notes render as one run-on block | `tidy --check` lists them; `tidy` fixes them. `fetch` and `generate` already tidy what they write |
 
 A plain run never overwrites: it lists stale notes (older prompt text, or fewer inputs
 than the folder now holds) and suggests `--force`. Notes from an older model stay beside
