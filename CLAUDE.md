@@ -22,7 +22,7 @@ When a skill folder is renamed or moved, update all of these in the same sitting
   - A safety hook may block broad commands over the whole vault. Use narrow paths or the vault's own scripts (`scripts/lint.py`).
 - **`~/git/private/claude-cowork`:** its `CLAUDE.md` and `README.md` point to `email-digest/SKILL.md` and say to commit skill changes here.
 - **The `daily-email-digest` scheduled task** (`~/.claude/scheduled-tasks/daily-email-digest/SKILL.md`): it loads `email-digest` by name and cites its path here. It stops if the skill can't be loaded, so a rename ends the daily digest until the task is updated.
-- **Course repositories using `class-notes`:** each one's `Makefile` runs `~/.claude/skills/class-notes/scripts/class_notes.py`, and its `README-prompt.md` tells students to clone this repo and run `class-notes/scripts/class_notes.py`. Renaming the skill, its `scripts/` folder or the script breaks both. Find them with `grep -l class_notes.py` over the course repos' `Makefile`s.
+- **Course repositories using `class-notes`:** each one's `Makefile` runs `~/.claude/skills/class-notes/scripts/class_notes.py` (the symlink install; with the plugin install, pass `CLASS_NOTES=<path>`), and its `README-prompt.md` tells students to clone this repo and run `class-notes/scripts/class_notes.py`. Renaming the skill, its `scripts/` folder or the script breaks both. Find them with `grep -l class_notes.py` over the course repos' `Makefile`s.
 - **The symlinks:** re-run `./install.sh`.
 
 ## How the skills fit together

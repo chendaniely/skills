@@ -33,11 +33,12 @@
     },
     {
       "name": "teaching",
-      "description": "Write up teachable moments from a conversation as Quarto documents for students",
+      "description": "Write up teachable moments from a conversation as Quarto documents for students, and turn class recordings into notes with a course's own prompt",
       "source": "./",
       "strict": false,
       "skills": [
-        "./capture-learning-moment"
+        "./capture-learning-moment",
+        "./class-notes"
       ]
     },
     {

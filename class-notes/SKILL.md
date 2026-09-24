@@ -13,7 +13,7 @@ and one folder per class session. Everything else lives here, in one script — 
 through `python3`:
 
 ```bash
-S=~/.claude/skills/class-notes/scripts/class_notes.py
+S=<this skill's base directory>/scripts/class_notes.py   # e.g. ~/.claude/skills/class-notes/…
 python3 $S fetch <share link>      # Plaud -> session folder
 python3 $S generate                # prompt x model -> notes
 python3 $S payload --only <folder> # the exact message, for any other tool
