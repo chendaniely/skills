@@ -1,6 +1,6 @@
 ---
 name: class-notes
-description: Use when Dan pastes a Plaud share link (web.plaud.ai/s/…) for a class session inside a course repository, or asks to add a lecture or lab from a recording, to regenerate class notes after the course prompt changed, to compare prompt variants or models on class notes, or to set up a new course repository for class notes. Fetches the transcript and Plaud's own note into a dated session folder, then generates notes with the course's prompt-notes.md.
+description: Use when Dan pastes a Plaud share link (web.plaud.ai/s/…) for a class session inside a course repository, or asks to add a lecture, lab, office hours or other session from a recording, to regenerate class notes after the course prompt changed, to compare prompt variants or models on class notes, or to set up a new course repository for class notes. Fetches the transcript and Plaud's own note into a dated session folder, then generates notes with the course's prompt-notes.md.
 ---
 
 # Class Notes
@@ -42,6 +42,10 @@ Run it from the course repo (or pass `--repo`). `<command> --help` lists every o
      comes from Plaud's start time, not from today.
    - Follow the course's existing folder names: if they carry suffixes (`-lecture`,
      `-lab`), always pass `--suffix`, taking it from what Dan says ("the lab").
+   - The session type comes from Dan, never from Plaud. Plaud's auto-generated title
+     almost always says "Lecture", whether the recording is a lecture, a lab, office hours
+     or anything else around the course. A title that disagrees with what Dan said is not
+     a conflict: don't flag it or ask about it.
    - Prefer `--suffix` to `--folder`: with `--suffix` the date still comes from Plaud. Use
      `--folder <name or path>` only when Dan names a folder outright.
    - An existing folder without `plaud.md` (Dan often creates it in class, with the logs)
