@@ -86,6 +86,7 @@ If in doubt, ask the user whether a value is safe to include before writing the 
 When step 5 found a Quarto website, the post must render as part of it:
 
 - **Keep the template's front matter.** The listing sorts by `date` and filters by `categories`; a post without them sorts wrong or hides from filters.
+  Add topic categories that fit, reusing ones the site's other posts already use before inventing new ones.
 - **Companion files** (a repro page, an image) go beside the post, named after it (`YYYY-MM-DD-<slug>-repro.html`), linked by relative path.
 - **Link other moments by relative `.qmd` path** (`[title](YYYY-MM-DD-other-slug.qmd)`); Quarto rewrites it to `.html`.
   Never link a moment by its GitHub blob or raw URL: readers should land on the rendered page.
