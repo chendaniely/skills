@@ -9,6 +9,7 @@ description: Use when the user asks to capture, document or write up a learning 
 
 Documents a notable exchange from this conversation as a Quarto document (`.qmd`)
 suitable for sharing with students or as reference material.
+When the output folder is a Quarto website, the document becomes a post on that site.
 The best moments show the human-AI collaboration loop:
 Claude produces a reasonable first answer,
 human expertise reveals a gap,
@@ -39,8 +40,9 @@ They describe what makes a good moment to pick from the conversation:
 ## Sensitive Information
 
 **Always redact or replace sensitive values when writing the document.**
-The `.qmd` file may be shared publicly (that's the point).
-Replace real IPs, usernames, UUIDs, hostnames, API keys, and any other
+The `.qmd` file may be shared publicly (that's the point),
+and when the output folder is a published website, a push makes it public.
+Replace real IPs, usernames, UUIDs, hostnames, local file paths, API keys, and any other
 identifying values with plausible fakes or placeholders
 (e.g. `100.123.45.67`, `john.doe`, `AAAA1111-BBBB-2222-CCCC-333344445555`).
 The learning is in the *structure* of the exchange, not the actual values.
@@ -58,20 +60,40 @@ If in doubt, ask the user whether a value is safe to include before writing the 
    - If the environment variable `LEARNING_MOMENTS_DIR` is set, use that path.
    - Otherwise, fall back to `~/learning-moments/`.
    Create the directory if it doesn't exist.
-5. Write to `<output dir>/YYYY-MM-DD-<slug>.qmd`, using the date from step 3.
+5. Decide the post folder:
+   - If the output directory has a `_quarto.yml`, it is a Quarto website.
+     Read its `CLAUDE.md` (or `AGENTS.md`, else `README.md`) and follow it where it differs from this skill.
+     The post folder is the one it names; without one, it is the folder the home page's `listing: contents:` reads (usually `posts/`).
+     Then follow [Quarto Website Posts](#quarto-website-posts) as well.
+   - Otherwise, the post folder is the output directory itself.
+6. Write to `<post folder>/YYYY-MM-DD-<slug>.qmd`, using the date from step 3.
    **If that file already exists, do not overwrite it.**
    Ask the user whether to overwrite it or add a `-2` suffix (`YYYY-MM-DD-<slug>-2.qmd`).
-6. Use `template.qmd` (in this skill directory) as the structure.
-7. Fill in each section from the actual conversation — quote or paraphrase faithfully.
-8. If the original turns are no longer verbatim in context (for example, the conversation was compacted), say so.
+7. Use `template.qmd` (in this skill directory) as the structure.
+8. Fill in each section from the actual conversation — quote or paraphrase faithfully.
+9. If the original turns are no longer verbatim in context (for example, the conversation was compacted), say so.
    Label those parts of the document as paraphrase,
    and ask the user whether to pull the exact text from the session transcript or keep the paraphrase.
-9. In **The Exchange**, include every turn of the back-and-forth, not just the first correction.
-   Some moments take one turn to resolve; others take several clarifications.
-   Keep all of them — the false starts and refinements are part of the lesson.
-10. In **The Lesson**, be explicit about *why* Claude missed it (not just *what* was missed).
+10. In **The Exchange**, include every turn of the back-and-forth, not just the first correction.
+    Some moments take one turn to resolve; others take several clarifications.
+    Keep all of them — the false starts and refinements are part of the lesson.
+11. In **The Lesson**, be explicit about *why* Claude missed it (not just *what* was missed).
     This is the most valuable part for students.
-11. Report the path of the file you wrote.
+12. Report the path of the file you wrote, and for a website post, the URL it will have once published.
+
+## Quarto Website Posts
+
+When step 5 found a Quarto website, the post must render as part of it:
+
+- **Keep the template's front matter.** The listing sorts by `date` and filters by `categories`; a post without them sorts wrong or hides from filters.
+- **Companion files** (a repro page, an image) go beside the post, named after it (`YYYY-MM-DD-<slug>-repro.html`), linked by relative path.
+- **Link other moments by relative `.qmd` path** (`[title](YYYY-MM-DD-other-slug.qmd)`); Quarto rewrites it to `.html`.
+  Never link a moment by its GitHub blob or raw URL: readers should land on the rendered page.
+- **Render the post** with `quarto render <post folder>/<file>.qmd` from the folder holding `_quarto.yml`.
+  Fix warnings the new post causes; report any that come from elsewhere instead of editing other files.
+- **The published URL** is the `site-url` from `_quarto.yml`, plus the post's path from the folder holding `_quarto.yml`, with `.html` for `.qmd`.
+- **Don't commit or push unless asked.** If the site deploys on push, pushing publishes the post, so redaction has to be finished first.
+  When asked to commit, stage only the post and its companion files, never `git add -A`, so unrelated work in the repo stays out.
 
 ## The Lesson Section
 
