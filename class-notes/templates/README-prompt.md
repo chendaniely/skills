@@ -32,6 +32,7 @@ as `-lecture` or `-lab` when there were two classes that day:
 | `plaud.md` | share link to the recording |
 | `transcript-plaud.md` | the transcript: machine-generated, lightly cleaned up by Plaud ← input |
 {{LOG_ROWS}}
+| `materials.md` | the course readings the session used, such as a textbook chapter, with links ← input, optional |
 | `notes-plaud.md` | Plaud's own AI notes — the baseline to beat |
 | `notes-class-main--<model>.md` | what `prompt-notes.md` produced, and which model wrote it ← output |
 

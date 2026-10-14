@@ -31,6 +31,7 @@ Run it from the course repo (or pass `--repo`). `<command> --help` lists every o
 | `notes-plaud.md` | `fetch`: Plaud's own AI note |
 | `history.txt` / `history.R` | Dan, by hand (optional): shell or R command history |
 | `terminal.txt` / `*console*.txt` | Dan, by hand (optional): terminal or R console capture |
+| `materials.md` | by hand (optional): the course readings the session used, sent as `<course-materials>` |
 | `notes-class-<variant>--<model>.md` | `generate`: one per prompt variant × the model that actually ran |
 
 ## Add a session from a share link
@@ -57,9 +58,13 @@ Run it from the course repo (or pass `--repo`). `<command> --help` lists every o
    - Exit code 2 means Plaud hasn't finished processing. Tell Dan and stop. To finish
      later, run `python3 $S fetch --folder <that folder>`: it reads the link from
      `plaud.md`, so the original flags aren't needed.
-3. `python3 $S generate --only <folder>` in the background (`main` × `opus`, a few
+3. When Dan names course readings the class worked from (a textbook chapter, say), write
+   them to `materials.md`: their text and code from the source, each heading linked to
+   its published section. The model uses them only if the course prompt describes
+   `<course-materials>`.
+4. `python3 $S generate --only <folder>` in the background (`main` × `opus`, a few
    minutes). Add `--prompt` or `--model` only when Dan asks.
-4. Report each file written, and each notes file's name, line count and model. Suggest a
+5. Report each file written, and each notes file's name, line count and model. Suggest a
    commit message such as `2026-09-17 lecture: transcript, Plaud notes, class notes`.
    Don't commit or push.
 

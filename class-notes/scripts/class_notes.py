@@ -7,7 +7,8 @@ Subcommands:
             notes-plaud.md. Needs the Plaud CLI (`npm install -g @plaud-ai/cli`, then
             `plaud login`).
   generate  Run the course prompt(s) over each session's transcript, plus any command
-            logs, with one or more models. Writes notes-class-<variant>--<model>.md.
+            logs and course materials (materials.md), with one or more models. Writes
+            notes-class-<variant>--<model>.md.
             Needs the Claude Code CLI for Claude models.
   payload   Print the exact message `generate` would send, so you can take a session to
             any other tool or model.
@@ -43,6 +44,8 @@ from pathlib import Path
 
 PROMPT_MAIN = "prompt-notes.md"
 TRANSCRIPT_NAME = "transcript-plaud.md"
+# Optional: the course readings a session used (a textbook chapter, say), with links.
+MATERIALS_NAME = "materials.md"
 LINK_NAME = "plaud.md"
 PLAUD_NOTES_NAME = "notes-plaud.md"
 # Earlier folders sometimes saved Plaud's note under this name; only read, never written.
@@ -58,8 +61,8 @@ SESSION_DIR = re.compile(r"^\d{4}-\d{2}-\d{2}(?:-.+)?$")
 
 AGENT_SYSTEM_PROMPT = (
     "You are a careful note-taker for a university course. You transform a lecture "
-    "transcript, and any command logs sent with it, into a Markdown study document, "
-    "following the instructions in the message you are given. You have no tools, no "
+    "transcript, and any command logs or course materials sent with it, into a Markdown "
+    "study document, following the instructions in the message you are given. You have no tools, no "
     "filesystem, and no repository to inspect: work only from the text in the message. "
     "Never emit or describe a tool call. Reply with the finished Markdown document and "
     "nothing else."
@@ -276,12 +279,14 @@ class Session:
         # history.R. A terminal capture is terminal.txt, or an R console capture.
         self.history = first_file(folder, ("history.txt", "history.R"), ("history.*",))
         self.terminal = first_file(folder, ("terminal.txt",), ("*console*.txt",))
-        names = [TRANSCRIPT_NAME] + [p.name for p in (self.history, self.terminal) if p]
+        # The course materials say what the class drew on, not what was run.
+        self.materials = first_file(folder, (MATERIALS_NAME,))
+        extras = (("history", self.history), ("terminal", self.terminal), ("materials", self.materials))
+        names = [TRANSCRIPT_NAME] + [p.name for _, p in extras if p]
         # `inputs` goes into the footer so a set of notes says what it was built from;
         # `marks` just makes the run's own output readable.
         self.inputs = ", ".join(names)
-        self.marks = "".join(
-            " +" + label for label, p in (("history", self.history), ("terminal", self.terminal)) if p)
+        self.marks = "".join(" +" + label for label, p in extras if p)
 
     @property
     def ready(self):
@@ -327,9 +332,9 @@ def read_text(path):
 
 
 def build_message(prompt, session):
-    """Prompt, then transcript, then whichever logs exist, as one message. A tag is only
-    opened when there is something to put in it, so the model is never handed an empty
-    <command-history> and left to reason about its absence."""
+    """Prompt, then transcript, then whichever logs exist, then any course materials, as one
+    message. A tag is only opened when there is something to put in it, so the model is
+    never handed an empty <command-history> and left to reason about its absence."""
     parts = [prompt.body, "\n\n<transcript>\n", read_text(session.transcript), "\n</transcript>\n"]
     if session.history:
         raw = read_text(session.history)
@@ -341,6 +346,8 @@ def build_message(prompt, session):
         parts += ["\n<command-history>\n", body, "</command-history>\n"]
     if session.terminal:
         parts += ["\n<terminal-session>\n", read_text(session.terminal), "\n</terminal-session>\n"]
+    if session.materials:
+        parts += ["\n<course-materials>\n", read_text(session.materials), "\n</course-materials>\n"]
     return "".join(parts)
 
 
