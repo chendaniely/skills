@@ -1,6 +1,6 @@
 # skills
 
-My personal [Claude Code](https://code.claude.com/docs/en/skills) skills. Each folder is one skill: a `SKILL.md`, plus any templates or reference files it uses.
+My personal [Claude Code](https://code.claude.com/docs/en/skills) skills. Each folder is one skill: a `SKILL.md`, plus any templates or reference files it uses. The one exception is `docs/`, which holds design records.
 
 ## Skills
 

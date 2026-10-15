@@ -1,6 +1,6 @@
 # Skills repo
 
-Dan's personal Claude Code skills, public on GitHub as `chendaniely/skills`. Each top-level folder is one skill. Open work lives in [TODO.md](TODO.md) and is mirrored as GitHub issues.
+Dan's personal Claude Code skills, public on GitHub as `chendaniely/skills`. Each top-level folder is one skill, except `docs/`, which holds design records (`docs/superpowers/specs/`, superpowers' default). Open work lives in [TODO.md](TODO.md) and is mirrored as GitHub issues.
 
 ## Install and layout
 
