@@ -269,7 +269,9 @@ git completes itself, rebased or cherry-picked content, and denylist terms added
 
 Recommended A. **Dan:** no letter. His next two messages were the gitleaks note above and "we have
 a few hooks for security checking in local-ai", which became Question 11. The agent recorded A,
-and Dan didn't object in the questions that followed. *To confirm.*
+and Dan didn't object in the questions that followed. Confirmed with Section 6 below, which is
+this question's design: asked "is Question 10 A, since this section is its design?", Dan said
+"yes".
 
 ### 11. Security hooks
 
@@ -433,7 +435,289 @@ and its GitHub issue for the move.
   `plan-driven-development` branch; `docs/` is this repo's one top-level folder that isn't a skill.
   **Dan: A.**
 
+## The design, section by section (step 3)
+
+### Section 1 of 10: the skill's files, and what triggers it
+
+- Files: `SKILL.md` (aimed at 200–300 lines: the five moments, which reference to read at each,
+  the five stops, the commit formats inline, a red-flags table from the baseline test);
+  `references/` (`asking.md`, `kickoff.md`, `plans.md`, `tasks.md`, `phase-end.md`,
+  `resume.md`, `docs-site.md`); `templates/` (the `AGENTS.md` "How we work" section and
+  `CLAUDE.md`, the git hooks and `gitleaks.toml`, the CI and Pages workflows, the Quarto config
+  and a wrapper page); `scripts/leakcheck.py`; `tests/`.
+- Triggering: model-invocable, with a description of explicit triggers only: Dan asks to start,
+  plan or adopt; the repo's `AGENTS.md` names the skill (approved at kickoff, so it counts as his
+  request under this repo's side-effects rule, and it runs the resume step at session start); or
+  "where are we?" in such a repo.
+- `leakcheck.py` is new security code (a port of local-ai's), so it gets its own tests as Tier 1.
+
+**Dan:** "sure this looks good"
+
+### Section 2 of 10: kickoff
+
+In order:
+1. Use superpowers:brainstorming and announce "a new project, so architectural".
+2. The setup questions: small or large; public or private; a live demo or not; where the repo
+   lives (creating a GitHub repo is outward-facing, so Dan's call).
+3. Safety before the first commit: `git init`; the hooks with `leakcheck.py` copied in; a
+   presence-only check on the denylist; a leak drill where an invented token and a
+   documentation-range address are each refused; in an existing repo, gitleaks over the whole
+   history once.
+4. Grilling (`mattpocock-skills:grilling`, one question at a time, scenarios with A/B/C, a
+   recommendation and a self-review), answers on the Q&A page, scenarios into the spec's table;
+   brainstorming's questions in the same format if grilling isn't installed.
+5. The design in sections, then the spec, committed with a one-line `AGENTS.md` pointer to it, so
+   the resume step triggers even if the session dies before step 6.
+6. `AGENTS.md`, `CLAUDE.md` and `README.md`, each shown (or diffed) before writing.
+7. writing-plans: every phase's plan in full.
+8. The council on the spec and plans (four reviewers for large, one for small); Dan approves,
+   picks the execution method, and gives or withholds the first phase's standing push OK.
+9. The docs site and CI are the plan's first tasks, as in local-ai's Phase 0.
+
+**Dan:** "yes and yes this looks good" (to the order, and to the one-line pointer written with the
+spec).
+
+### Section 3 of 10: the spec and the plans
+
+- The spec (`docs/superpowers/specs/<date>-<topic>-design.md`) is brainstorming's, plus a status
+  line per phase, the outline (each phase's goal and "done"), the scenario table with its *Later*
+  part and dropped rows, Revisions (Dan's decisions only), open items and risks, and diagrams by
+  link only.
+- writing-plans runs once per phase, all before approval
+  (`docs/superpowers/plans/<date>-<topic>-phase-N.md`; one `<date>-<topic>.md` for a small
+  project). Every writing-plans part stays (Goal, Architecture, Tech Stack, Spec, Global
+  Constraints, Review Focus, tasks with Files, Interfaces, checkbox steps and full code).
+  Added: a one-line **Now** at the top; **Tier** and **Scenarios** per task; "Built differently"
+  notes, "Ruling:" lines and the phase-end list as the build goes.
+- Horizontal rules are `***`, never writing-plans' `---`, so the files render when the site
+  includes them.
+- Q&A pages and retros sit next to their spec or plan; files never move.
+
+**Dan:** "yeah this looks fine"
+
+### Section 4 of 10: each task's loop
+
+The session running the plan, with superpowers' subagents where the harness has them:
+1. Build: the implementer works test-first and commits `type(scope): 🤖 …` with a `Plan:`
+   trailer, through a message file and `-F`, exactly as the plan's commit step gives it.
+2. Mechanical checks before any reviewer: the suite, again under `TZ=UTC` and the settings where
+   CI differs (listed in `AGENTS.md`), lint, the leak scan, proof each new test failed once, and
+   on site projects the render and link check when docs changed.
+3. Backward review, scaled to the tier: spec compliance and quality, the cited scenarios and their
+   proof, the docs grep, and a security lens for Tier 1. Each finding gets a severity and a
+   decision (fix now, phase-end list, or Dan); the tier's cap ends the loop.
+4. Forward review: read later tasks' Consumes lines and later phases' outlines first; open and
+   rewrite only listings that use what changed; the fifth stop when a change touches the spec,
+   Dan's decisions or a scenario, or makes a heavier later task unnecessary.
+5. Docs: wrong ones fixed in the task, missing ones to the phase-end list, diagrams with any part
+   or path.
+6. Close: `docs(plan): 🤖 close Task N: <title>`, ticking the boxes and updating Now, the spec's
+   status line and the scenarios' status; the body holds drift, rulings, phase-end items,
+   forward-review changes, tier, review rounds and findings by severity; trailer `Plan:`, checked
+   with `git log -1 --format='%(trailers)'`.
+7. Push and CI under the standing OK, this phase's branch only: before-push scan, push, CI green
+   closes the task; red reopens it ahead of anything else.
+
+Without subagents, the same seven steps run inline through superpowers' executing-plans.
+
+**Dan:** "yes this looks right. a can be any model using any harness, not just local on pi, e.g.,
+qwen via dgx on opencode, or just plain claude code with opus". So the loop names no model or
+harness: whichever runs the plan, with subagents or inline, follows the same seven steps.
+
+### Section 5 of 10: phase end
+
+As presented: (1) superpowers' final whole-branch review; (2) its remaining ledger copied into the
+plan before superpowers deletes the workspace; (3) the council, four read-only reviewers whose
+claims the session checks; (4) the phase-end list worked through, each fix at the tier of what it
+touches, missing docs written, built parts turned solid; (5) the forward look over the later
+phases; (6) the retro in four parts (departures, carried items, metrics per tier from the closing
+commits, starting over), which retunes the next phase's tiers; (7) a dated `CHANGELOG.md` entry and
+the spec's status line; (8) finishing-a-development-branch. A small project gets steps 1, 2, the
+docs part of 4, 7 and 8.
+
+**Dan:** "[usually] this should all happen as a branch + PR that merges into main usually we can
+leave these unattended, for fully vibed projects we can just keep going without my explicit OK
+since we have all the commits for fallback".
+
+Revised:
+- Step 8 is superpowers' PR option: the before-push scan, push, and a PR against `main` whose body
+  summarizes the phase. It merges with `gh pr merge --merge` (a real merge commit; squash and
+  rebase would change the commit IDs that plans and closing commits cite).
+- The phase end runs unattended, through to an open PR with green CI.
+
+**Follow-up: the project's mode.** *Phase 2's PR is open and green at 11 pm; Dan is asleep.*
+- **A:** a kickoff question sets the mode. **Attended** (the default): everything runs unattended
+  up to the open PR, which waits; Dan merging it is his OK; the next phase starts after the merge.
+  **Fully vibed** (when Dan says so): the agent merges once CI is green and the phase-end steps
+  are done, then starts the next phase; the fifth stop becomes a ruling, logged on the phase's
+  Q&A page as "decided without Dan" and shown in the next "where are we?" briefing.
+- **B:** vibed by default. **C:** the mode follows Question 1's risk test.
+
+Recommended A. **Dan: A.**
+
+Stops that never relax, even when vibed, because commits are no fallback for them: a leak-scan
+hit; force-pushes, history rewrites, deleting branches or data; anything outside the repo
+(creating repos, publishing packages, sending messages); secrets; spending money. For vibed
+projects, Question 9's standing push OK extends to merging into `main` through the PR. Attended
+projects don't stack phases: the next phase waits for the merge.
+
+### Section 6 of 10: resume
+
+As first presented: `AGENTS.md`'s "How we work" runs the resume step at every session start and
+on "where are we?", and carries the steps itself. It reads `AGENTS.md`; `git fetch`, branch
+state, worktrees and stashes; the phase PR and the last CI run; the spec's status lines; Now and
+the boxes; the commits since the newest "close Task"; uncommitted work (tests run, never
+touched); the Q&A pages, including vibed "decided without Dan" rulings. Commits win
+disagreements. A ~15-line briefing ("since your last OK" means Dan's last Q&A answer or the last
+PR he merged), then the next steps one at a time, waiting for a go; a session started with
+"continue the plan" counts as the go. "Stop for today" makes
+`chore(plan): 🤖 wip Task N: <where it stopped>` with the `Plan:` trailer and pushes it.
+
+**Dan:** "usually [offline] means i won't have model access anymore and i won't be vibe coding
+anymore. [usually] offline means the model stops in the middle and i [typically] need to resume
+(or i run out of context in claude)".
+
+Revised:
+- No offline mode. If `git fetch` or GitHub fails, the briefing says so in one line.
+- Nothing relies on a tidy stop: the implementer commits after each green step of a task, and the
+  closing commit follows the reviews straight away.
+- More triggers: after a context compaction (continuing from a summary), after a usage-limit
+  stop, after any restart. Each time the agent re-reads the repo before acting.
+- It reads what a crash leaves: superpowers' ledger (on that machine only, which is why closing
+  commits copy it out), a merge or rebase stopped halfway (reported, never continued without
+  Dan), a subagent's worktree, uncommitted edits.
+- "Stop for today" stays for tidy stops.
+
+**Dan:** "yes compaction is always a concern. we should always leave enough context about what has
+happened. in vibe coded projects the commit history messages are the best for what has been done
+along with the other files in the repo". So every commit body says what changed and why, enough to
+rebuild the story without the session, and on vibed projects each "decided without Dan" ruling
+goes in its commit body as well as on the Q&A page.
+
+### Section 7 of 10: docs and the site
+
+- Public without a demo: a Quarto site in `website/`, on Pages. A live demo or a private repo:
+  the same files read on GitHub, diagrams in `docs/architecture.md` with mermaid fences; a demo
+  that is itself a Quarto site gains the docs pages.
+- Pages: Home (README include plus the overview), Architecture (a `.qmd` with every diagram; the
+  overview in `_overview.qmd`, included on Home; built solid, planned dashed; local-ai's
+  click-to-zoom script as a template, re-checked against Quarto's lightbox first), Design
+  (`.md` wrappers at mirrored paths), Changelog and How we work (includes), How-to when needed.
+- Kept true by Question 15's rule and the sync table, plus three checks on every push: every doc
+  has its wrapper; CI fails on "Unable to resolve link target"; `lychee --offline` over the
+  rendered site, pinned in CI. `***` for rules; site URLs or code spans for links leaving the
+  site.
+- Workflows from local-ai: render on every push, publish to Pages on every push to `main`,
+  actions pinned by SHA, Quarto by version; first-time Pages setup is Dan's step.
+
+**Dan:** "looks good. i like the quarto bits. we should also make sure that the quarto site builds
+to github pages via actions. we should always try to have some deployed site somewhere (also
+provide repo description field)".
+
+Added:
+- The site task closes only when the Pages URL actually serves the home page, checked after the
+  first publish, not only when the workflow file exists.
+- Kickoff drafts the GitHub repo's description and sets its website field to the deployed site
+  (the docs site or the demo), shown with the root files and set with `gh repo edit` after Dan's
+  OK.
+- "Always some deployed site" against Question 14c's private repos: asked as a follow-up.
+
+**Follow-up: a private repo and "always a deployed site".**
+- **A:** every public project always has one (the docs site, or the demo, which links to the
+  docs); private repos stay as 14c, GitHub-only docs with no deploy; the repo's website field
+  points at whatever is deployed.
+- **B:** private repos get the Quarto site on an access-controlled host when there is one (never
+  public Pages), else A.
+- **C:** private repos publish to public Pages with a nothing-private rule.
+
+Recommended A. **Dan:** "yes sorry i forgot about private repos. yes you are correct. with A".
+Noted for the plan: local-ai publishes through a `gh-pages` branch; GitHub's "GitHub Actions"
+Pages source (`actions/deploy-pages`) needs no branch and narrower permissions. local-ai's tested
+way stays the default until the plan weighs the two.
+
+### Section 8 of 10: security hooks and the leak check
+
+- Each project gets local-ai's set, standalone: `.githooks/pre-commit` (gitleaks on staged files,
+  then `leakcheck.py --staged`), `.githooks/commit-msg` (gitleaks and `leakcheck.py --message`),
+  both refusing without gitleaks 8.19+ or uv, turned on with `git config core.hooksPath .githooks`;
+  `gitleaks.toml` extending the defaults; CI running gitleaks over the whole history (pinned by
+  checksum) and shellcheck on the hooks; the before-push scan spelled out in `AGENTS.md`.
+- `scripts/leakcheck.py`: local-ai's checker as a standard-library PEP 723 script, run with
+  `uv run --script`; the same patterns and 3-character excerpts; modes `--staged`, `--message`,
+  `--range`, `--tracked`, `--ci`; the allow marker excuses generic patterns only.
+- The denylist: one per machine, `$LEAKCHECK_DENYLIST` or `~/.config/leakcheck/denylist`; fails
+  closed (missing, empty or malformed refuses the commit); the agent stops and tells Dan, never
+  creates or reads it. Dan's step: link it to `~/.config/local-ai/denylist`, and one per machine.
+- local-ai's 295 lines of tests are ported as Tier 1 work, with fixtures built by joining strings.
+- Noted for later: the skills repo itself has no hooks; a `TODO.md` item could add them.
+
+**Dan:** "i think this looks right. i dont' [fully] understand what's happening [right now]". The
+council checks this section with the rest, and a plain-words summary was offered.
+
+### Section 9 of 10: overrides and steering
+
+The overrides, each from an earlier answer: the fifth stop (a logged ruling when vibed) over the
+plan runner's "Four things stop you, and only these"; the standing push OK (and, vibed, the PR
+merge) over its stop for pushes to a shared branch; the tier caps over its five fix rounds; the
+closing commits copying its ledger before it's deleted; commits after each green step with Dan's
+format, `-F` and `Plan:`; a PR merged with `gh pr merge --merge` over finishing's local merge;
+`***` over writing-plans' `---`; one question at a time over grilling's rounds. Steering:
+superpowers for TDD, debugging, writing and running plans; Matt's `grilling` for interviews and
+`writing-for-agents` for `AGENTS.md`; Matt's other skills only when typed.
+
+How the overrides win: a skill can't outrank another, and superpowers puts user instructions
+(`CLAUDE.md`, `AGENTS.md`, requests) above skills. So the table lives in `SKILL.md` for reference,
+a short version goes into each project's `AGENTS.md` "How we work", and the steering list goes
+into `preferences.md`. Subagents see only what they're sent, so the commit format reaches them
+through the plan's commit steps.
+
+**Dan:** "the reviews should also follow matt's code review guidelines".
+
+**Follow-up: the review itself.** Matt's `code-review` (MIT) reviews a diff on two separate axes,
+each in its own subagent, reported side by side and never reranked: Standards (the repo's
+documented rules, plus twelve Fowler smells that are always judgement calls) and Spec (missing or
+partial, not asked for, looks wrong; each quoting the spec line).
+- **A:** `mattpocock-skills:code-review` runs the backward review, from the commit before the
+  task, with the task, its scenario rows and the spec as the spec source. Tier 1: both axes plus
+  a security lens; Tier 2: both axes; Tier 3: a self-review under the same two headings. The
+  capped re-review reruns it from the fix's parent; the phase-end final review runs it over the
+  whole branch. This skill adds a severity and decision per finding (within each axis), the docs
+  grep and the cap. Kickoff writes a short `docs/agents/issue-tracker.md` ("work is tracked in
+  the plans"), not Matt's full setup, whose `CONTEXT.md` and ADR folder would compete with the
+  spec's Revisions. Where Matt's skill isn't installed, a short credited version of the brief sits
+  in `references/tasks.md`.
+- **B:** superpowers' reviewer with Matt's brief pasted in. **C:** both reviewers on every task.
+
+Recommended A, adding a row to the table: superpowers' task reviewer replaced by Matt's two-axis
+review, scaled by tier. **Dan:** "yeah this looks good (A)", taken as approving Section 9 with A.
+
+### Section 10 of 10: testing the skill
+
+RED without the skill, GREEN with it, REFACTOR for loopholes. Each test is a fresh headless
+`claude -p` session in a throwaway repo built by a recipe script, with the skill linked into that
+repo's own `.claude/skills/` for GREEN, explicit allow-lists (never a bypass flag), and a grader
+over the repo and the session log. Scenarios:
+1. Kickoff: every question listed with a count, only the first in full (A/B/C, recommendation,
+   self-review), the list re-shown after one answer.
+2. A three-task plan (Tier 1, Tier 3, a rename the README mentions): commit format, parsed
+   `Plan:` trailers, closing commits, Now and boxes, the README fixed in the same task, a planted
+   timezone bug caught by the `TZ=UTC` run.
+3. A build that forces a scenario change: the fifth stop.
+4. A repo left mid-Task 2 with uncommitted edits, then "where are we?": Task 2 found open, edits
+   untouched, their tests run, a briefing, a wait.
+5. A failing test with both plugins installed: `systematic-debugging` loaded, not
+   `diagnosing-bugs`.
+6. `leakcheck.py`: the ported tests, and the hook drill.
+
+Plus a portability run: scenario 2 in OpenCode with a local model and only `AGENTS.md`. Tests live
+in `plan-driven-development/tests/`, with an entry in this repo's `CLAUDE.md` Tests section. Checked
+first: that plugins load in `claude -p` (the start-up event lists them). Compaction itself can't be
+triggered; scenario 4 tests the recovery.
+
+**Dan:** "yeah looks right . test it all . i'm not sure if my dgx model is actually up right now
+or not". So the OpenCode run is in; whether the Spark's model is up gets checked when that run is
+due, and if it's down the run waits rather than being dropped.
+
 ## Open for the design council
 
 - Question 7's fill for the brief's cut-off parts.
-- Question 10's answer, recorded as A without a letter from Dan.
