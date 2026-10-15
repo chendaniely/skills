@@ -5,7 +5,7 @@
     "email": "chendaniely@gmail.com"
   },
   "metadata": {
-    "description": "Daniel Chen's personal Claude Code skills: vault workflows, wardrobe, teaching and ultrarunning.",
+    "description": "Daniel Chen's personal Claude Code skills: vault workflows, wardrobe, teaching, ultrarunning and coding-agent reviews.",
     "version": "0.1.0"
   },
   "plugins": [
@@ -48,6 +48,15 @@
       "strict": false,
       "skills": [
         "./creating-ultra-crew-guides"
+      ]
+    },
+    {
+      "name": "coding",
+      "description": "Coding-agent workflows: an honest outside review of an application another model or agent built, after you have fixed it",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./external-app-review"
       ]
     }
   ]

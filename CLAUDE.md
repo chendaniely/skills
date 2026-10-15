@@ -9,7 +9,7 @@ Dan's personal Claude Code skills, public on GitHub as `chendaniely/skills`. Eac
   - If a skill's name is already taken there by a folder or a different link, it prints `skipped` and leaves it.
   - It removes its own links whose skill folder no longer exists.
 - **Keep skills flat at the top level** (decided 2026-09-16). Claude Code only discovers personal skills one level deep (`~/.claude/skills/<name>/SKILL.md`), so group folders wouldn't group anything, and a move breaks the paths listed below.
-- **Marketplace (added 2026-09-23):** `.claude-plugin/marketplace.json` also publishes the skills as four plugins (`vault`, `wardrobe`, `teaching`, `running`) for `/plugin marketplace add chendaniely/skills`. A new or renamed skill must be listed there too.
+- **Marketplace (added 2026-09-23):** `.claude-plugin/marketplace.json` also publishes the skills as five plugins (`vault`, `wardrobe`, `teaching`, `running`, `coding`) for `/plugin marketplace add chendaniely/skills`. A new or renamed skill must be listed there too.
   - Plugin installs prefix skill names (`/wardrobe:ootd`) and are cached copies, so edits apply only after a push and plugin update. Anything that loads a skill by bare name (like the `daily-email-digest` task) needs the symlink install.
   - Don't use both installs on one machine, or every skill loads twice.
 
@@ -41,7 +41,8 @@ When a skill folder is renamed or moved, update all of these in the same sitting
 - **Inbox and transcripts:**
   - `catch-up` files `inbox/` notes, and `inbox/` is also where `ootd` looks for unlogged outfit photos.
   - Plaud transcripts reach the vault's `sources/transcripts/` through the vault's audio pipeline. `catch-up` never files them, and `capture-conversation` should link them instead of transcribing again (see TODO.md).
-- **Standalone:** `capture-learning-moment` (writes to `$LEARNING_MOMENTS_DIR`, else `~/learning-moments/`) and `creating-ultra-crew-guides` don't use the vault.
+- **Standalone:** `capture-learning-moment` (writes to `$LEARNING_MOMENTS_DIR`, else `~/learning-moments/`), `creating-ultra-crew-guides` and `external-app-review` don't use the vault.
+  - `external-app-review` writes into the reviewed app's own repo, and its two scripts need Playwright resolvable from that repo (or `NODE_PATH`) plus Google Chrome.
   - When that folder is a Quarto website (it has `_quarto.yml`), `capture-learning-moment` follows the site's own `CLAUDE.md` for the post folder and conventions. Dan's is the public `chendaniely/genai-learning-moments`, whose posts live in `posts/`.
 - **`class-notes`** doesn't use the vault either: it works inside a course repository, which holds `prompt-notes.md` (the prompt, sent whole), `README-prompt.md` (student docs) and one folder per class session.
   - Class recordings reach course repos through `class-notes fetch`, separately from the vault's audio pipeline.
@@ -56,7 +57,7 @@ When a skill folder is renamed or moved, update all of these in the same sitting
   - Single-quote the description, doubling any internal apostrophes, if it contains `#` or `: `. An unquoted `#todo` once silently cut `catch-up`'s description short.
   - Check every skill at once. This fails loudly on a name/folder mismatch or an over-long description, and prints each file's line count for the 500-line limit:
     ```bash
-    for f in */SKILL.md; do python3 -c "import yaml,re,sys; p=sys.argv[1]; t=open(p).read(); fm=yaml.safe_load(re.match(r'^---\n(.*?)\n---\n',t,re.S).group(1)); assert fm['name']==p.split('/')[0], p+': name != folder'; assert len(fm['description'])<=1024, p+': description too long'; print(fm['name'], len(fm['description']), t.count(chr(10)), 'lines')" "$f"; done
+    for f in */SKILL.md; do uv run -q --with pyyaml python -c "import yaml,re,sys; p=sys.argv[1]; t=open(p).read(); fm=yaml.safe_load(re.match(r'^---\n(.*?)\n---\n',t,re.S).group(1)); assert fm['name']==p.split('/')[0], p+': name != folder'; assert len(fm['description'])<=1024, p+': description too long'; print(fm['name'], len(fm['description']), t.count(chr(10)), 'lines')" "$f"; done
     ```
 - **Length:** keep `SKILL.md` under 500 lines. Move detail that matters only sometimes into `references/`, one level deep and linked from `SKILL.md`. Record new lessons as short rules there, not as dated stories in the steps.
 - **Side effects:** a skill that moves or rewrites files triggers only on an explicit request. `catch-up` runs only when asked. `ootd` offers first when it finds a photo mid-task.

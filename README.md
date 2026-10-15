@@ -15,6 +15,7 @@ My personal [Claude Code](https://code.claude.com/docs/en/skills) skills. Each f
 | [capture-learning-moment](capture-learning-moment/) | Teaching | When asked, writes up a teachable moment from the current conversation as a Quarto `.qmd` for students, as a post when the output folder is a Quarto website. |
 | [class-notes](class-notes/) | Teaching | Turns a Plaud recording of a class into a dated session folder, then generates notes with the course's own prompt, which students edit by pull request. |
 | [creating-ultra-crew-guides](creating-ultra-crew-guides/) | Running | Builds offline crew guides for an ultramarathon: aid stations, driving, cutoffs and drop bags. |
+| [external-app-review](external-app-review/) | Coding | After you fix an app another model or agent built, writes an honest review folder: executive summary, chapters, Mermaid diagrams, screenshots from the commit history. |
 
 The vault skills assume an Obsidian-style markdown vault and read its `CLAUDE.md` for folder names. `catch-up` and `email-digest` are written for my own setup, and `email-digest` also needs my private `claude-cowork` repo.
 
@@ -35,7 +36,7 @@ Or install them as plugins from this repo's marketplace:
 /plugin install wardrobe@chendaniely-skills
 ```
 
-The plugins are `vault`, `wardrobe`, `teaching` and `running`, matching the groups above. Plugin skills carry the plugin's name (`/wardrobe:ootd`) and update through `/plugin`; turn on auto-update for the marketplace there. Use one install method or the other, not both.
+The plugins are `vault`, `wardrobe`, `teaching`, `running` and `coding`, matching the groups above. Plugin skills carry the plugin's name (`/wardrobe:ootd`) and update through `/plugin`; turn on auto-update for the marketplace there. Use one install method or the other, not both.
 
 Call a skill by name (for example `/capture-learning-moment`), or let Claude load it when a request matches its description.
 
