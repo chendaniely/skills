@@ -8,7 +8,7 @@ Dan's personal Claude Code skills, public on GitHub as `chendaniely/skills`. Eac
   - It never touches entries in `~/.claude/skills` that aren't its own links, such as skill folders other tools installed there.
   - If a skill's name is already taken there by a folder or a different link, it prints `skipped` and leaves it.
   - It removes its own links whose skill folder no longer exists.
-- **Setup:** `make setup` (or `make setup-check`, which changes nothing) wires `preferences.md` and the leak-check guard into this machine's harness config; `docs/setup.md` lists each step and how to undo it. Its tests: `uv run --quiet --with pytest pytest plan-driven-development/tests/test_setup.py -q`.
+- **Setup:** `make setup` (or `make setup-check`, which changes nothing) wires `preferences.md` and the leak-check guard into this machine's harness config; `docs/setup.md` lists each step and how to undo it. Its tests run with `make test`.
 - **Keep skills flat at the top level** (decided 2026-09-16). Claude Code only discovers personal skills one level deep (`~/.claude/skills/<name>/SKILL.md`), so group folders wouldn't group anything, and a move breaks the paths listed below.
 - **Marketplace (added 2026-09-23):** `.claude-plugin/marketplace.json` also publishes the skills as five plugins (`vault`, `wardrobe`, `teaching`, `running`, `coding`) for `/plugin marketplace add chendaniely/skills`. A new or renamed skill must be listed there too.
   - Plugin installs prefix skill names (`/wardrobe:ootd`) and are cached copies, so edits apply only after a push and plugin update. Anything that loads a skill by bare name (like the `daily-email-digest` task) needs the symlink install.
@@ -56,19 +56,17 @@ When a skill folder is renamed or moved, update all of these in the same sitting
   - `name` equals the folder name.
   - `description` is at most 1024 characters and says what the skill does and when to use it.
   - Single-quote the description, doubling any internal apostrophes, if it contains `#` or `: `. An unquoted `#todo` once silently cut `catch-up`'s description short.
-  - Check every skill at once. This fails loudly on a name/folder mismatch or an over-long description, and prints each file's line count for the 500-line limit:
-    ```bash
-    for f in */SKILL.md; do uv run -q --with pyyaml python -c "import yaml,re,sys; p=sys.argv[1]; t=open(p).read(); fm=yaml.safe_load(re.match(r'^---\n(.*?)\n---\n',t,re.S).group(1)); assert fm['name']==p.split('/')[0], p+': name != folder'; assert len(fm['description'])<=1024, p+': description too long'; print(fm['name'], len(fm['description']), t.count(chr(10)), 'lines')" "$f"; done
-    ```
+  - Check every skill at once with `make check-skills`. It fails loudly on a name/folder mismatch or an over-long description (name = folder, description ≤ 1024), and prints each file's line count for the 500-line limit.
 - **Length:** keep `SKILL.md` under 500 lines. Move detail that matters only sometimes into `references/`, one level deep and linked from `SKILL.md`. Record new lessons as short rules there, not as dated stories in the steps.
 - **Side effects:** a skill that moves or rewrites files triggers only on an explicit request. `catch-up` runs only when asked. `ootd` offers first when it finds a photo mid-task.
 - **Self-edits:** no skill edits the vault's `CLAUDE.md` or its own `SKILL.md` on its own initiative. It proposes the change and applies it after Dan says yes.
 - **`grep` in Claude Code sessions** prints recursive paths without a leading `./`. Write path filters that accept both forms, for example `grep -vE '^(\./)?TODO\.md:'`.
 - **Tests:**
-  - **`ootd`** has the only regression test: `ootd/tests/prompt.md` (the prompt) and `ootd/tests/check_green.py` (the grader, with the fixture recipe in its header).
+  - **`ootd`** has its regression test: `ootd/tests/prompt.md` (the prompt) and `ootd/tests/check_green.py` (the grader, with the fixture recipe in its header).
     - Re-run GREEN after any change to `ootd` or to `clothing-inventory`, which `ootd` runs as a sub-skill.
     - The fixture lives under `/tmp` and doesn't survive a reboot, so rebuild it from the recipe first.
     - Running the grader leaves `ootd/tests/__pycache__/`, which `.gitignore` covers.
+  - **`plan-driven-development`** has a pytest suite covering its scripts and the root setup script. Run it with `make test` (`make test-utc` for the same under UTC).
   - **Other skills have no tests.** Re-read the diff against the rule it implements. For a description change, check that the trigger phrases still match how Dan asks.
   - **Install checks:** test `install.sh` without touching the real links by running `CLAUDE_SKILLS_DIR=<scratch dir> ./install.sh`. A skill is live when `ls -l ~/.claude/skills/` shows a link into this repo and the skill appears in a session's skill list.
 
