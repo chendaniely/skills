@@ -979,3 +979,21 @@ Recommended A. It guards Claude Code only; OpenCode and pi keep the prose rule i
 An independent reviewer checked the spec against this record; its fixes went in as `d454acd`.
 Asked to keep the ruleset's "For pull requests only" bypass (A) or use an empty list (B), and to
 approve the spec: **Dan:** "yes go for A approved" (2026-10-15).
+
+## After the spec: a Makefile in every project
+
+**Dan (2026-10-15, while the plan was in review):** "for the project plan, i'd also like a
+[preference] to have a Makefile whenever possible to make running commands easier for both the
+agent and user."
+
+To be folded into the spec and the plan with the plan review's fixes:
+- Kickoff copies a `Makefile` template into every project, local-ai's style: `make help` is the
+  default and lists the targets from their `## ` comments; kept to GNU make 3.81 so it runs on the
+  Mac as well as Linux (tested on both). Targets: `help`, `hooks` (turn the hooks on and validate
+  the denylist), `check` (the one check command), `test`, `lint`, and `docs` on site projects
+  (render plus the link check).
+- `AGENTS.md` names the targets rather than raw commands, and a command people will run more than
+  once becomes a target; runbook and docs commands use the targets where one exists.
+- `preferences.md` carries the preference for every project.
+- This skill's own commands (its tests, the skills repo's frontmatter check, `install.sh`) get
+  targets too, in a `Makefile` at this repo's root.
