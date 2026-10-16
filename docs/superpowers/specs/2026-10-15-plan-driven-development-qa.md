@@ -997,3 +997,63 @@ To be folded into the spec and the plan with the plan review's fixes:
 - `preferences.md` carries the preference for every project.
 - This skill's own commands (its tests, the skills repo's frontmatter check, `install.sh`) get
   targets too, in a `Makefile` at this repo's root.
+
+Folded in with the plan review's fixes (below): `templates/Makefile` adds `test-utc` and `leaks`
+targets, and `make hooks` checks the tools and the denylist before turning the hooks on. Both
+Makefiles were run on the Mac's GNU make 3.81 and on GNU make 4.3 in an `ubuntu:24.04` container.
+
+## After the plan review
+
+An independent reviewer read the plan against the spec, re-ran its 141 tests and the leak check's
+and hooks' listings (all passed), and returned ten findings ("approve with changes"); the session
+checked each claim. All ten were applied:
+
+1. **Blocking:** every push block ran `git push` even after a failed scan, and relied on an
+   undefined `$LOCAL_AI`. Now a push runs only if the leak check, gitleaks and a binary check all
+   pass, and `$LOCAL_AI` is set as a Global Constraint and checked (tested against a bare remote in
+   bash and zsh; bash refuses an apostrophe inside `"${VAR:?…}"`, so the message has none).
+2. The plugin paths were hard-coded to superpowers 6.4.1 and Matt 1.2.3; superpowers had moved to
+   7.0.0 and Matt's skills to 1.3.1 that night. The runner now reads `installed_plugins.json` and
+   records the versions.
+3. Three graders couldn't tell a good run from a bad one (s12 matched `git merge-base`; s19 counted
+   any subagent; S03's conflict could be avoided). Fixed, each with a test.
+4. Each run is now checked for isolation: none of Dan's own skills loaded, the skill present for
+   GREEN and absent for RED, and a canary turn opens RED.
+5. Task 3 split into three (the checker and a Makefile; the fixtures and graders; the runners, at
+   Tier 1), with per-scenario allow-lists and `--no-verify` denied wherever it appears.
+6. Every task is self-contained for an implementer who sees only it: every commit written out, the
+   test command inline, the phase end named `### Task 16: Phase end (a small project)`.
+7. The phase end gained its missing commits and pushes, a Ruling for the missing `CHANGELOG.md`,
+   and a PR body ending in `Plan: … Phase end`.
+8. The port regained local-ai's lost tests and assertions, names binaries in a push's range, keeps
+   the dropped `.gitignore` patterns, and its refusal tells an agent to stop and tell Dan.
+9. Three spec items gained steps: the scratch-repo commit proving the hooks read the real denylist
+   (Decision 11), the deny-rule fallback for Matt's `tdd` and `diagnosing-bugs`, and a definition of
+   `__SKILL_VERSION__`.
+10. The minors: diffs from each task's own base, Task 1's Tier 1 review, the release at Tier 3, the
+    skill text split into two review gates, the drill asserting its findings, S02's fixture
+    Makefile no longer running `TZ=UTC` for the agent, results files checked for paths, one waiting
+    rule for S15/S16, and the missing test command.
+
+**Upstream since the spec (superpowers 7.0.0, Matt 1.3.1).** writing-plans now asks for "a code
+block only for an algorithm they do not determine" (overridden: full code, Dan's Question 4);
+brainstorming's builder check becomes a small project's one pre-approval reviewer; Matt's
+`code-review` no longer names `docs/agents/issue-tracker.md` but still reads a tracker doc;
+`grilling` adds "Word each question so 'yes' accepts your recommended answer", which fits. And
+brainstorming 7.0.0 now asks open questions first ("Offer a short menu only when they're stuck";
+red flag "Options steer"), the opposite of Dan's format, so:
+
+**Brainstorming's open questions.** *Kickoff of the next project; the new brainstorming says to
+ask open questions first.*
+- **A:** Dan's format for every decision, with one exception: kickoff may open with a single
+  "describe it in your own words" question about intent.
+- **B:** Dan's format everywhere. **C:** follow the new brainstorming.
+
+Recommended A. **Dan:** "i like the choices that you give me when you (claude) display the options
+that are selectable/clickable in the tui. unless it has a lot of text you should opt for that view
+over the wall of text. makes selecting options easier. let's go with A".
+
+So: A, and a new asking rule: where the harness has selectable options (Claude Code's
+AskUserQuestion), choices are presented that way, the recommended option first and labelled
+"(Recommended)", with the short self-review just before; text when the options need long
+explanation. Both are in the spec, `preferences.md` and the template's contract.

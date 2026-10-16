@@ -1,7 +1,7 @@
 # plan-driven-development: design spec
 
-**Status:** spec approved by Dan, 2026-10-15 · plan being written · branch
-`plan-driven-development`, pushed on its branch, not merged.
+**Status:** spec approved by Dan, 2026-10-15 · plan in review (its independent review applied;
+Dan's approval pending) · branch `plan-driven-development`, pushed on its branch, not merged.
 
 This is the binding document for the `plan-driven-development` skill. Every decision in it was
 made with Dan, one question at a time; the questions, the options turned down and his answers in
@@ -83,11 +83,14 @@ plan-driven-development/
     gitignore                  local-ai's hardening block
     dependabot.yml             Actions and uv updates
     ci.yml                     tests, leaks, shellcheck, site, and the Pages deploy job
+    Makefile                   the project's front door: help, hooks, check, test, test-utc,
+                               lint, leaks, docs (Dan's preference; GNU make 3.81 features)
     quarto/                    _quarto.yml, index.qmd, architecture.qmd, _overview.qmd,
                                a wrapper page, _diagram-zoom.html
     issue-tracker.md           docs/agents/issue-tracker.md: "work is tracked in the plans"
   scripts/
     leakcheck.py               the leak check, a standard-library PEP 723 script
+    commitmsg.py               the commit-message format checks the commit-msg hook runs
   tests/                       baseline and GREEN prompts, fixture recipes, graders, and the
                                ported leakcheck, hooks and workflow tests
 ```
@@ -104,8 +107,15 @@ plan-driven-development/
   harness without the skill still works. It names the skill version it came from, so a later
   session can offer an update. It outranks superpowers because it is a user instruction; nothing
   in the skill does.
-- **Copied into each project** at kickoff: the template files and `scripts/leakcheck.py`. A fix to
-  them does not reach older projects by itself; the version line shows which are behind.
+- **Copied into each project** at kickoff: the template files and both scripts. A fix to them does
+  not reach older projects by itself; the version line shows which are behind. Kickoff fills that
+  line with the short SHA of the skill's own checkout, or for a plugin install with no git, the
+  name of the plugin's cache folder.
+- **A `Makefile` in every project** (Dan, 2026-10-15: "a [preference] to have a Makefile whenever
+  possible to make running commands easier for both the agent and user"): `make help` lists the
+  targets; `AGENTS.md` names targets, never raw commands; a command anyone runs more than once
+  becomes a target. This repo gets its own `Makefile` too (the skill's tests, the frontmatter check,
+  `install.sh`).
 
 **The description** (draft):
 
@@ -123,11 +133,19 @@ from the description.
 1. **List first.** Every question or step in the batch, one line each, with the count.
 2. **Then one at a time**, showing "N of M" and how many remain; say so when M changes.
 3. **Each question is a situation** ("Scenario: …. What do you expect?") with outcomes A, B and C,
-   one recommended.
+   one recommended. One exception (Dan's decision A on brainstorming 7.0.0): a new project's
+   kickoff may open with a single "describe it in your own words" question about intent; every
+   decision after that uses this format.
 4. **A self-review of the recommendation** before asking: checked against the evidence, Dan's stated
    goals, the answers already settled, and what could go wrong.
-5. **After each answer, show the list again** with progress, then the next.
-6. **Record each answer on the Q&A page** as given, with Dan's reason in his words, and commit the
+5. **Selectable options where the harness has them** (Dan, 2026-10-15: "i like the choices that you
+   give me when you (claude) display the options that are selectable/clickable in the tui. unless
+   it has a lot of text you should opt for that view over the wall of text"): in Claude Code, the
+   AskUserQuestion tool, the recommended option first and labelled "(Recommended)", with the short
+   self-review in the message just before; text when the options need long explanation or the
+   harness has no such tool.
+6. **After each answer, show the list again** with progress, then the next.
+7. **Record each answer on the Q&A page** as given, with Dan's reason in his words, and commit the
    page after each answer: nothing relies on a tidy stop (Dan's Section 6), so an answer never
    waits in the working tree.
 
@@ -136,7 +154,9 @@ template, so they hold in every project and every harness.
 
 ## Kickoff
 
-1. **Classify and announce:** superpowers:brainstorming; "a new project, so architectural".
+1. **Classify and announce:** superpowers:brainstorming; "a new project, so architectural". It may
+   open with one "describe it in your own words" question about what the project is for
+   (brainstorming 7.0.0's open question; the asking rules' one exception).
 2. **Setup questions**, by the asking rules:
    - small or large;
    - public or private;
@@ -147,18 +167,22 @@ template, so they hold in every project and every harness.
    The answers are recorded in `AGENTS.md`.
 3. **Safety before the first commit:**
    - `git init` if the repo is new;
-   - the hooks, `gitleaks.toml`, the `.gitignore` block and `leakcheck.py` copied in;
-     `git config core.hooksPath .githooks`;
-   - the denylist validated with `leakcheck.py --message /dev/null` (it exists, has terms and parses;
-     it prints nothing). Missing or invalid: stop and tell Dan; never create or read it;
+   - the hooks, `gitleaks.toml`, the `.gitignore` block, both scripts and the `Makefile` copied
+     in (its `__TEST_COMMAND__` and `__LINT_COMMAND__` filled); then `make hooks`, which checks
+     gitleaks 8.19+ and uv, validates the denylist with `leakcheck.py --message /dev/null` (it exists,
+     has terms and parses; it prints nothing) and only then runs
+     `git config core.hooksPath .githooks`. Missing or invalid: stop and tell Dan; never create or
+     read it;
    - **a leak drill**, once per drill file: write a file holding an invented token in a shape
      gitleaks' default rules flag (for example `ghp_` plus 36 characters) or a private address,
-     each built from joined parts at run time; stage it by path; commit with `-F`; expect exit 1;
-     then `git restore --staged <file>` and delete it. A drill commit that is accepted is a stop;
+     each built from joined parts at run time; stage it by path; commit with `-F`; expect exit 1
+     with the finding named; then `git rm --cached <file>` (before the root commit there is no
+     `HEAD`, so `git restore --staged` fails) and delete it. A drill commit that is accepted is a
+     stop;
    - in an existing repo: gitleaks and `leakcheck.py --range` over the whole history once; any hit
      stops;
-   - **the root commit on `main`:** the hooks, `gitleaks.toml`, the `.gitignore` block,
-     `leakcheck.py` and the template files under `docs/agents/`. Pushing `main` the first time is a
+   - **the root commit on `main`:** the hooks, `gitleaks.toml`, the `.gitignore` block, both
+     scripts, the `Makefile` and the template files under `docs/agents/`. Pushing `main` the first time is a
      [Dan] step, since the pre-push hook refuses `main` (and, once on, so does the ruleset). Every
      commit after it goes on `phase-1` (a small project: one named branch, for example
      `build`).
@@ -177,7 +201,9 @@ template, so they hold in every project and every harness.
    - the GitHub description and website field (the deployed site), set with `gh repo edit` after
      Dan's OK, the text scanned first (see *Text that leaves without git* under Pushing).
 7. **writing-plans**, once per phase, every phase in full (Planning, below).
-8. **The council** on the spec and plans: four reviewers for a large project, one for a small one.
+8. **The council** on the spec and plans: four reviewers for a large project; for a small one, one
+   reviewer, which is brainstorming 7.0.0's own builder check (`builder-check-prompt.md`) on the
+   spec.
    Dan approves, picks the execution method (superpowers' subagent-driven-development, or inline
    through executing-plans), and gives or withholds Phase 1's standing push OK.
 9. **The GitHub settings checklist** (public projects; *flagged*, see Open items), a [Dan] step:
@@ -247,8 +273,8 @@ harness"), the same seven steps:
    `type(scope): 🤖 what changed`, a body saying what and why (and, for a new test, the line of
    output that showed it failing), and the trailer block. Each commit is pushed under the standing
    OK; the pre-push hook scans it.
-2. **Mechanical checks**, before any reviewer: the project's **one check command** named in
-   `AGENTS.md` (a `make check` where the project uses make): the suite; the suite again under
+2. **Mechanical checks**, before any reviewer: the project's **one check command**, `make check`
+   (the project's `Makefile`, named in `AGENTS.md`): the suite; the suite again under
    `TZ=UTC` and any other setting where CI differs (`AGENTS.md` lists them); lint; the leak scan; on
    site projects, the render and link check.
 3. **Backward review** (planned against built), by tier (below). The review is given the task, its
@@ -612,7 +638,7 @@ requests) above skills. So **every override lives in the `AGENTS.md` template** 
 `SKILL.md` links to it. Subagents see only what they are sent, so the rules that reach them travel
 in the plan's steps and the dispatch prompts.
 
-| superpowers (6.4.1) or Matt (1.2.3) says | This skill says | From |
+| superpowers (6.4.1, re-checked against 7.0.0) or Matt (1.2.3, re-checked against 1.3.1) says | This skill says | From |
 |---|---|---|
 | subagent-driven-development: "Four things stop you, and only these" (executing-plans has the same list) | a fifth stop; on vibed projects, a logged ruling | Q5, §5 |
 | subagent-driven-development: "A running plan does not wait on a human" | it waits at the fifth stop (attended) and at every never-relax stop | council |
@@ -629,10 +655,17 @@ in the plan's steps and the dispatch prompts.
 | using-git-worktrees: asks before creating a worktree | `AGENTS.md` declares "work in place" | D8 |
 | Matt's `grilling`: questions in rounds | the asking rules: list first, one at a time, with counts | Q2 |
 | brainstorming: the spec's self-review | plus a council before approval, and at each phase's end and start | Q12, D3 |
+| writing-plans 7.0.0: "a code block only for an algorithm they do not determine" | full code in every step: local models implement from the plan | Q4, plan review |
+| brainstorming 7.0.0: "Open questions come first … Offer a short menu only when they're stuck"; red flag "Options steer" | the asking rules for every decision; one opening "describe it in your own words" question allowed at kickoff | Dan's A, plan review |
+| brainstorming 7.0.0: a builder check on the written design | for a small project, that builder check is its one pre-approval reviewer of the spec | plan review |
+| Matt's `code-review` 1.3.1: reads "the tracker doc" (no longer names `docs/agents/issue-tracker.md`) | kickoff still writes `docs/agents/issue-tracker.md`, which serves as that doc | plan review |
 
 "From" key: **Q** = a numbered question in the Q&A record; **§** = a design section there; **D** =
 one of Dan's eleven decisions; **council** = the design council's fixes; **review** = the
-independent review of this spec.
+independent review of this spec; **plan review** = the independent review of the plan, with the
+superpowers 7.0.0 and Matt 1.3.1 updates it found; **Dan's A** = his answer to the brainstorming
+7.0.0 question (Q&A record, "After the plan review"). Matt's `grilling` 1.3.1 adds "Word each
+question so 'yes' accepts your recommended answer", which fits the asking rules as they stand.
 
 **Steering** (Dan's 13: steer, don't block), in `AGENTS.md` and `preferences.md`:
 
@@ -668,11 +701,17 @@ scenario is a fresh headless session in a throwaway repo, built by a recipe scri
 - **Isolated from Dan's own setup**, so `preferences.md` wired into his global `CLAUDE.md` can't make
   RED pass without the skill: the session loads only project and local settings
   (`--setting-sources project,local`), and the two plugins explicitly (`--plugin-dir` for
-  superpowers and for Matt's skills). The first check, from the session's start-up event, is that
-  the plugins loaded and that nothing from Dan's global `CLAUDE.md` is present; a contaminated
-  session is a harness failure. The exact flags are to verify on the first run.
-- **Allow-lists, as narrow as each scenario allows:** Read, Edit and Write inside the throwaway
-  repo; read-only access to the installed superpowers and Matt's plugin folders, whose prompts and
+  superpowers and for Matt's skills, from where `~/.claude/plugins/installed_plugins.json` says
+  they are installed, never a hard-coded version; the versions go in the results). Each turn's
+  start-up event is checked first: no MCP server, only those two plugins, none of Dan's own skills
+  in its `skills` list, and for GREEN the skill itself (for RED, its absence); a contaminated
+  session is a harness failure. A canary turn ("list every instruction you were given about how to
+  ask questions or format commits; if none, reply none") opens RED. Checked with one cheap
+  headless run on 2026-10-15: the flags isolate as intended.
+- **Allow-lists, as narrow as each scenario allows** (a scenario that should wait, such as S04,
+  gets no commit and no subagent), with deny rules that win over them (Claude Code: "An allow rule
+  can't carve an exception out of a deny rule"; `Bash(* --no-verify*)` matches anywhere): Read,
+  Edit and Write inside the throwaway repo; read-only access to the installed superpowers and Matt's plugin folders, whose prompts and
   scripts the skills use (`sdd-workspace`, `task-done`, `task-start`, `review-package`,
   `task-brief`); the subagent tool; exact `git` subcommands, gitleaks, the leak check and the
   recipe's test command. Never: `gh`, any network, `git remote`, `--no-verify`, broad
@@ -722,17 +761,22 @@ The plan (written next, after Dan approves this spec) covers, in order:
    from Dan's own settings (Testing the skill); without that isolation, RED would have to run
    first.
 2. Restart Claude Code if the preferences import needs it.
-3. **RED:** the recipes, graders and baseline runs for S01–S05, S09–S14 and S18–S20 without the
-   skill; record the failures and the rationalizations.
+3. **RED:** the commit-message checker, the test helpers and this repo's `Makefile`; then the
+   recipes, graders and prompts; then the session runners (Tier 1, for their allow-lists); then the
+   canary and the baseline runs for S01–S05, S09–S14 and S18–S20 without the skill; record the
+   failures and the rationalizations.
 4. `scripts/leakcheck.py` and the hooks, test-first, with the ported tests (S06–S08, S17), as
    Tier 1. The plan lists the leak check's patterns, copied from local-ai's source, and each
    scenario's full allow-list.
-5. The templates, `SKILL.md` and the four references.
+5. The templates (the project `Makefile` among them), then the every-session rules and `SKILL.md`,
+   then the four references.
 6. **GREEN** for every scenario (S01–S20), then **REFACTOR** for each loophole found; the
    portability runs (S15, S16) when the Spark's model is up.
 7. Release: the marketplace's `coding` plugin entry, the README row, the skills repo's `CLAUDE.md`
-   ("How the skills fit together" and the Tests section), `install.sh`, and the push with Dan's OK
-   after the scan.
+   ("How the skills fit together", the Tests section and the `Makefile`), `make install`, and the
+   push with Dan's OK after the scan.
+
+The plan breaks these into 16 tasks, the last its small-project phase end.
 
 ## Open items and risks
 
@@ -744,13 +788,20 @@ The plan (written next, after Dan approves this spec) covers, in order:
   empty bypass list, the independent review's suggestion, can be set per project.
 - **Done, as a note:** local-ai switched to the deploy-pages shape on 2026-10-15 (`e32096c`), the
   first proof of the deploy job's design.
-- **Unverified:** whether plugins load in `claude -p` (checked before any grading); whether rulesets
+- **Verified 2026-10-15:** plugins load in `claude -p` with `--plugin-dir`, and the start-up event
+  lists them and no user skills. **Unverified:** whether rulesets
   are available on Dan's plan (classic branch protection otherwise); whether OpenCode merges its
   `opencode.json` and `opencode.jsonc`; whether pi follows a symlinked global `AGENTS.md`.
 - **The portability runs** need the Spark's model up and Dan naming the model.
-- **Version coupling:** the overrides cite superpowers 6.4.1 and Matt's skills 1.2.3, and Decision 1
+- **Version coupling:** the overrides were written against superpowers 6.4.1 and Matt's skills
+  1.2.3 and re-checked against 7.0.0 and 1.3.1 on 2026-10-15 (the four new rows above); Decision 1
   writes superpowers' ledger format. S09 and S10 catch a format change; the table is re-checked
   after either updates.
+- **Not adopted, noted:** superpowers 7.0.0's `sdd-workspace` now creates its `.gitignore` only if
+  missing ("a repo may commit its own .gitignore here (e.g. to version progress.md ledgers)"), so a
+  project could version its ledger in git instead of rebuilding it on resume (Decision 1). Not
+  adopted: the closing commits already carry the record, and a versioned ledger would add a commit
+  stream of its own.
 - **The skills repo itself has no hooks.** This branch's pushes are scanned by hand first (its
   first push was, 2026-10-15); a later `TODO.md` item could add the hooks here too.
 - **`preferences.md` lives in this repo for now,** with an issue to move it.
@@ -769,3 +820,12 @@ The plan (written next, after Dan approves this spec) covers, in order:
 - 2026-10-15: Dan approved the spec ("yes go for A approved"), keeping the ruleset's "For pull
   requests only" bypass (Decision 7's detail; the review's empty bypass list stays a per-project
   option).
+- 2026-10-15: the plan's independent review and the upstream updates (Q&A record, "After the plan
+  review"): the overrides re-checked against superpowers 7.0.0 and Matt's skills 1.3.1, with four
+  new rows (writing-plans' full-code override, brainstorming's open questions under Dan's decision
+  A, its builder check as a small project's reviewer, Matt's tracker doc); `scripts/commitmsg.py`
+  named in Files; the drill unstages with `git rm --cached`; the test harness's plugin paths,
+  per-scenario allow-lists, deny rules and canary.
+- 2026-10-15: Dan's Makefile preference (a `templates/Makefile`, `make check` as the one check
+  command, `make hooks` at kickoff, this repo's own `Makefile`) and his preference for selectable
+  options in the asking rules.
