@@ -685,7 +685,7 @@ now (Dan's 17b). It holds the standing rules for every project and harness: the
 asking rules (with the count, Dan's rule at Question 17), the self-review before each
 recommendation (his rule at Question 8), wrong docs fixed now, the steering list, "for a new
 project, use plan-driven-development", and "the repo's own rules win". Wiring, each edit shown to
-Dan first: an `@` import in `~/.claude/CLAUDE.md`; an `instructions` entry in OpenCode's config;
+Dan first: an `@` import in `~/.claude/CLAUDE.md`; a marked block in OpenCode's global `AGENTS.md`, kept by `make setup` (OpenCode ignores `instructions` entries: measured 2026-10-16, a canary file listed there never reached the model, while the global and project `AGENTS.md` did);
 a symlink at `~/.pi/agent/AGENTS.md`; Hermes left out (its only global file is `SOUL.md`, its
 identity, and its docs say "leave preferences and profile facts to memory"). A `TODO.md` item and
 its GitHub issue record the move to a separate repo of agent global instructions with a setup
@@ -791,7 +791,7 @@ The plan breaks these into 16 tasks, the last its small-project phase end.
 - **Verified 2026-10-15:** plugins load in `claude -p` with `--plugin-dir`, and the start-up event
   lists them and no user skills. **Unverified:** whether rulesets
   are available on Dan's plan (classic branch protection otherwise); whether OpenCode merges its
-  `opencode.json` and `opencode.jsonc`; whether pi follows a symlinked global `AGENTS.md`.
+  `opencode.json` and `opencode.jsonc` (moot for preferences.md: OpenCode ignores `instructions`, measured 2026-10-16); whether pi follows a symlinked global `AGENTS.md`.
 - **The portability runs** need the Spark's model up and Dan naming the model.
 - **Version coupling:** the overrides were written against superpowers 6.4.1 and Matt's skills
   1.2.3 and re-checked against 7.0.0 and 1.3.1 on 2026-10-15 (the four new rows above); Decision 1
@@ -830,3 +830,5 @@ The plan breaks these into 16 tasks, the last its small-project phase end.
   command, `make hooks` at kickoff, this repo's own `Makefile`) and his preference for selectable
   options in the asking rules.
 - 2026-10-16: Dan approved the plan (`5991d9b`) and chose subagent-driven execution.
+- 2026-10-16: OpenCode ignores `instructions` (measured); preferences.md reaches it through a block
+  `make setup` keeps in its global `AGENTS.md` (Dan's choice).

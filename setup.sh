@@ -7,7 +7,8 @@
 #   --check   report what each step would do and change nothing
 #
 # Each step prints one line: "<step>: ok | added | linked | skipped: <why> |
-# warn: <what to do>". Set HOME to try it on a scratch directory.
+# warn: <what to do>". Step 3 also prints a diff after a change. Set HOME to try it
+# on a scratch directory.
 # See docs/setup.md for what each step touches and how to undo it.
 set -euo pipefail
 
@@ -71,26 +72,90 @@ else
   say pi linked
 fi
 
-# 3. OpenCode: count only, never print or edit its config.
-opencode_hits=0
-opencode_unreadable=""
-for f in "$config_dir/opencode/opencode.json" "$config_dir/opencode/opencode.jsonc"; do
-  if [ -f "$f" ]; then
-    if [ -r "$f" ]; then
-      n="$(grep -cF -e "$prefs" "$f" 2>/dev/null || true)"
-      opencode_hits=$((opencode_hits + ${n:-0}))
-    else
-      opencode_unreadable="$opencode_unreadable $(basename "$f")"
-    fi
-  fi
-done
-if [ "$opencode_hits" -gt 0 ]; then
-  say opencode ok
-elif [ -n "$opencode_unreadable" ]; then
-  say opencode "warn:$opencode_unreadable unreadable, so I can't tell whether it lists preferences.md; make it readable and re-run"
-else
-  say opencode "warn: add \"instructions\": [\"$prefs\"] to OpenCode's config yourself; this script never edits it"
-fi
+# 3. OpenCode ignores `instructions` entries (measured 2026-10-16) but reads
+# its global AGENTS.md, so keep a marked copy of preferences.md there. Only
+# the text between the markers is ever replaced; its JSON config is never read.
+# SETUP_PREFERENCES points at a stand-in file; it exists for the tests.
+oc_prefs="${SETUP_PREFERENCES:-$prefs}"
+oc_agents="$config_dir/opencode/AGENTS.md"
+py_opencode=$(cat <<'PY'
+import difflib, os, shutil, sys, tempfile, time
+
+mode, path, prefs_path = sys.argv[1:4]
+BEGIN = ("<!-- preferences.md: begin (managed by make setup in the skills repo; "
+         "edit preferences.md there, not here) -->")
+END = "<!-- preferences.md: end -->"
+real = os.path.realpath(path)
+
+with open(prefs_path, encoding="utf-8", newline="") as fh:
+    want = fh.read()
+if want and not want.endswith("\n"):
+    want += "\n"
+
+text = ""
+exists = os.path.exists(real)
+if exists:
+    with open(real, encoding="utf-8", newline="") as fh:
+        text = fh.read()
+lines = text.splitlines(True)
+begins = [i for i, x in enumerate(lines) if x.rstrip("\r\n") == BEGIN]
+ends = [i for i, x in enumerate(lines) if x.rstrip("\r\n") == END]
+if (len(begins), len(ends)) not in ((0, 0), (1, 1)) or (begins and ends[0] < begins[0]):
+    print("opencode: warn: the preferences block in AGENTS.md is malformed (a marker is "
+          "missing, doubled or out of order); fix it by hand and re-run, nothing changed")
+    sys.exit(0)
+
+if begins:
+    have = "".join(lines[begins[0] + 1:ends[0]])
+    if have == want:
+        print("opencode: ok")
+        sys.exit(0)
+    if mode == "check":
+        print("opencode: warn: the preferences block in AGENTS.md is stale; run make setup")
+        sys.exit(0)
+    old_block = have
+    new_text = "".join(lines[:begins[0] + 1]) + want + "".join(lines[ends[0]:])
+    verb = "updated"
+else:
+    if mode == "check":
+        print("opencode: warn: the preferences block is missing from AGENTS.md; run make setup")
+        sys.exit(0)
+    old_block = ""
+    block = BEGIN + "\n" + want + END + "\n"
+    if text.strip():
+        sep = ("" if text.endswith("\n") else "\n") + "\n"
+        new_text = text + sep + block
+    else:
+        new_text = text + block
+    verb = "added"
+
+folder = os.path.dirname(real)
+os.makedirs(folder, exist_ok=True)
+if exists:
+    bak = real + ".bak-" + time.strftime("%Y%m%d%H%M%S")
+    n = 0
+    while os.path.exists(bak):  # never overwrite an earlier backup made in the same second
+        n += 1
+        bak = "%s.bak-%s-%d" % (real, time.strftime("%Y%m%d%H%M%S"), n)
+    shutil.copy2(real, bak)
+fd, tmp = tempfile.mkstemp(dir=folder, prefix=".AGENTS-", suffix=".tmp")
+try:
+    with os.fdopen(fd, "w", encoding="utf-8", newline="") as fh:
+        fh.write(new_text)
+    if exists:
+        shutil.copymode(real, tmp)
+    os.replace(tmp, real)
+except BaseException:
+    if os.path.exists(tmp):
+        os.unlink(tmp)
+    raise
+print("opencode: " + verb)
+diff = difflib.unified_diff(old_block.splitlines(True), want.splitlines(True),
+                            "AGENTS.md block (before)", "AGENTS.md block (after)")
+sys.stdout.write("".join(diff))
+PY
+)
+uv run --no-project --quiet python -c "$py_opencode" "$([ "$check" = 1 ] && echo check || echo apply)" "$oc_agents" "$oc_prefs"
 
 # 4. The leak-check denylist link (existence only; never read).
 if [ -e "$leakcheck_dir/$denylist_name" ]; then

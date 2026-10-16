@@ -184,16 +184,126 @@ def test_denylist_link_needs_local_ai_one(home):
     assert line(run(home), "denylist-link").startswith("ok")
 
 
-def test_opencode_step(home):
-    assert line(run(home), "opencode").startswith("warn")
+BEGIN = (
+    "<!-- preferences.md: begin (managed by make setup in the skills repo; "
+    "edit preferences.md there, not here) -->"
+)
+END = "<!-- preferences.md: end -->"
+PONYTAIL = "# Ponytail\n\nstand-in for Dan's own text, kept exactly.\n"
+
+
+def agents(home):
+    return home / CFG / "opencode" / "AGENTS.md"
+
+
+def oc_backups(home):
+    return sorted(agents(home).parent.glob("AGENTS.md.bak-*"))
+
+
+@pytest.fixture
+def prefs_file(tmp_path):
+    p = tmp_path / "prefs-standin.md"
+    p.write_text("# Prefs\n\nrule one\nrule two\n")
+    return p
+
+
+def oc_env(prefs_file):
+    return {"SETUP_PREFERENCES": str(prefs_file)}
+
+
+def test_opencode_block_created_in_new_file(home, prefs_file):
+    out = run(home, env=oc_env(prefs_file))
+    assert line(out, "opencode").startswith("added")
+    assert agents(home).read_text() == f"{BEGIN}\n{prefs_file.read_text()}{END}\n"
+    assert oc_backups(home) == []
+    assert "+rule one" in out
+
+
+def test_opencode_block_appended_once_and_ponytail_kept(home, prefs_file):
+    agents(home).parent.mkdir(parents=True)
+    agents(home).write_text(PONYTAIL)
+    out = run(home, env=oc_env(prefs_file))
+    assert line(out, "opencode").startswith("added")
+    text = agents(home).read_text()
+    assert text == f"{PONYTAIL}\n{BEGIN}\n{prefs_file.read_text()}{END}\n"
+    assert len(oc_backups(home)) == 1
+    assert oc_backups(home)[0].read_text() == PONYTAIL
+    out2 = run(home, env=oc_env(prefs_file))
+    assert line(out2, "opencode").startswith("ok")
+    assert agents(home).read_text() == text
+    assert len(oc_backups(home)) == 1
+
+
+def test_opencode_block_updated_only_inside_markers(home, prefs_file):
+    agents(home).parent.mkdir(parents=True)
+    tail = "\nafter the block\n"
+    agents(home).write_text(PONYTAIL)
+    run(home, env=oc_env(prefs_file))
+    with agents(home).open("a") as fh:
+        fh.write(tail)
+    before = agents(home).read_text()
+    prefs_file.write_text("# Prefs\n\nrule one\nrule CHANGED\n")
+    out = run(home, env=oc_env(prefs_file))
+    assert line(out, "opencode").startswith("updated")
+    assert "+rule CHANGED" in out and "-rule two" in out
+    assert agents(home).read_text() == (
+        f"{PONYTAIL}\n{BEGIN}\n{prefs_file.read_text()}{END}\n{tail}"
+    )
+    assert agents(home).read_text().startswith(PONYTAIL)
+    assert agents(home).read_text().endswith(tail)
+    assert len(oc_backups(home)) == 2
+    assert any(b.read_text() == before for b in oc_backups(home))
+    assert line(run(home, env=oc_env(prefs_file)), "opencode").startswith("ok")
+    assert len(oc_backups(home)) == 2
+
+
+def test_opencode_check_reports_missing_and_stale_and_changes_nothing(home, prefs_file):
+    before = snapshot(home)
+    out = run(home, "--check", env=oc_env(prefs_file))
+    assert line(out, "opencode").startswith("warn")
+    assert "missing" in line(out, "opencode")
+    assert "make setup" in line(out, "opencode")
+    assert snapshot(home) == before
+    run(home, env=oc_env(prefs_file))
+    assert line(run(home, "--check", env=oc_env(prefs_file)), "opencode") == "ok"
+    prefs_file.write_text("changed\n")
+    before = snapshot(home)
+    out = run(home, "--check", env=oc_env(prefs_file))
+    assert line(out, "opencode").startswith("warn")
+    assert "stale" in line(out, "opencode")
+    assert snapshot(home) == before
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        f"{PONYTAIL}\n{BEGIN}\nno end\n",
+        f"{BEGIN}\na\n{BEGIN}\nb\n{END}\n",
+        f"{END}\nonly an end\n",
+    ],
+)
+def test_opencode_malformed_block_warns_and_changes_nothing(home, prefs_file, body):
+    agents(home).parent.mkdir(parents=True)
+    agents(home).write_text(body)
+    before = agents(home).parent.joinpath("AGENTS.md").read_bytes()
+    for args in ((), ("--check",)):
+        out = run(home, *args, env=oc_env(prefs_file))
+        assert line(out, "opencode").startswith("warn")
+        assert agents(home).read_bytes() == before
+        assert oc_backups(home) == []
+
+
+def test_opencode_never_touches_its_json_config(home, prefs_file):
     cfg = home / CFG / "opencode" / "opencode.json"
     cfg.parent.mkdir(parents=True)
-    entry = '{"instructions": ["%s/preferences.md"]}' % REPO
-    cfg.write_text(entry)
-    out = run(home)
-    assert line(out, "opencode").startswith("ok")
-    assert str(REPO) not in line(out, "opencode")
-    assert cfg.read_text() == entry
+    cfg.write_text('{"instructions": []}')
+    cfg.chmod(0)
+    try:
+        out = run(home, env=oc_env(prefs_file))
+    finally:
+        cfg.chmod(0o644)
+    assert line(out, "opencode").startswith("added")
+    assert cfg.read_text() == '{"instructions": []}'
 
 
 # ---- fix round 1 ----
@@ -281,26 +391,6 @@ def test_dangling_denylist_link_is_skipped(home):
     assert line(out, "denylist-link").startswith("skipped")
     assert os.readlink(link) == str(home / "nowhere")
     assert line(out, "guard")  # the script went on
-
-
-def test_opencode_unreadable_is_a_warning(home):
-    cfg = home / CFG / "opencode" / "opencode.json"
-    cfg.parent.mkdir(parents=True)
-    cfg.write_text("x")
-    cfg.chmod(0)
-    try:
-        out = run(home)
-    finally:
-        cfg.chmod(0o644)
-    assert "unreadable" in line(out, "opencode")
-    assert line(out, "opencode").startswith("warn")
-
-
-def test_opencode_counts_only_this_repos_path(home):
-    cfg = home / CFG / "opencode" / "opencode.json"
-    cfg.parent.mkdir(parents=True)
-    cfg.write_text('{"instructions": ["/elsewhere/preferences.md"]}')
-    assert line(run(home), "opencode").startswith("warn")
 
 
 def test_import_ignores_other_mentions(home):
