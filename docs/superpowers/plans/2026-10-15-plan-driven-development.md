@@ -22,7 +22,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
 
-**Now:** Task 2: restart and check the wiring, open.
+**Now:** Task 3: the commit-message checker, open.
 
 ## Global Constraints
 
@@ -422,6 +422,11 @@ fi
 
 ### Task 2: Restart and check the wiring
 
+> **Built differently** (closed 2026-10-16): a fresh headless `claude -p` session stood in for
+> restarting Claude Code (a ruling: a new session reads `CLAUDE.md` afresh, and a restart would end
+> the run); it named `preferences.md`. OpenCode and pi wait on the Spark (Dan's choice): Task 14
+> re-runs both.
+
 **Tier:** 3 · **Scenarios:** none directly.
 
 **Files:** none in the repo; the check's results go in the closing commit.
@@ -430,21 +435,21 @@ fi
 - Consumes: Task 1's wiring.
 - Produces: confirmation that each harness loads `preferences.md`.
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: [Dan] Restart Claude Code** if it was running when Step 5 of Task 1 added the
+- [x] **Step 1: [Dan] Restart Claude Code** if it was running when Step 5 of Task 1 added the
   import (a running session doesn't re-read `CLAUDE.md`).
 
-- [ ] **Step 2: Check Claude Code.** In the new session, ask: "Which of your instruction files says
+- [x] **Step 2: Check Claude Code.** In the new session, ask: "Which of your instruction files says
   to list questions first and then ask them one at a time?" Expected: it names `preferences.md`.
 
-- [ ] **Step 3: Check OpenCode and pi [Dan names the model; the Spark's model up for local ones].**
+- [x] **Step 3: Check OpenCode and pi [Dan names the model; the Spark's model up for local ones].**
   The same question in `opencode run --model <model> "<question>"` and
   `pi -p --model <model> "<question>"`. Expected: each names the preferences. If the Spark's model
   is down, mark the step "waiting on the Spark" in the closing commit and carry on: Task 14
   re-checks it.
 
-- [ ] **Step 4: Close (Tier 3).** A self-review: each harness answered as expected, or the gap is
+- [x] **Step 4: Close (Tier 3).** A self-review: each harness answered as expected, or the gap is
   recorded under `Phase-end:`. Tick the boxes, set **Now** to `Task 3: the commit-message checker,
   open.`, and commit `plan-driven-development: close Task 2: restart and check the wiring`:
 
