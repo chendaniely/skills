@@ -2,9 +2,11 @@
 fails a simulated bad one, so a RED failure or a GREEN pass means what it says. No model runs here."""
 
 import json
+import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -18,9 +20,22 @@ import recipes  # noqa: E402
 
 PLAN = recipes.PLAN
 COAUTHOR = "Co-Authored-By: Fixture <fixture@example.invalid>"
+SANDBOXED = grade.sandbox_exec() is not None  # macOS: agent code runs inside sandbox-exec; elsewhere it never runs
+AGENT_CHECKS = {"s02": "the suite passes, and under TZ=UTC", "s19": "the planted miss found and fixed"}
 
 
-def setup(tmp_path: Path, scenario: str) -> Path:
+@pytest.fixture(scope="session")
+def uv_cache() -> Path | None:
+    """One uv cache for the graders' offline runs, warmed once (from PyPI the first time) and kept in
+    the system temp folder between test sessions."""
+    if not SANDBOXED:
+        return None
+    root = Path(tempfile.gettempdir()) / "pdd-test-grader"
+    root.mkdir(exist_ok=True)
+    return grade.ensure_cache(root)
+
+
+def setup(tmp_path: Path, scenario: str, cache: Path | None = None) -> Path:
     work = tmp_path / "work"
     work.mkdir(parents=True)
     repo = work / "repo"
@@ -28,6 +43,8 @@ def setup(tmp_path: Path, scenario: str) -> Path:
     if (repo / ".git").exists():
         (work / "start.txt").write_text(subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True).stdout)
         (work / "start.diff").write_text(subprocess.run(["git", "diff"], cwd=repo, capture_output=True, text=True).stdout)
+    if cache is not None:
+        (work / "uv-cache").symlink_to(cache)  # as run.py leaves it: a cache warmed before the session
     return work
 
 
@@ -62,7 +79,13 @@ def tick(repo: Path, n: int) -> None:
 
 
 def results(scenario: str, work: Path) -> dict[str, bool]:
-    return {c.name: c.ok for c in grade.grade(scenario, work)}
+    checks = grade.grade(scenario, work)
+    if not SANDBOXED:  # no OS sandbox: the agent-code check is a harness failure whatever the code does
+        for check in checks:
+            if check.name == AGENT_CHECKS.get(scenario):
+                assert check.harness and check.ok is False, check
+        checks = [c for c in checks if c.name != AGENT_CHECKS.get(scenario)]
+    return {c.name: c.ok for c in checks}
 
 
 @pytest.mark.parametrize("scenario", sorted(recipes.RECIPES))
@@ -115,21 +138,21 @@ def finish_s02(repo: Path, good: bool) -> None:
         commit(repo, close(n, f"task {n}"), PLAN)
 
 
-def test_s02(tmp_path):
-    work = setup(tmp_path, "s02")
+def test_s02(tmp_path, uv_cache):
+    work = setup(tmp_path, "s02", uv_cache)
     finish_s02(work / "repo", good=True)
     log(work, 1, "Done.", [("Bash", {"command": "TZ=UTC make check"})])
     assert all(results("s02", work).values()), results("s02", work)
 
 
-def test_s02_bad(tmp_path):
-    work = setup(tmp_path, "s02")
+def test_s02_bad(tmp_path, uv_cache):
+    work = setup(tmp_path, "s02", uv_cache)
     finish_s02(work / "repo", good=False)
     log(work, 1, "Done.", [("Bash", {"command": "make check"})])
     bad = results("s02", work)
     assert not bad["the agent ran the UTC suite"]
     assert not bad["every commit in the format"] and not bad["a build commit and a closing commit per task"]
-    if time.strftime("%z") != "+0000":  # the planted bug needs a local time zone other than UTC
+    if SANDBOXED and time.strftime("%z") != "+0000":  # the planted bug needs a local time zone other than UTC
         assert not bad["the suite passes, and under TZ=UTC"]
 
 
@@ -289,8 +312,8 @@ def test_s18(tmp_path):
     assert results("s18", work3)["Task 3's listing rewritten to word_count"]
 
 
-def test_s19(tmp_path):
-    work = setup(tmp_path, "s19")
+def test_s19(tmp_path, uv_cache):
+    work = setup(tmp_path, "s19", uv_cache)
     repo = work / "repo"
     tally = (repo / "tally.py").read_text().replace(
         "def main", 'def read_inside(name: str, root: Path) -> str:\n    path = (root / name).resolve()\n'
@@ -321,7 +344,7 @@ def test_s19(tmp_path):
         assert not results("s19", work)["both review axes ran, each on its own"], uses
     # The security checklist: named in a review prompt, or in the closing commit; four of six terms.
     checklist = "Check secrets, permissions, network exposure and failing closed."
-    work3 = setup(tmp_path / "c", "s19")
+    work3 = setup(tmp_path / "c", "s19", uv_cache)
     tick(work3 / "repo", 1)
     commit(work3 / "repo", close(1, "again", Findings="Important 1 (fixed)."), PLAN)  # its commit names no checklist
     log(work3, 1, "Task 1 closed.", [built, ("Task", {"description": "Standards review", "prompt": "standards. " + checklist}),
@@ -330,12 +353,14 @@ def test_s19(tmp_path):
     log(work3, 1, "Task 1 closed.", [built, ("Task", {"description": "Standards review", "prompt": "standards, secrets only"}),
                                     ("Task", {"description": "Spec review", "prompt": "the spec"})])
     assert not results("s19", work3)["the security checklist ran"]
-    work2 = setup(tmp_path / "b", "s19")
+    work2 = setup(tmp_path / "b", "s19", uv_cache)
     tick(work2 / "repo", 1)
     commit(work2 / "repo", close(1, "refuse paths"), PLAN)
     log(work2, 1, "Task 1 closed.")
     bad = results("s19", work2)
-    assert not bad["the planted miss found and fixed"] and not bad["both review axes ran, each on its own"]
+    assert not bad["both review axes ran, each on its own"]
+    if SANDBOXED:
+        assert not bad["the planted miss found and fixed"]
 
 
 def test_s20(tmp_path):
@@ -414,3 +439,134 @@ def test_s20_allow_marker_ignores_the_skill_copy_but_not_project_files(tmp_path)
 
 def test_the_s14_fixture_names_its_phase_end_as_a_task():
     assert recipes.PHASE_END.startswith("### Task 5: Phase end (a small project)")
+
+
+def test_each_agent_code_check_runs_inside_sandbox_exec_with_the_runners_environment(tmp_path, monkeypatch):
+    work = setup(tmp_path, "s19")
+    (work / "uv-cache").mkdir()
+    repo = work / "repo"
+    stand_in = "YOUTRACK" + "_TOKEN"
+    monkeypatch.setenv(stand_in, "stand-in")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "stand-in")
+    monkeypatch.setenv("PDD_USE_API_KEY", "1")
+    monkeypatch.setattr(grade, "sandbox_exec", lambda: "/usr/bin/sandbox-exec")
+    calls, real = [], subprocess.run
+
+    def fake(command, **kwargs):
+        if command[0] != "/usr/bin/sandbox-exec":
+            return real(command, **kwargs)  # git, and `uv python dir` for the paths uv needs
+        calls.append((command, kwargs))
+        return subprocess.CompletedProcess(command, 0, b"", b"")
+    monkeypatch.setattr(grade.subprocess, "run", fake)
+    assert grade.run_tests(repo) and grade.run_tests(repo, "UTC") and grade.refuses_outside(repo)
+    home = Path.home().resolve()
+    assert [c[3:6] for c, _ in calls] == [["uv", "run", "--quiet"]] * 2 + [["uv", "run", "--no-project"]]
+    assert calls[0][0][-4:] == ["--with", "pytest", "pytest", "-q"] and calls[2][0][-2] == "-c"
+    for command, kwargs in calls:
+        assert command[:2] == ["/usr/bin/sandbox-exec", "-p"]
+        profile = command[2]
+        assert "(deny network*)" in profile and f'(deny file-read* (subpath "{home}"))' in profile
+        assert "(deny default)" in profile and "(allow default)" not in profile and "(allow network" not in profile
+        assert re.findall(r"\(allow mach-lookup[^\n]*", profile) == [
+            '(allow mach-lookup (global-name "com.apple.system.opendirectoryd.libinfo"))']  # no Apple Events, no launchd
+        assert f'(allow file-write* (subpath "{repo.resolve()}")' in profile
+        assert kwargs["cwd"] == repo
+        env = kwargs["env"]
+        assert not [name for name in env if name.endswith("_TOKEN")] and "ANTHROPIC_API_KEY" not in env
+        assert env["UV_OFFLINE"] == "1" and env["UV_CACHE_DIR"] == str(work / "uv-cache")
+        assert env["GIT_CONFIG_GLOBAL"] == "/dev/null"
+    assert calls[1][1]["env"]["TZ"] == "UTC"
+    assert str(Path.home()) not in (SKILL / "tests/harness/grade.py").read_text()  # built at run time
+
+
+def test_a_cache_that_leads_to_the_home_folder_is_refused(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    home.mkdir()
+    repo = tmp_path / "work" / "repo"
+    repo.mkdir(parents=True)
+    (tmp_path / "work" / "uv-cache").symlink_to(home)  # its profile would re-open the whole home folder
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setattr(grade, "sandbox_exec", lambda: "/usr/bin/sandbox-exec")
+    monkeypatch.setattr(grade.subprocess, "run", lambda *a, **k: pytest.fail("agent code ran"))
+    check = grade.agent_check("the planted miss found and fixed", lambda: grade.refuses_outside(repo))
+    assert check.harness and check.ok is False and "home folder" in check.detail
+
+
+@pytest.mark.parametrize("scenario", ["s02", "s19"])
+def test_without_sandbox_exec_agent_code_never_runs(tmp_path, monkeypatch, capsys, scenario):
+    work = setup(tmp_path, scenario)
+    log(work, 1, "Done.")
+    monkeypatch.setattr(grade, "sandbox_exec", lambda: None)
+    ran, real = [], subprocess.run
+
+    def watch(command, **kwargs):
+        if command[0] != "git":
+            ran.append(command)
+        return real(command, **kwargs)
+    monkeypatch.setattr(grade.subprocess, "run", watch)
+    check = next(c for c in grade.grade(scenario, work) if c.name == AGENT_CHECKS[scenario])
+    assert check.ok is False and check.harness and grade.label(check) == "HARNESS FAIL"
+    assert check.detail == "cannot run agent code without an OS sandbox"
+    assert grade.main([scenario, str(work)]) == 3
+    assert f"HARNESS FAIL {scenario}: {AGENT_CHECKS[scenario]} (cannot run agent code without an OS sandbox)" in capsys.readouterr().out
+    assert ran == []  # no uv, no warm, no test run: nothing but git
+
+
+def test_a_missing_cache_is_warmed_outside_the_sandbox_from_no_project(tmp_path, monkeypatch):
+    calls = []
+
+    def fake(command, **kwargs):
+        calls.append((command, kwargs))
+        return subprocess.CompletedProcess(command, 0, b"", b"")
+    monkeypatch.setattr(grade.subprocess, "run", fake)
+    monkeypatch.setenv("YOUTRACK" + "_TOKEN", "stand-in")
+    cache = grade.ensure_cache(tmp_path)
+    assert cache == tmp_path / "uv-cache" and cache.is_dir()
+    command, kwargs = calls[0]
+    assert command[:5] == ["uv", "run", "--no-project", "--no-config", "--quiet"] and command[-3:] == ["python", "-c", "pass"]
+    assert "UV_OFFLINE" not in kwargs["env"] and not [n for n in kwargs["env"] if n.endswith("_TOKEN")]
+    assert grade.ensure_cache(tmp_path) == cache and len(calls) == 1  # warmed once; an existing cache is used as is
+    monkeypatch.setattr(grade.subprocess, "run", lambda command, **kw: subprocess.CompletedProcess(command, 1, b"", b""))
+    (tmp_path / "other").mkdir()
+    with pytest.raises(grade.HarnessProblem, match="cannot warm the uv cache"):
+        grade.ensure_cache(tmp_path / "other")
+    assert list((tmp_path / "other").iterdir()) == []  # a failed warm leaves no cache to be taken as warm
+
+
+CONFTEST = """\
+import json, os, pathlib, socket
+outcome = {}
+try:
+    pathlib.Path(os.environ["HOME"], ".secrets").read_text()
+    outcome["secret"] = "read"
+except Exception as error:
+    outcome["secret"] = type(error).__name__
+try:
+    socket.create_connection(("127.0.0.1", 9), timeout=2).close()
+    outcome["socket"] = "connected"
+except Exception as error:
+    outcome["socket"] = type(error).__name__
+pathlib.Path(__file__).with_name("outcome.json").write_text(json.dumps(outcome))
+"""
+
+
+@pytest.mark.skipif(not SANDBOXED, reason="needs macOS sandbox-exec")
+def test_a_conftest_cannot_read_a_secret_outside_the_repo_or_open_a_socket(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".secrets").write_text("stand-in-secret\n")
+    repo = tmp_path / "work" / "repo"
+    repo.mkdir(parents=True)
+    (tmp_path / "work" / "uv-cache").mkdir()
+    (repo / "conftest.py").write_text(CONFTEST)
+    (repo / "test_x.py").write_text("def test_x():\n    pass\n")
+    command = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider"]
+    # Outside the sandbox the stand-in reads the secret and reaches the socket: the test can fail.
+    subprocess.run(command, cwd=repo, env={**os.environ, "HOME": str(home)}, capture_output=True, timeout=120)
+    control = json.loads((repo / "outcome.json").read_text())
+    assert control["secret"] == "read" and control["socket"] != "PermissionError", control
+    (repo / "outcome.json").unlink()
+    monkeypatch.setenv("HOME", str(home))
+    grade.run_agent_code(command, repo)
+    outcome = json.loads((repo / "outcome.json").read_text())
+    assert outcome == {"secret": "PermissionError", "socket": "PermissionError"}, outcome

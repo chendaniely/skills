@@ -55,9 +55,9 @@ This is a throwaway repo under the owner's login with filters and an OS sandbox,
 container: deny rules on Bash arguments are fragile (the docs say so); outside the home folder and
 the other user-file roots, sandboxed code can still read what any local user can (the system temp
 folder's other contents, /etc); and of what the block re-opens, the git ignore and attributes files,
-any file the owner's git config includes, and the whole plugin cache stay readable. Not covered
-here: after the session, grade.py runs the repo's tests (S02) and imports its code (S19) outside any
-sandbox, with the owner's full environment."""
+any file the owner's git config includes, and the whole plugin cache stay readable. After the
+session, grade.py runs the repo's tests (S02) and imports its code (S19) only inside sandbox-exec,
+with this environment and no network; without sandbox-exec those checks are HARNESS FAILs (exit 3)."""
 
 from __future__ import annotations
 
@@ -610,6 +610,8 @@ def main(argv: list[str] | None = None) -> int:
     gaps = harness_denials(denials, args.scenario)
     if gaps:
         print(f"HARNESS FAIL {args.scenario}: the allow-list refused: {gaps} ({work})")
+        return 3
+    if any(c.harness for c in checks):  # a check the grader couldn't judge, such as agent code with no sandbox
         return 3
     return 0 if all(c.ok is not False for c in checks) else 1
 

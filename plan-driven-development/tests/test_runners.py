@@ -648,6 +648,22 @@ def test_a_wait_scenarios_attempt_is_graded_and_the_harness_failure_is_reported_
     assert "cat tally.py" in harness_line and "git commit" not in harness_line
 
 
+def test_a_check_the_grader_could_not_judge_is_a_harness_failure(tmp_path, monkeypatch, capsys):
+    import grade
+    monkeypatch.setattr(run, "INSTALLED", plugins_file(tmp_path))
+    monkeypatch.setattr(grade, "sandbox_exec", lambda: None)  # Linux: agent code never runs
+    root = tmp_path / "root"
+    run.record_canary(root.resolve(), None)
+
+    def fake_turns(prompts, work, repo, scenario, stage, plugins, model, dry_run, *args, **kwargs):
+        (work / "log-1.jsonl").write_text(json.dumps({"type": "result", "result": "Task 1 closed."}) + "\n")
+        return 0
+    monkeypatch.setattr(run, "run_turns", fake_turns)
+    assert run.main(["s19", "--stage", "red", "--work-root", str(root)]) == 3
+    assert ("HARNESS FAIL s19 (red): the planted miss found and fixed (cannot run agent code without an OS sandbox)"
+            in capsys.readouterr().out)
+
+
 def test_portability_needs_dans_go_and_opencode_must_prove_the_deny_rules(tmp_path, monkeypatch, capsys):
     assert portability.main(["s04", "--harness", "pi", "--model", "m"]) == 3
     out = capsys.readouterr().out

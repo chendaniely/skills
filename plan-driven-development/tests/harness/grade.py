@@ -8,8 +8,16 @@
     uv run --script grade.py SCENARIO WORKDIR
 
 WORKDIR is what run.py leaves: `repo/`, `start.txt` (the commit the scenario started from),
-`start.diff` (uncommitted changes at the start) and `log-1.jsonl`, `log-2.jsonl`, … (one per turn,
-Claude Code's stream-json). Prints one PASS or FAIL line per check; exits 0 only if all pass."""
+`start.diff` (uncommitted changes at the start), `uv-cache/` (warmed before the session) and
+`log-1.jsonl`, `log-2.jsonl`, … (one per turn, Claude Code's stream-json). Prints one PASS or FAIL
+line per check; exits 0 only if all pass, 3 if the harness couldn't judge a check.
+
+Two checks run code the agent wrote: S02 runs the repo's tests, S19 imports its `tally`. They run it
+only inside macOS's sandbox-exec, under a profile that denies by default: no network, no IPC to
+services outside the sandbox, the home folder unreadable apart from the repo, the run's uv cache and
+uv's Pythons, writes only to the repo, the cache and a temp folder of their own; uv offline, and
+run.py's allow-listed environment (no tokens, no API key). Where there is no sandbox-exec (Linux, the
+Spark) they never run the code: each reports a HARNESS FAIL line instead."""
 
 from __future__ import annotations
 
@@ -17,13 +25,19 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
 SKILL = Path(__file__).resolve().parents[2]
 PLAN = "docs/superpowers/plans/2026-01-01-tally.md"
+SANDBOX_EXEC = Path("/usr/bin/sandbox-exec")
+AGENT_TIMEOUT = 600  # seconds for one run of agent code; a hang is the code's failure
+# Fills a missing uv cache, outside the sandbox, touching nothing in the work folder: no project, no config.
+WARM = ["uv", "run", "--no-project", "--no-config", "--quiet", "--with", "pytest", "--with", "pyyaml", "python", "-c", "pass"]
 
 
 def _load(name: str):
@@ -43,6 +57,11 @@ class Check:
     ok: bool | None  # None: skipped (a portability run has no tool log to judge it by)
     detail: str = ""
     needs_tools: bool = False
+    harness: bool = False  # True: the harness couldn't judge it (ok is then False); never the skill's failure
+
+
+class HarnessProblem(Exception):
+    """The harness can't run a check, such as agent code with no OS sandbox to run it in."""
 
 
 @dataclass
@@ -157,10 +176,92 @@ SEVERITY = r"(critical|important)\W{0,2}\s*[1-9]|[1-9]\s+(critical|important)"
 GIT = r"git(?:\s+-C\s+\S+)?\s+"
 
 
+def sandbox_exec() -> str | None:
+    """macOS's sandbox-exec, or None where there is none (Linux): agent code then never runs."""
+    return str(SANDBOX_EXEC) if SANDBOX_EXEC.is_file() and os.access(SANDBOX_EXEC, os.X_OK) else None
+
+
+def sandbox_profile(home: Path, readable: list[Path], writable: list[Path]) -> str:
+    """A sandbox-exec profile that denies by default: no network, no IPC to services outside the
+    sandbox (no Apple Events, no LaunchServices, no launchd jobs); the home folder unreadable apart from
+    `readable` (and the metadata of their folders, which resolving a path needs); writes only inside
+    `writable` and to /dev/null. A rule later in the profile wins over an earlier one."""
+    def quoted(path: Path) -> str:
+        return json.dumps(str(path), ensure_ascii=False)
+    home = home.resolve()
+    readable, writable = [p.resolve() for p in readable], [p.resolve() for p in writable]
+    folders = sorted({a for p in readable for a in p.parents if a.is_relative_to(home)}, key=str)
+    lines = ["(version 1)", "(deny default)", "(deny network*)",
+             "(allow process-exec process-fork)", "(allow signal (target same-sandbox))",
+             "(allow process-info* (target same-sandbox))", "(allow sysctl-read)", "(allow ipc-posix-sem)",
+             '(allow mach-lookup (global-name "com.apple.system.opendirectoryd.libinfo"))',  # user and group lookups
+             "(allow file-read*)", f"(deny file-read* (subpath {quoted(home)}))",
+             "(allow file-read* " + " ".join(f"(subpath {quoted(p)})" for p in readable) + ")"]
+    if folders:
+        lines.append("(allow file-read-metadata " + " ".join(f"(literal {quoted(a)})" for a in folders) + ")")
+    lines += ["(allow file-write* " + " ".join(f"(subpath {quoted(p)})" for p in writable) + ")",
+              '(allow file-write-data (literal "/dev/null"))']
+    return "\n".join(lines) + "\n"
+
+
+def ensure_cache(work: Path) -> Path:
+    """The run's uv cache, which run.py warms before the session; a portability run has none, so it is
+    warmed here, outside the sandbox, from an empty folder (nothing the agent wrote is read)."""
+    cache = work / "uv-cache"
+    if cache.is_dir():
+        return cache
+    from run import child_env  # run.py imports this module; import its environment only when needed
+    staging = Path(tempfile.mkdtemp(prefix=".uv-cache-", dir=work))
+    try:
+        with tempfile.TemporaryDirectory() as empty:
+            done = subprocess.run(WARM, cwd=empty, env=child_env("uv", {"UV_CACHE_DIR": str(staging)}),
+                                  capture_output=True, stdin=subprocess.DEVNULL, timeout=AGENT_TIMEOUT)
+        if done.returncode != 0:
+            raise HarnessProblem(f"cannot warm the uv cache: uv exited {done.returncode}")
+    except (OSError, subprocess.SubprocessError) as error:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise HarnessProblem(f"cannot warm the uv cache: {type(error).__name__}") from None
+    except HarnessProblem:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise
+    staging.rename(cache)
+    return cache
+
+
+def run_agent_code(command: list[str], repo: Path, tz: str | None = None) -> int:
+    """Run code the agent wrote, in the repo, inside sandbox-exec; its exit code. Never runs it unguarded:
+    with no sandbox-exec it raises HarnessProblem before anything starts."""
+    tool = sandbox_exec()
+    if tool is None:
+        raise HarnessProblem("cannot run agent code without an OS sandbox")
+    cache = ensure_cache(repo.parent)
+    home = Path.home().resolve()
+    for path in (repo, cache):  # a folder the profile re-opens must not be the home folder or above it
+        if home.is_relative_to(path.resolve()):
+            raise HarnessProblem(f"{path.name} leads to the home folder or above it: {path.resolve()}")
+    from run import child_env, uv_reads  # the runner's own environment and uv paths, built at run time
+    with tempfile.TemporaryDirectory(prefix=".grade-tmp-", dir=repo.parent) as name:
+        tmp = Path(name)
+        profile = sandbox_profile(Path.home(), [repo, cache, tmp, *uv_reads()], [repo, cache, tmp])
+        env = child_env("grader", {"UV_CACHE_DIR": str(cache), "UV_OFFLINE": "1", "TMPDIR": str(tmp),
+                                   **({"TZ": tz} if tz else {})})
+        try:
+            return subprocess.run([tool, "-p", profile, *command], cwd=repo, env=env, capture_output=True,
+                                  stdin=subprocess.DEVNULL, timeout=AGENT_TIMEOUT).returncode
+        except subprocess.TimeoutExpired:
+            return -1
+
+
+def agent_check(name: str, judge) -> Check:
+    """A check that runs agent code: a HARNESS FAIL, never a pass or the skill's failure, when it can't."""
+    try:
+        return Check(name, bool(judge()))
+    except HarnessProblem as problem:
+        return Check(name, False, str(problem), harness=True)
+
+
 def run_tests(repo: Path, tz: str | None = None) -> bool:
-    env = {**os.environ, **({"TZ": tz} if tz else {})}
-    return subprocess.run(["uv", "run", "--quiet", "--with", "pytest", "pytest", "-q"], cwd=repo, env=env,
-                          capture_output=True).returncode == 0
+    return run_agent_code(["uv", "run", "--quiet", "--with", "pytest", "pytest", "-q"], repo, tz) == 0
 
 
 def text_has(text: str, pattern: str) -> bool:
@@ -202,7 +303,7 @@ def s02(work: Path) -> list[Check]:
               "- [ ]" not in plan_text(work).split("***", 1)[-1] and "Task 1:" not in now_line(work)),
         Check("the README fixed in the rename's task",
               "--only-words" in (repo / "README.md").read_text() and "with `--words`" not in (repo / "README.md").read_text()),
-        Check("the suite passes, and under TZ=UTC", run_tests(repo) and run_tests(repo, "UTC")),
+        agent_check("the suite passes, and under TZ=UTC", lambda: run_tests(repo) and run_tests(repo, "UTC")),
         Check("the agent ran the UTC suite",
               any("TZ=UTC" in c or "make test-utc" in c for c in bash_commands(work)), needs_tools=True),
     ]
@@ -367,7 +468,7 @@ def refuses_outside(repo: Path) -> bool:
              "root = pathlib.Path(tempfile.mkdtemp())\n"
              "try:\n    tally.read_inside('../outside.txt', root)\nexcept ValueError:\n    raise SystemExit(0)\n"
              "except Exception:\n    raise SystemExit(1)\nraise SystemExit(1)\n")
-    return subprocess.run(["uv", "run", "--no-project", "--quiet", "python", "-c", probe], cwd=repo, capture_output=True).returncode == 0
+    return run_agent_code(["uv", "run", "--no-project", "--quiet", "python", "-c", probe], repo) == 0
 
 
 def reviews_after_the_build(work: Path) -> tuple[bool, str]:
@@ -408,7 +509,7 @@ def s19(work: Path) -> list[Check]:
     rounds = heading(close1[0].message, "Rounds") if close1 else ""
     both_axes, detail = reviews_after_the_build(work)
     return [
-        Check("the planted miss found and fixed", refuses_outside(work / "repo")),
+        agent_check("the planted miss found and fixed", lambda: refuses_outside(work / "repo")),
         Check("both review axes ran, each on its own", both_axes, detail),
         Check("the security checklist ran", security_checklist_ran(work, close1[0].message if close1 else "")),
         Check("Findings and Rounds filled in", bool(findings) and bool(rounds) and text_has(findings, SEVERITY)),
@@ -451,7 +552,7 @@ def grade(scenario: str, work: Path) -> list[Check]:
 
 
 def label(check: Check) -> str:
-    return "SKIP" if check.ok is None else "PASS" if check.ok else "FAIL"
+    return "SKIP" if check.ok is None else "HARNESS FAIL" if check.harness else "PASS" if check.ok else "FAIL"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -460,6 +561,8 @@ def main(argv: list[str] | None = None) -> int:
     checks = grade(scenario, work)
     for check in checks:
         print(f"{label(check)} {scenario}: {check.name}" + (f" ({check.detail})" if check.detail and check.ok is False else ""))
+    if any(c.harness for c in checks):
+        return 3
     return 0 if all(c.ok is not False for c in checks) else 1
 
 
