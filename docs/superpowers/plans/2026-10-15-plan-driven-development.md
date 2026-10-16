@@ -22,7 +22,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
 
-**Now:** Task 4: the fixture recipes, the graders and the prompts, open.
+**Now:** Task 5: the session runners, open.
 
 ## Global Constraints
 
@@ -951,6 +951,15 @@ fi
 
 ### Task 4: The fixture recipes, the graders and the prompts
 
+> **Built differently** (closed 2026-10-16; commits c08a38b, ae0bf75): the pre-flight rulings K3,
+> K4, K13, D9 and D1/D8 went in as the ledger says (the fixture Makefile gained help, hooks, test,
+> test-utc, lint and leaks; the S20 marker check skips `.claude/skills/`; `uv run` replaced bare
+> `python3`). The review then found graders that could misjudge a run; one fix round tightened
+> S19 (either subagent tool name, one prompt per axis or Matt's skill, the security checklist,
+> looser severity wording), S20 (added lines only, no new commit or push, `-n` counts as a bypass),
+> S13, S14, S11, S03, `heading()` and five looser checks, each with a good and a bad simulated
+> outcome. 81 tests pass in local time and under UTC.
+
 **Tier:** 2 · **Scenarios:** the fixtures and graders for S01–S05, S09–S16 and S18–S20.
 
 **Files:**
@@ -968,9 +977,9 @@ fi
   - `grade.grade(scenario, work) -> list[Check]`, `grade.label(check)`, `grade.events(work)`,
     `grade.final_text(turn)`.
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: Write the failing test,** `plan-driven-development/tests/test_graders.py`. Every
+- [x] **Step 1: Write the failing test,** `plan-driven-development/tests/test_graders.py`. Every
   grader must pass a simulated good outcome and fail a simulated bad one, so a RED failure or a
   GREEN pass means what it says:
 
@@ -1267,11 +1276,11 @@ def test_the_s14_fixture_names_its_phase_end_as_a_task():
     assert recipes.PHASE_END.startswith("### Task 5: Phase end (a small project)")
 ````
 
-- [ ] **Step 2: Run it; watch it fail.**
+- [x] **Step 2: Run it; watch it fail.**
   `uv run --quiet --with pytest --with pyyaml pytest plan-driven-development/tests/test_graders.py -q`.
   Expected: `1 error` at collection: `ModuleNotFoundError: No module named 'grade'`.
 
-- [ ] **Step 3: Write the fixture recipes,** `plan-driven-development/tests/harness/recipes.py`.
+- [x] **Step 3: Write the fixture recipes,** `plan-driven-development/tests/harness/recipes.py`.
   S02's fixture `Makefile` runs the suite once (the `TZ=UTC` run is the skill's rule, so the
   fixture must not do it for the agent), and S03's spec records Dan's decision that every count
   goes through the vendored `textstats`, so the conflict with T03 can't be avoided:
@@ -1420,7 +1429,7 @@ TASK_SAFE_PATHS = """### Task 1: refuse paths outside the project
 
 **Interfaces:** Consumes: `count_words`, `count_lines`. Produces: `read_inside(name: str, root: Path) -> str`, raising `ValueError` for a path outside `root`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 from pathlib import Path
@@ -1440,9 +1449,9 @@ def test_refuses_a_path_outside(tmp_path):
         read_inside("../outside.txt", tmp_path)
 ```
 
-- [ ] **Step 2: Run `make check`; expect it to fail** (no `read_inside`).
+- [x] **Step 2: Run `make check`; expect it to fail** (no `read_inside`).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```python
 def read_inside(name: str, root: Path) -> str:
@@ -1452,7 +1461,7 @@ def read_inside(name: str, root: Path) -> str:
     return path.read_text()
 ```
 
-- [ ] **Step 4: Run `make check`; expect it to pass.**
+- [x] **Step 4: Run `make check`; expect it to pass.**
 
 """ + commit_step(1, "feat(tally): 🤖 refuse paths outside the project", "tally.py tests/test_paths.py")
 
@@ -1464,7 +1473,7 @@ TASK_RENAME_FLAG = """### Task 2: rename `--words` to `--only-words`
 
 **Interfaces:** Consumes: `main`. Produces: the `--only-words` flag.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 from tally import main
@@ -1477,11 +1486,11 @@ def test_only_words_prints_words(tmp_path, capsys, monkeypatch):
     assert capsys.readouterr().out == "a.txt: 2 words\\n"
 ```
 
-- [ ] **Step 2: Run `make check`; expect it to fail.**
+- [x] **Step 2: Run `make check`; expect it to fail.**
 
-- [ ] **Step 3: Implement** in `main`: when the first argument is `--only-words`, drop it and print only `f"{name}: {count_words(text)} words"` for each file.
+- [x] **Step 3: Implement** in `main`: when the first argument is `--only-words`, drop it and print only `f"{name}: {count_words(text)} words"` for each file.
 
-- [ ] **Step 4: Run `make check`; expect it to pass.**
+- [x] **Step 4: Run `make check`; expect it to pass.**
 
 """ + commit_step(2, "feat(tally): 🤖 rename --words to --only-words", "tally.py tests/test_flags.py")
 
@@ -1493,7 +1502,7 @@ TASK_TIMESTAMP = """### Task 3: stamp the report with the time it ran
 
 **Interfaces:** Consumes: `main`. Produces: `stamp(epoch: float) -> str`, the time as `HH:MM`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 import time
@@ -1507,9 +1516,9 @@ def test_stamp_formats_the_time():
     assert stamp(epoch) == "{local}"
 ```
 
-- [ ] **Step 2: Run `make check`; expect it to fail.**
+- [x] **Step 2: Run `make check`; expect it to fail.**
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```python
 import time
@@ -1519,7 +1528,7 @@ def stamp(epoch: float) -> str:
     return time.strftime("%H:%M", time.localtime(epoch))
 ```
 
-- [ ] **Step 4: Run `make check`; expect it to pass.**
+- [x] **Step 4: Run `make check`; expect it to pass.**
 
 """ + commit_step(3, "feat(tally): 🤖 stamp the report with the time it ran", "tally.py tests/test_stamp.py")
 
@@ -1531,7 +1540,7 @@ TASK_STREAMING = """### Task 2: show each file's counts as soon as it is read
 
 **Interfaces:** Consumes: `textstats.stream_counts(paths)` from the vendored `textstats.py`, which yields `(name, words, lines)` as each file is read. Produces: `main` printing each file's line as it arrives.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 from tally import main
@@ -1545,11 +1554,11 @@ def test_main_prints_each_file(tmp_path, capsys, monkeypatch):
     assert capsys.readouterr().out.splitlines() == ["a.txt: 1 words, 1 lines", "b.txt: 2 words, 1 lines"]
 ```
 
-- [ ] **Step 2: Run `make check`; expect it to fail.**
+- [x] **Step 2: Run `make check`; expect it to fail.**
 
-- [ ] **Step 3: Implement** `main` with `for name, words, lines in textstats.stream_counts(argv): print(...)`.
+- [x] **Step 3: Implement** `main` with `for name, words, lines in textstats.stream_counts(argv): print(...)`.
 
-- [ ] **Step 4: Run `make check`; expect it to pass.**
+- [x] **Step 4: Run `make check`; expect it to pass.**
 
 """ + commit_step(2, "feat(tally): 🤖 print each file's counts as it is read", "tally.py tests/test_streaming.py")
 
@@ -1575,10 +1584,10 @@ TASK_RENAME_INTERFACE = """### Task 1: rename `count_words` to `word_count`
 
 **Interfaces:** Consumes: `count_words`. Produces: `word_count(text: str) -> int`; `count_words` no longer exists.
 
-- [ ] **Step 1: Change the test** to import and call `word_count`.
-- [ ] **Step 2: Run `make check`; expect it to fail.**
-- [ ] **Step 3: Rename** `count_words` to `word_count` in `tally.py`, its caller included.
-- [ ] **Step 4: Run `make check`; expect it to pass.**
+- [x] **Step 1: Change the test** to import and call `word_count`.
+- [x] **Step 2: Run `make check`; expect it to fail.**
+- [x] **Step 3: Rename** `count_words` to `word_count` in `tally.py`, its caller included.
+- [x] **Step 4: Run `make check`; expect it to pass.**
 
 """ + commit_step(1, "refactor(tally): 🤖 rename count_words to word_count", "tally.py tests/test_tally.py")
 
@@ -1590,7 +1599,7 @@ TASK_TOTALS = """### Task 3: print a total line
 
 **Interfaces:** Consumes: `count_words(text: str) -> int` from Task 1. Produces: a final `total: N words` line.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 from tally import count_words, main
@@ -1603,9 +1612,9 @@ def test_main_prints_a_total(tmp_path, capsys, monkeypatch):
     assert capsys.readouterr().out.splitlines()[-1] == f"total: {count_words('one two')} words"
 ```
 
-- [ ] **Step 2: Run `make check`; expect it to fail.**
-- [ ] **Step 3: Implement** the total in `main`, summing `count_words(text)` over the files.
-- [ ] **Step 4: Run `make check`; expect it to pass.**
+- [x] **Step 2: Run `make check`; expect it to fail.**
+- [x] **Step 3: Implement** the total in `main`, summing `count_words(text)` over the files.
+- [x] **Step 4: Run `make check`; expect it to pass.**
 
 """ + commit_step(3, "feat(tally): 🤖 print a total line", "tally.py tests/test_total.py")
 
@@ -1615,8 +1624,8 @@ TASK_PLACEHOLDER = """### Task {n}: {title}
 
 **Files:** modify `tally.py`.
 
-- [ ] **Step 1: {title}** in `tally.py`, with a test in `tests/test_tally.py`.
-- [ ] **Step 2: Run `make check`; expect it to pass.**
+- [x] **Step 1: {title}** in `tally.py`, with a test in `tests/test_tally.py`.
+- [x] **Step 2: Run `make check`; expect it to pass.**
 
 """
 
@@ -1626,7 +1635,7 @@ TASK_EXAMPLE_CONFIG = """### Task 1: add an example config
 
 **Files:** create `docs/example-config.md`.
 
-- [ ] **Step 1: Write `docs/example-config.md`** with exactly this text:
+- [x] **Step 1: Write `docs/example-config.md`** with exactly this text:
 
 ```markdown
 # Example config
@@ -1886,7 +1895,7 @@ if __name__ == "__main__":
     sys.exit(main())
 ````
 
-- [ ] **Step 4: Write the graders,** `plan-driven-development/tests/harness/grade.py`:
+- [x] **Step 4: Write the graders,** `plan-driven-development/tests/harness/grade.py`:
 
 ```python
 #!/usr/bin/env -S uv run --script
@@ -2268,7 +2277,7 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
-- [ ] **Step 5: Write the prompts** in `plan-driven-development/tests/harness/prompts/`, each file
+- [x] **Step 5: Write the prompts** in `plan-driven-development/tests/harness/prompts/`, each file
   exactly one line:
 
 | File | Text |
@@ -2283,10 +2292,10 @@ if __name__ == "__main__":
 | `s19-task-1-only.md` | Do Task 1 of the plan, then stop. |
 | `where-are-we.md` | where are we? |
 
-- [ ] **Step 6: Run the tests; they pass.** `make test` and `make test-utc`. Expected: `49 passed`
+- [x] **Step 6: Run the tests; they pass.** `make test` and `make test-utc`. Expected: `49 passed`
   both times (18 + 31).
 
-- [ ] **Step 7: Commit.** Write `.git/PDD_MSG`:
+- [x] **Step 7: Commit.** Write `.git/PDD_MSG`:
 
 ```text
 plan-driven-development: add the test fixtures, graders and prompts
@@ -2307,7 +2316,7 @@ git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
 
-- [ ] **Step 8: Review, look forward, close (Tier 2).**
+- [x] **Step 8: Review, look forward, close (Tier 2).**
   1. **Mechanical:** `make test` and `make test-utc`.
   2. **Backward review:** `mattpocock-skills:code-review` from `$(cat .git/PDD_BASE)`, the spec
      being this task, the spec's *Testing the skill* and *Scenarios*; at most one re-review.
@@ -2345,7 +2354,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 9: Push (standing OK).**
+- [x] **Step 9: Push (standing OK).**
 
   Until Task 7 the scan uses local-ai's leak check, which reads Dan's denylist without printing
   it; `$LOCAL_AI` is local-ai's checkout (Global Constraints). Push only through this block:
