@@ -806,7 +806,10 @@ The plan breaks these into 16 tasks, the last its small-project phase end.
   stream of its own.
 - **The skills repo itself has no hooks.** This branch's pushes are scanned by hand first (its
   first push was, 2026-10-15); a later `TODO.md` item could add the hooks here too.
-- **`preferences.md` lives in this repo for now,** with an issue to move it.
+- **`preferences.md` lives in this repo for now,** with an issue to move it. *(2026-10-16: Dan
+  created [chendaniely/agents](https://github.com/chendaniely/agents) as the setup repo for his
+  agents; `preferences.md`, `setup.sh`, the setup docs and the guard copies move there, and
+  `chendaniely/skills` keeps the skills.)*
 - **Copies drift:** projects keep the template and `leakcheck.py` version they were made with; the
   version line in each `AGENTS.md` shows which are behind.
 

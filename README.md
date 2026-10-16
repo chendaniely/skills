@@ -42,7 +42,7 @@ Call a skill by name (for example `/capture-learning-moment`), or let Claude loa
 
 ## Setup
 
-`make setup` wires the shared `preferences.md` into Claude Code, pi and OpenCode and adds the leak-check guard's deny rules; `make setup-check` shows what it would do and changes nothing. [docs/setup.md](docs/setup.md) lists each step and how to undo it.
+`make setup` wires the shared `preferences.md` into Claude Code, pi and OpenCode and adds the leak-check guard's deny rules; `make setup-check` shows what it would do and changes nothing. [docs/setup.md](docs/setup.md) lists each step and how to undo it. These setup pieces will move to [chendaniely/agents](https://github.com/chendaniely/agents), the setup repo for my agents; this repo keeps the skills.
 
 ## License
 

@@ -1,6 +1,6 @@
 # Skills repo
 
-Dan's personal Claude Code skills, public on GitHub as `chendaniely/skills`. Each top-level folder is one skill, except `docs/`, which holds design records (`docs/superpowers/specs/`, superpowers' default), and the git-ignored `guards/` (private guard copies; never stage it). The root also holds `Makefile`, `setup.sh` and `preferences.md`, which are not skills. Open work lives in [TODO.md](TODO.md) and is mirrored as GitHub issues.
+Dan's personal Claude Code skills, public on GitHub as `chendaniely/skills`. Each top-level folder is one skill, except `docs/`, which holds design records (`docs/superpowers/specs/`, superpowers' default), and the git-ignored `guards/` (private guard copies; never stage it). The root also holds `Makefile`, `setup.sh` and `preferences.md`, which are not skills; the setup pieces (and `guards/`) will move to [chendaniely/agents](https://github.com/chendaniely/agents), Dan's setup repo for his agents (created 2026-10-16, issue #9), and this repo keeps the skills. Open work lives in [TODO.md](TODO.md) and is mirrored as GitHub issues.
 
 ## Install and layout
 

@@ -1,5 +1,10 @@
 # Setup: shared preferences and the leak-check guard
 
+> **Moving:** these setup pieces (`preferences.md`, `setup.sh`, the `Makefile`'s setup targets,
+> this page and the git-ignored `guards/`) will move to
+> [chendaniely/agents](https://github.com/chendaniely/agents), the setup repo for Dan's agents,
+> created 2026-10-16 (issue #9). This repo, `chendaniely/skills`, keeps the agent skills.
+
 ## Start here: a new machine, in order
 
 Do these in this order; each points to its detailed step under [Manual steps](#manual-steps). Everything runs **on the machine you are setting up**, in its terminal.
@@ -22,7 +27,7 @@ Do these in this order; each points to its detailed step under [Manual steps](#m
 
 The Spark, or any other machine, takes the same list ([item 9](#manual-steps)).
 
-`make setup` wires one shared `preferences.md` into Claude Code, pi and OpenCode, links the leak-check denylist, adds four deny rules to Claude Code's settings, and checks that a guard refuses commands that name the denylist. `make setup-check` reports what it would do and changes nothing. All of this is expected to move to its own repo later (issue #9); until then it lives here so it is written down and reproducible.
+`make setup` wires one shared `preferences.md` into Claude Code, pi and OpenCode, links the leak-check denylist, adds four deny rules to Claude Code's settings, and checks that a guard refuses commands that name the denylist. `make setup-check` reports what it would do and changes nothing. All of this moves to [chendaniely/agents](https://github.com/chendaniely/agents) later (issue #9); until then it lives here so it is written down and reproducible.
 
 The script is `setup.sh` at the repo root. It is idempotent and add-only: it never removes or overwrites anything that isn't its own, and every step prints one line (`ok`, `added`, `linked`, `skipped: <why>` or `warn: <what to do>`). It finds the repo from its own location and uses `$HOME`, so it can be tried on a scratch directory with `HOME=<dir> bash setup.sh`. Its tests are in `plan-driven-development/tests/test_setup.py`:
 
