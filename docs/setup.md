@@ -42,7 +42,8 @@ uv run --quiet --with pytest pytest plan-driven-development/tests/test_setup.py 
    - Before any change, an existing file is copied to `AGENTS.md.bak-<YYYYmmddHHMMSS>` (with a `-<n>` suffix if that name is taken). A run that changes nothing makes no backup. After a change the step prints the unified diff of the block, so you can see what went in.
    - A begin marker without an end, two begins, or an end before its begin prints `warn` and changes nothing. `make setup-check` prints `ok`, or a `warn` saying the block is missing or stale, and changes nothing.
    - An `AGENTS.md` that is not UTF-8 text, or can't be read or written, prints `warn: ... left unchanged` with no backup and no write, and the remaining steps still run. So does a `preferences.md` that itself contains a marker line. A marker counts only when it is a whole line; the same text inside a sentence is ignored.
-   - A newly created `AGENTS.md` gets mode 0644; an existing file keeps its mode.
+   - A newly created `AGENTS.md` gets the usual mode for your umask (0644 with the common 022);
+     an existing file keeps its mode.
    - Undo: delete the block, markers included, from `~/.config/opencode/AGENTS.md`, or copy a backup back.
 4. **`denylist-link`.** The leak check reads its denylist from the `leakcheck` folder under `~/.config`. If that file is missing and the `local-ai` one exists, the step links the first to the second. It tests existence only and never reads either file. With no `local-ai` denylist it prints `warn`. A broken link already at the leak-check path prints `skipped` and stays.
    - Undo: remove the link (a symlink; the real file is untouched).

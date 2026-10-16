@@ -145,6 +145,17 @@ that owns the code:
 >   into one commit with Dan's OK, so wording about the guard's blind spots never reached the public
 >   history.
 > - 877faf9 is signed by the model that wrote it (Haiku), not the plan's Opus line.
+> - **Follow-up, 2026-10-16 (Task 1c; commits e9da2f9, fd0c809, c43c59b):** OpenCode turned out
+>   to ignore `instructions` entries (measured with canaries, in its global config files and in a
+>   project one), while it reads `AGENTS.md` files; so, Dan's choice, `make setup` now keeps a
+>   marked copy of `preferences.md` in OpenCode's global `AGENTS.md`, refreshed on every run; the
+>   first real `make setup` (Dan's yes) added it, and OpenCode then quoted the first asking rule
+>   word for word (checked with `spark/qwen3.6-35b-a3b`; the coder couldn't load for lack of free
+>   memory on the Spark). At Dan's request `docs/setup.md` opens with "Start here: a
+>   new machine, in order" and documents every step a script can't do. Its Tier 1 review found
+>   a test-only override that could copy any file into OpenCode's instructions (removed), a crash
+>   on non-UTF-8 text, stale wiring text and gaps in the docs; one fix round, one re-review
+>   (14/14), and the cap's direct fix for new files' permissions (they honour the umask).
 
 **Tier:** 1 (it changes Dan's global instructions and his secrets guard) · **Scenarios:** none
 directly; the test sessions are isolated from this wiring (Task 5), so it can come before RED.
