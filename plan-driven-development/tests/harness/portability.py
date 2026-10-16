@@ -12,9 +12,15 @@ skill installed, then graded on the repo and the final answer.
 Dan names the model and checks the Spark's model is up first. A session starts only with `--dan-ok`
 (Dan's explicit go for this run); without it the runner stops with a HARNESS FAIL. Neither harness has
 a turn or budget cap, so each session has a timeout (default 30 minutes), and the child process gets
-a filtered environment (run.child_env: the basics, uv's cache settings and SPARK_API_KEY, nothing else). OpenCode gets the fixture's own
-deny-by-default `opencode.json` (V2's ordered `permissions` rules, the last match winning); pi has
-no per-command allow-list, so a pi run happens only with Dan's OK, in the throwaway repo. OpenCode
+a filtered environment (run.child_env: the basics, where uv's Pythons are, git without Dan's global
+and system config, and SPARK_API_KEY; none of Dan's tokens or uv settings). OpenCode gets the
+fixture's own deny-by-default `opencode.json` (V2's ordered `permissions` rules, the last match
+winning): no edits to its own config, `.opencode/`, `.githooks/` or `.git/` (apart from the
+commit-message files at `.git`'s top level that the fixture's plan writes), and no `-c`, `git
+config`, hooksPath or fsmonitor setting, `--no-verify` prefix or `-n` cluster on `git commit`.
+Neither harness has an OS sandbox: OpenCode's rules are its only guard, and agent-written code run
+by an allowed command (`make check`, pytest) runs as Dan with no filesystem or network limit. pi
+has no per-command allow-list, so a pi run happens only with Dan's OK, in the throwaway repo. OpenCode
 fails closed: a measured 2026-10-16 run showed OpenCode 2.0.25 ignoring a project `opencode.json`'s
 `instructions` in `opencode run`, so its `permissions` must be proven, not assumed. Before a session
 the runner asks OpenCode to list its configuration (`opencode debug config`), checks the output only
@@ -46,15 +52,30 @@ SHELL_ALLOWED = ["git status *", "git log *", "git diff *", "git show *", "git a
                  "git rev-parse *", "git interpret-trailers *", "git branch --show-current", "git switch *",
                  "make check", "uv run --quiet --with pytest pytest *", "uv run --with pytest pytest *",
                  "uv run --quiet --script scripts/leakcheck.py *", "ls *", "pwd"]
+# OpenCode 2.0.25 matches a rule's resource with `*` as any text (slashes and spaces too) and `?` as any one
+# character, against the path relative to the project for an edit and the whole command for a shell call;
+# the last matching rule wins. Edits: never OpenCode's own config, the hooks, or git's internals, apart from
+# the commit-message files the fixture's plan writes at .git's top level (.git/MSG).
+EDIT_DENIED = ["opencode.json*", ".opencode/*", ".githooks/*", ".git/*"]
+EDIT_REALLOWED = [".git/*MSG"]
+EDIT_DENIED_AFTER = [".git/*/*"]  # nothing nested in .git (hooks, info, refs), whatever its name ends with
+# Commands that switch the hooks off or set git options: -c anywhere, git config, the fsmonitor and hooksPath
+# keys, git's config variables, any prefix of --no-verify, and a -n short-flag cluster on git commit.
+N_TOKENS = ["-n", "-?n", "-??n", "-n?", "-?n?", "-n??"]
+SHELL_DENIED = (["git push *", "* --no-verify*", "* --no-v*", "git -c *", "git * -c *", "git config", "git config *",
+                 "*core.fsmonitor*", "*core.hooksPath*", "*core.hookspath*", "*GIT_CONFIG*", "*--config-env*"]
+                + [f"git commit{gap} {token}{tail}" for gap in ("", " *") for token in N_TOKENS for tail in ("", " *")])
 
 
 def opencode_config() -> dict:
     rules = [{"action": action, "resource": "*", "effect": "deny"}
              for action in ("shell", "webfetch", "websearch", "external_directory", "subagent")]
     rules += [{"action": "shell", "resource": pattern, "effect": "allow"} for pattern in SHELL_ALLOWED]
-    rules += [{"action": "read", "resource": "*", "effect": "allow"}, {"action": "edit", "resource": "*", "effect": "allow"},
-              {"action": "shell", "resource": "git push *", "effect": "deny"},
-              {"action": "shell", "resource": "* --no-verify*", "effect": "deny"}]
+    rules += [{"action": "read", "resource": "*", "effect": "allow"}, {"action": "edit", "resource": "*", "effect": "allow"}]
+    rules += [{"action": "edit", "resource": path, "effect": "deny"} for path in EDIT_DENIED]
+    rules += [{"action": "edit", "resource": path, "effect": "allow"} for path in EDIT_REALLOWED]
+    rules += [{"action": "edit", "resource": path, "effect": "deny"} for path in EDIT_DENIED_AFTER]
+    rules += [{"action": "shell", "resource": pattern, "effect": "deny"} for pattern in SHELL_DENIED]  # last: they win
     return {"$schema": "https://opencode.ai/config.json", "permissions": rules}
 
 
