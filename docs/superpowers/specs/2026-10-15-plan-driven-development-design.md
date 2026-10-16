@@ -1,7 +1,7 @@
 # plan-driven-development: design spec
 
-**Status:** spec approved by Dan, 2026-10-15 · plan in review (its independent review applied;
-Dan's approval pending) · branch `plan-driven-development`, pushed on its branch, not merged.
+**Status:** spec approved by Dan, 2026-10-15 · plan approved 2026-10-16, run subagent-driven ·
+Now: Task 1 · branch `plan-driven-development`, pushed on its branch, not merged.
 
 This is the binding document for the `plan-driven-development` skill. Every decision in it was
 made with Dan, one question at a time; the questions, the options turned down and his answers in
@@ -829,3 +829,4 @@ The plan breaks these into 16 tasks, the last its small-project phase end.
 - 2026-10-15: Dan's Makefile preference (a `templates/Makefile`, `make check` as the one check
   command, `make hooks` at kickoff, this repo's own `Makefile`) and his preference for selectable
   options in the asking rules.
+- 2026-10-16: Dan approved the plan (`5991d9b`) and chose subagent-driven execution.

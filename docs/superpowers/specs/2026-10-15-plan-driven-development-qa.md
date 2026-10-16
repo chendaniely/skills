@@ -1057,3 +1057,9 @@ So: A, and a new asking rule: where the harness has selectable options (Claude C
 AskUserQuestion), choices are presented that way, the recommended option first and labelled
 "(Recommended)", with the short self-review just before; text when the options need long
 explanation. Both are in the spec, `preferences.md` and the template's contract.
+
+## The plan
+
+Asked with selectable options: approve the plan (16 tasks, `5991d9b`) and push the branch, and how
+it should run. **Dan:** "Approve and push" and "Subagent-driven" (2026-10-16), the recommended
+options both times.
