@@ -40,6 +40,10 @@ The plugins are `vault`, `wardrobe`, `teaching`, `running` and `coding`, matchin
 
 Call a skill by name (for example `/capture-learning-moment`), or let Claude load it when a request matches its description.
 
+## Setup
+
+`make setup` wires the shared `preferences.md` into Claude Code, pi and OpenCode and adds the leak-check guard's deny rules; `make setup-check` shows what it would do and changes nothing. [docs/setup.md](docs/setup.md) lists each step and how to undo it.
+
 ## License
 
 [MIT](LICENSE)

@@ -1,6 +1,6 @@
 # Skills repo
 
-Dan's personal Claude Code skills, public on GitHub as `chendaniely/skills`. Each top-level folder is one skill, except `docs/`, which holds design records (`docs/superpowers/specs/`, superpowers' default). Open work lives in [TODO.md](TODO.md) and is mirrored as GitHub issues.
+Dan's personal Claude Code skills, public on GitHub as `chendaniely/skills`. Each top-level folder is one skill, except `docs/`, which holds design records (`docs/superpowers/specs/`, superpowers' default), and the git-ignored `guards/` (private guard copies; never stage it). The root also holds `Makefile`, `setup.sh` and `preferences.md`, which are not skills. Open work lives in [TODO.md](TODO.md) and is mirrored as GitHub issues.
 
 ## Install and layout
 
@@ -8,6 +8,7 @@ Dan's personal Claude Code skills, public on GitHub as `chendaniely/skills`. Eac
   - It never touches entries in `~/.claude/skills` that aren't its own links, such as skill folders other tools installed there.
   - If a skill's name is already taken there by a folder or a different link, it prints `skipped` and leaves it.
   - It removes its own links whose skill folder no longer exists.
+- **Setup:** `make setup` (or `make setup-check`, which changes nothing) wires `preferences.md` and the leak-check guard into this machine's harness config; `docs/setup.md` lists each step and how to undo it. Its tests: `uv run --quiet --with pytest pytest plan-driven-development/tests/test_setup.py -q`.
 - **Keep skills flat at the top level** (decided 2026-09-16). Claude Code only discovers personal skills one level deep (`~/.claude/skills/<name>/SKILL.md`), so group folders wouldn't group anything, and a move breaks the paths listed below.
 - **Marketplace (added 2026-09-23):** `.claude-plugin/marketplace.json` also publishes the skills as five plugins (`vault`, `wardrobe`, `teaching`, `running`, `coding`) for `/plugin marketplace add chendaniely/skills`. A new or renamed skill must be listed there too.
   - Plugin installs prefix skill names (`/wardrobe:ootd`) and are cached copies, so edits apply only after a push and plugin update. Anything that loads a skill by bare name (like the `daily-email-digest` task) needs the symlink install.

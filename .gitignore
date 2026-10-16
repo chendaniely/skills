@@ -1,2 +1,5 @@
 .DS_Store
 __pycache__/
+
+# Private guard copies, kept for Dan to review before anything is published.
+/guards/
