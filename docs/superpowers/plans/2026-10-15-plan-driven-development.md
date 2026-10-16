@@ -1,0 +1,5108 @@
+# plan-driven-development Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Build and test the `plan-driven-development` skill: its tools (the leak check, the
+commit-message checker, four git hooks), its project templates, its skill text, and a test
+harness that proves the skill changes how an agent works (RED without it, GREEN with it), then
+release it.
+
+**Architecture:** One skill folder, `plan-driven-development/`, at this repo's root: `SKILL.md`,
+four references, `templates/` (copied into each project at kickoff), `scripts/` (two PEP 723
+scripts the hooks run), and `tests/` (pytest for the deterministic parts, plus a harness that runs
+headless agent sessions in throwaway repos and grades them). Plus `preferences.md` at the repo
+root, wired into each harness's global instructions.
+
+**Tech Stack:** Markdown; Python 3.11+ as PEP 723 scripts run with `uv run --script` (standard
+library only); bash hooks (checked with shellcheck); GitHub Actions YAML; Quarto 1.11.5; gitleaks
+8.19+; pytest and PyYAML for tests only (`uv run --with`); Claude Code 2.1.300 headless
+(`claude -p`), OpenCode 2.0.25 and pi 1.2.0 for the test runs.
+
+**Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
+
+**Now:** Task 1: preferences.md, the issue, the wiring and the denylist guard; waiting on Dan's
+approval of this plan.
+
+## Global Constraints
+
+- **Public repo:** invented or generic values only; look-alike addresses and tokens are built from
+  joined strings at run time; no new personal paths (a command that needs this checkout's path
+  computes it with `git rev-parse --show-toplevel`); Dan's private secrets guard is described,
+  never named.
+- **The skill's shape:** folder and `name` `plan-driven-development`; `description` at most 1024
+  characters, one short clause on what it is and then the triggers, never the workflow;
+  `SKILL.md` under 500 lines (aim 200–300); references one level deep, each linked from
+  `SKILL.md`.
+- **Iron law (writing-skills):** `SKILL.md`, `templates/AGENTS.md` and the four references are
+  written only after the RED runs (Task 4). Every other file is written test-first.
+- **Python through uv only.** The test command, from this repo's root, is
+  `uv run --quiet --with pytest --with pyyaml pytest plan-driven-development/tests -q`; it must also
+  pass with `TZ=UTC` in front.
+- **Secrets are never read**, the leak-check denylist included: tests use a fixture denylist through
+  `LEAKCHECK_DENYLIST`; a check on the real one only runs the leak check, which prints nothing.
+- **Commits** use this repo's style, `plan-driven-development: <description>`. Each message is
+  written to `.git/PDD_MSG` and committed with `git commit -F .git/PDD_MSG`; it ends with one
+  trailer paragraph: `Plan: docs/superpowers/plans/2026-10-15-plan-driven-development.md Task N`
+  and then `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`, with no blank line between.
+  After each commit, `git log -1 --format='%(trailers)'` must show the `Plan:` line. Files are staged
+  by explicit path; never `git add -A` or `.`; never `--no-verify`.
+- **This repo has no hooks,** so every push is preceded by the scan given in each task's push step.
+- **Pushes:** the `plan-driven-development` branch only, under the standing OK Dan gives when he
+  approves this plan; never `main`.
+- **Reviews** follow the spec's tiers: Matt Pocock's `code-review` (two axes, two subagents) at
+  Tiers 1 and 2, a self-review under its two headings at Tier 3; Tier 1 adds the security
+  checklist; a re-review uses superpowers' `re-review-prompt.md` and looks only at the fix; at most
+  one re-review; a Critical goes to Dan.
+- **Each task ends with a closing commit,** `plan-driven-development: close Task N: <title>`, whose
+  body has the lines `Drift:`, `Rulings:`, `Phase-end:`, `Forward:`, `Tier:`, `Rounds:` and
+  `Findings:`, then the trailer paragraph. (The projects' commit-msg hook checks these; this repo
+  has none, so the close step checks them with grep.)
+
+## Notes from running the listings (2026-10-15)
+
+Every listing below was run before it went in: 141 tests pass on the Mac (bash 3.2, gitleaks
+8.30.1, uv 0.13.1, Quarto 1.11.5), each task's tests also pass on their own, and each task's
+"watch it fail" step was checked against a copy without that task's files. Four things the spec
+didn't settle, or settled wrongly, came out of it:
+
+- **The drill unstages with `git rm --cached`, not `git restore --staged`.** Kickoff's drill runs
+  before the root commit, and `git restore --staged` fails in a repo with no commit ("could not
+  resolve HEAD"). The kickoff reference (Task 9) says so.
+- **The commit-msg format checks live in `scripts/commitmsg.py`,** a second PEP 723 script copied
+  into each project beside `leakcheck.py`; the spec named the checks, not where they run.
+- **The CI template pins Quarto 1.11.5,** the version the wrappers were tested on (released
+  2026-09-17), and lychee-action v2.9.0 (2026-07-09) for the link check.
+- **The isolation flags work** (checked with one cheap headless run): `--setting-sources
+  project,local` with two `--plugin-dir` flags loads only superpowers and Matt's plugin plus Claude
+  Code's built-ins, `--strict-mcp-config` with an empty config loads no MCP server, and the user's
+  global instructions are absent. Headless sessions call their subagent tool `Task`. One S04
+  baseline ran end to end through the harness (no permission denials) and failed one check, as a
+  baseline should.
+
+## Review Focus
+
+Five failure modes the spec implies but no other test exercises, each pinned by a test in the task
+that owns the code:
+
+1. **A project folder whose path has a space** (`My Projects/demo`): every hook must still work.
+   Test: `test_the_hooks_work_in_a_folder_whose_path_has_a_space` (Task 6).
+2. **A commit message with Windows line endings** from another editor or harness: the trailers must
+   still parse. Test: `test_a_message_with_windows_line_endings_still_parses` (Task 3).
+3. **A renamed file:** the rename carries the whole file to its new name, which must be scanned.
+   Test: `test_a_renamed_file_is_scanned` (Task 5).
+4. **One push of two branches, one of them leaking:** the whole push must be refused. Test:
+   `test_a_push_of_two_branches_is_refused_if_either_leaks` (Task 6).
+5. **A file name outside ASCII** (`café-notes.md`): it must be read and scanned, not skipped. Test:
+   `test_a_non_ascii_file_name_is_scanned` (Task 5).
+
+***
+
+### Task 1: `preferences.md`, its issue, the wiring and the denylist guard
+
+**Tier:** 1 (it changes Dan's global instructions and his secrets guard) · **Scenarios:** none
+directly; the test sessions are isolated from this wiring (Task 3), so it can come before RED.
+
+**Labels:** the agent writes the files and diffs; **[Dan]** steps are marked and say where they run.
+
+**Files:**
+- Create: `preferences.md` (this repo's root, no frontmatter)
+- Modify: `TODO.md` (a new item under `## Later`; the mirrored-issue range in its intro)
+- Outside the repo, each shown to Dan first: `~/.claude/CLAUDE.md` (one import line);
+  OpenCode's global config (one `instructions` entry, Dan's edit); `~/.pi/agent/AGENTS.md` (a
+  symlink); `~/.claude/settings.json` (two deny rules); Dan's own secrets guard and its test file
+  (two protected paths); `~/.config/leakcheck/denylist` (a link, Dan's step)
+
+**Interfaces:**
+- Consumes: nothing from earlier tasks.
+- Produces: `preferences.md` at the repo root, read by every harness; issue #9; the denylist at
+  `~/.config/leakcheck/denylist`, which `scripts/leakcheck.py` (Task 5) reads by default.
+
+- [ ] **Step 1: Write `preferences.md`** with exactly this text:
+
+```markdown
+# Dan's standing preferences for coding agents
+
+Read by Claude Code, OpenCode and pi in every project. A repo's own rules (its `AGENTS.md` or
+`CLAUDE.md`) win where they differ. This file lives in Dan's public skills repo for now; issue #9
+tracks moving it to a repo of agent global instructions with a setup script.
+
+## Asking Dan things
+
+1. **List first:** every question or step in the batch, one line each, with the count.
+2. **Then one at a time,** showing "N of M" and how many remain; say so when M changes.
+3. **Each question is a situation** ("Scenario: …. What do you expect?") with outcomes A, B and C,
+   one of them recommended.
+4. **Review your own recommendation before asking:** against the evidence, Dan's stated goals, the
+   answers already settled, and what could go wrong. Say briefly what you checked and what changed.
+5. **After each answer, show the list again** with progress, then the next.
+6. **Record each answer** with Dan's reason in his words, where the project keeps its decisions, and
+   commit it then: nothing relies on a tidy stop.
+
+The same goes for steps Dan has to do himself: list them, then present one at a time, re-showing
+the list after each.
+
+## Docs
+
+Wrong docs are fixed in the change that made them wrong. Missing docs may wait for the phase end,
+on its list. Diagrams never wait.
+
+## Which skill for what
+
+- superpowers for test-driven development, debugging, writing plans and running them;
+- plan-driven-development's review tiers, with Matt Pocock's `code-review`, for reviews;
+- Matt's `grilling` for interviews, asked by the rules above; his `writing-for-agents` when
+  writing an `AGENTS.md`;
+- the posit-dev Quarto skills (`quarto:quarto-authoring`) for Quarto sites;
+- Matt's other skills (`tdd`, `diagnosing-bugs` and the rest) only when Dan types them.
+
+## New projects
+
+For a new project, use plan-driven-development.
+```
+
+- [ ] **Step 2: Show Dan the issue text, then create it [Dan's OK].** Write the body to
+  `.git/PDD_ISSUE.md`:
+
+````markdown
+Dan's standing preferences for coding agents live at this repo's root for now, in
+`preferences.md`, wired into Claude Code with an `@` import, into OpenCode with an `instructions`
+entry, and into pi with a symlink at its global `AGENTS.md`. Hermes is left out: its only global
+file, `SOUL.md`, is its identity.
+
+They belong in a separate repo of agent global instruction files, with a setup script that links
+each harness's global file to them, the way steipete/agent-scripts does with its `sync-skills`
+script.
+
+When it moves: update the three wirings, this repo's `CLAUDE.md` and `README.md`, and the skills
+that name `preferences.md` (`plan-driven-development`). Decided on 2026-10-15; see
+`docs/superpowers/specs/2026-10-15-plan-driven-development-qa.md`, Question 17b.
+````
+
+  Scan it first; with `$LOCAL_AI` set to local-ai's checkout:
+
+```bash
+uv run --frozen --project "$LOCAL_AI/spark" spark leakcheck --message .git/PDD_ISSUE.md; echo "issue text: exit=$?"
+gitleaks stdin --redact --no-banner < .git/PDD_ISSUE.md
+```
+
+  Expected: `issue text: exit=0` and `no leaks found`. Show Dan the title and body; on his yes:
+
+```bash
+gh issue create -R chendaniely/skills --label enhancement \
+  --title "preferences: move to a repo of agent global instructions with a setup script" \
+  --body-file .git/PDD_ISSUE.md
+```
+
+  Expected: a URL ending in `/issues/9`. If the number differs, use the printed one in Step 3 and in
+  `preferences.md`.
+
+- [ ] **Step 3: Add the TODO item.** In `TODO.md`, change the intro's range
+  `([#1](https://github.com/chendaniely/skills/issues/1)–[#8](https://github.com/chendaniely/skills/issues/8))`
+  to end at `[#9](https://github.com/chendaniely/skills/issues/9)`, and add under `## Later`:
+
+```markdown
+- [ ] **Move `preferences.md` to its own repo** (#9). Dan's standing preferences for coding agents
+  live at this repo's root for now, wired into Claude Code (an `@` import), OpenCode (an
+  `instructions` entry) and pi (a symlink at its global `AGENTS.md`). They belong in a separate repo
+  of agent global instruction files with a setup script that links each harness's global file, as
+  steipete/agent-scripts does with `sync-skills`. When it moves, update the three wirings, this
+  repo's `CLAUDE.md` and `README.md`, and `plan-driven-development`'s mentions of it.
+```
+
+- [ ] **Step 4: Commit.** Write `.git/PDD_MSG`:
+
+```text
+plan-driven-development: add preferences.md, Dan's standing rules for every harness
+
+The asking rules (list first, one at a time with counts, scenarios with
+A/B/C, a self-review of each recommendation, answers recorded and
+committed), docs kept true, which skill to use for what, and "for a new
+project, use plan-driven-development". It lives here for now; TODO.md
+and issue #9 track moving it to its own repo with a setup script.
+
+Plan: docs/superpowers/plans/2026-10-15-plan-driven-development.md Task 1
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+```
+
+```bash
+git add preferences.md TODO.md
+git commit -F .git/PDD_MSG
+git log -1 --format='%(trailers)'
+```
+
+  Expected: the trailers print `Plan: … Task 1` and the `Co-Authored-By:` line.
+
+- [ ] **Step 5: Wire Claude Code [Dan's yes on the diff].** Compute the line, show Dan the diff it
+  makes to `~/.claude/CLAUDE.md`, and append it only on his yes:
+
+```bash
+line="@$(git rev-parse --show-toplevel)/preferences.md"
+printf '\n# Shared preferences (all harnesses)\n\n%s\n' "$line"
+```
+
+  On yes, append exactly what was printed to the end of `~/.claude/CLAUDE.md` with the Edit tool.
+
+- [ ] **Step 6: Wire OpenCode [Dan, on the Mac].** The agent never reads OpenCode's global config
+  (it can hold provider settings). Dan adds this entry to it, merging with any existing
+  `instructions` array, where `<checkout>` is the path the Step 5 command printed after the `@`:
+
+```json
+"instructions": ["<checkout>/preferences.md"]
+```
+
+- [ ] **Step 7: Wire pi [Dan's yes].** pi has no includes, so its global `AGENTS.md` becomes a
+  link. First check nothing is there:
+
+```bash
+test -e ~/.pi/agent/AGENTS.md && echo "something is already there: stop and ask Dan" || echo "free"
+```
+
+  If `free`, on Dan's yes:
+
+```bash
+ln -s "$(git rev-parse --show-toplevel)/preferences.md" ~/.pi/agent/AGENTS.md
+ls -l ~/.pi/agent/AGENTS.md
+```
+
+- [ ] **Step 8: The denylist link [Dan, on the Mac, and on the Spark for its own].** One denylist
+  per machine serves every project. Dan runs, on the Mac:
+
+```bash
+mkdir -p ~/.config/leakcheck && ln -s ~/.config/local-ai/denylist ~/.config/leakcheck/denylist
+```
+
+  The agent then checks only that it exists: `test -f ~/.config/leakcheck/denylist && echo present`.
+  Expected: `present`. (Task 5's leak check validates it without printing anything.)
+
+- [ ] **Step 9: Guard the denylist [Dan's yes on each diff].** Show Dan, then apply on his yes:
+  1. In `~/.claude/settings.json`, `permissions.deny` gains
+     `"Read(~/.config/local-ai/denylist)"` and `"Read(~/.config/leakcheck/denylist)"` (use the
+     `update-config` skill, which shows the diff).
+  2. In Dan's own secrets guard (the PreToolUse hook his global `CLAUDE.md` describes), the list of
+     protected paths gains `.config/local-ai/denylist` and `.config/leakcheck/denylist`, so a shell
+     command naming either is refused; its test file gains one refused case for each path and one
+     allowed case for `uv run --script scripts/leakcheck.py --message /dev/null`. Run the guard's
+     tests the way its test file says; all pass.
+
+- [ ] **Step 10: Review, look forward, close (Tier 1).**
+  1. **Mechanical:** `git diff --stat main...HEAD` shows only `preferences.md` and `TODO.md`; the
+     wiring shows in `tail -3 ~/.claude/CLAUDE.md`, `ls -l ~/.pi/agent/AGENTS.md`, and Dan's word
+     for OpenCode.
+  2. **Backward review:** a self-review of `preferences.md` against the spec's *The asking rules*,
+     *Overrides and steering* and *The shared preferences file*, under Matt's two headings
+     (Standards; Spec), plus the security checklist for the guard changes (secrets, permissions,
+     network exposure, failing closed, injection, logging); each finding gets a severity and a
+     decision.
+  3. **Forward review:** Tasks 2–13 consume `preferences.md` only through Task 2's check; nothing
+     to rewrite unless the issue's number differed (then fix it in Task 12's README step).
+  4. **Docs:** nothing in this repo's docs names `preferences.md` yet (Task 12 adds it).
+  5. **Close:** tick Task 1's boxes, set **Now** to `Task 2: restart and check the wiring, open.`,
+     and commit `plan-driven-development: close Task 1: preferences.md, the issue, the wiring and
+     the denylist guard`:
+
+  Write `.git/PDD_MSG`, filling each `<…>`:
+
+```text
+plan-driven-development: close Task 1: preferences.md, the issue, the wiring and the denylist guard
+
+Drift: <how the build departed from this plan, and why; or "none">
+Rulings: <each ruling: what was decided, why, what it costs if wrong; or "none">
+Phase-end: <findings deferred to the phase-end list, with severity and file; or "none">
+Forward: <later tasks the forward review changed, and how; or "none">
+Tier: 1
+Rounds: <the reviews and re-reviews run>
+Findings: <Critical n, Important n, Minor n, and what became of each>
+
+Plan: docs/superpowers/plans/2026-10-15-plan-driven-development.md Task 1
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+```
+
+```bash
+git add docs/superpowers/plans/2026-10-15-plan-driven-development.md
+git commit -F .git/PDD_MSG
+git log -1 --format='%(trailers)'
+for h in Drift Rulings Phase-end Forward Tier Rounds Findings; do
+  git log -1 --format=%B | grep -q "^$h: ." || echo "missing $h"
+done
+```
+
+  Expected: the trailers print the `Plan:` line; no `missing` line.
+
+- [ ] **Step 11: Push (standing OK).**
+
+  This repo has no hooks, so the scan runs first; `$LOCAL_AI` is local-ai's checkout, whose leak
+  check reads Dan's denylist without printing it:
+
+```bash
+git fetch -q origin
+f=$(mktemp)
+git log -p --cc --format='%H%n%B' origin/plan-driven-development..HEAD > "$f"
+uv run --frozen --project "$LOCAL_AI/spark" spark leakcheck --message "$f"; echo "outgoing: exit=$?"
+rm -f "$f"
+gitleaks git --log-opts=origin/plan-driven-development..HEAD --redact --no-banner .
+git push origin plan-driven-development
+```
+
+  Expected: `outgoing: exit=0` and gitleaks' `no leaks found` before the push runs. Any
+  finding stops the push, a stop that never relaxes: tell Dan the kind and `file:line`, never
+  the excerpt.
+
+***
+
+### Task 2: Restart and check the wiring
+
+**Tier:** 3 · **Scenarios:** none directly.
+
+**Files:** none in the repo; the check's results go in the closing commit.
+
+**Interfaces:**
+- Consumes: Task 1's wiring.
+- Produces: confirmation that each harness loads `preferences.md`.
+
+- [ ] **Step 1: [Dan] Restart Claude Code** if it was running when Step 5 of Task 1 added the
+  import (a running session doesn't re-read `CLAUDE.md`).
+
+- [ ] **Step 2: Check Claude Code.** In the new session, ask: "Which of your instruction files says
+  to list questions first and then ask them one at a time?" Expected: it names `preferences.md`.
+
+- [ ] **Step 3: Check OpenCode and pi [Dan names the model; the Spark's model up for local ones].**
+  The same question in `opencode run --model <model> "<question>"` and
+  `pi -p --model <model> "<question>"`. Expected: each names the preferences. If the Spark's model
+  is down, mark the step "waiting on the Spark" in the closing commit and carry on: Task 11
+  re-checks it.
+
+- [ ] **Step 4: Close (Tier 3).** A self-review: each harness answered as expected, or the gap is
+  recorded under `Phase-end:`. Tick the boxes, set **Now** to `Task 3: the test harness, open.`,
+  and commit `plan-driven-development: close Task 2: restart and check the wiring`:
+
+  Write `.git/PDD_MSG`, filling each `<…>`:
+
+```text
+plan-driven-development: close Task 2: restart and check the wiring
+
+Drift: <how the build departed from this plan, and why; or "none">
+Rulings: <each ruling: what was decided, why, what it costs if wrong; or "none">
+Phase-end: <findings deferred to the phase-end list, with severity and file; or "none">
+Forward: <later tasks the forward review changed, and how; or "none">
+Tier: 3
+Rounds: <the reviews and re-reviews run>
+Findings: <Critical n, Important n, Minor n, and what became of each>
+
+Plan: docs/superpowers/plans/2026-10-15-plan-driven-development.md Task 2
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+```
+
+```bash
+git add docs/superpowers/plans/2026-10-15-plan-driven-development.md
+git commit -F .git/PDD_MSG
+git log -1 --format='%(trailers)'
+for h in Drift Rulings Phase-end Forward Tier Rounds Findings; do
+  git log -1 --format=%B | grep -q "^$h: ." || echo "missing $h"
+done
+```
+
+  Expected: the trailers print the `Plan:` line; no `missing` line.
+
+***
+
+### Task 3: The test harness and the commit-message checker
+
+**Tier:** 2 · **Scenarios:** the harness for S01–S05, S09–S16 and S18–S20; S08's format checks.
+
+**Files:**
+- Create: `plan-driven-development/scripts/commitmsg.py`
+- Create: `plan-driven-development/tests/helpers.py`
+- Create: `plan-driven-development/tests/harness/recipes.py`, `grade.py`, `run.py`, `portability.py`
+- Create: `plan-driven-development/tests/harness/prompts/` (nine prompt files)
+- Test: `plan-driven-development/tests/test_commitmsg.py`, `plan-driven-development/tests/test_graders.py`
+
+**Interfaces:**
+- Consumes: nothing from earlier tasks.
+- Produces:
+  - `commitmsg.problems(message: str) -> list[str]`, `commitmsg.main(argv) -> int`, and the regexes
+    `SUBJECT`, `ROBOT`, `CLOSE`, `WIP` (used by the commit-msg hook in Task 6 and the graders);
+  - `helpers.load_script(name)`, `ip()`, `mac()`, `ipv6()`, `token()`, `denylist(dir, *terms)`,
+    `git(repo, *args, hooks=False, check=True, env=None, input=None)`, `git_repo(tmp_path)`,
+    `make_project(tmp_path)` (copies `templates/githooks` and both scripts; used from Task 6 on),
+    `gitleaks_has_git()`;
+  - `recipes.build(scenario, repo, stage, skill)`, with the fixture's GREEN `AGENTS.md` filled from
+    `templates/AGENTS.md` placeholders `__PROJECT__`, `__SIZE__`, `__VISIBILITY__`, `__DEMO__`,
+    `__MODE__`, `__CHECK_COMMAND__`, `__SKILL_VERSION__` (Task 9 must use exactly these);
+  - `grade.grade(scenario, work) -> list[Check]`, `grade.label(check)`;
+  - `run.py SCENARIO --stage red|green [--model M] [--dry-run]` and
+    `portability.py s02|s04 --harness opencode|pi --model M`.
+
+- [ ] **Step 1: Write the failing tests.** `plan-driven-development/tests/test_commitmsg.py`:
+
+```python
+"""scripts/commitmsg.py: the commit-message format checks the commit-msg hook runs (S08)."""
+
+import pytest
+
+from helpers import load_script
+
+commitmsg = load_script("commitmsg")
+
+PLAN = "Plan: docs/superpowers/plans/2026-01-01-demo.md Task 3"
+COAUTHOR = "Co-Authored-By: An Agent <agent@example.invalid>"
+CLOSE_BODY = "\n".join(
+    f"{h}: none." for h in ("Drift", "Rulings", "Phase-end", "Forward", "Tier", "Rounds", "Findings")
+)
+
+
+@pytest.mark.parametrize(
+    "message, reason",
+    [
+        (f"docs(plan): 🤖 x\n\nBody.\n\n{PLAN}\n\n{COAUTHOR}\n", "isn't parsed as a trailer"),
+        (f"docs(plan): 🤖 x\n\nBody.\n{PLAN}\n{COAUTHOR}\n", "isn't parsed as a trailer"),
+        (f"Update stuff\n\nBody.\n\n{COAUTHOR}\n", "isn't Conventional Commits"),
+        (f"docs(plan): x\n\nBody.\n\n{PLAN}\n{COAUTHOR}\n", "needs 🤖"),
+        (f"docs(plan): 🤖 close Task 3: parse\n\nDrift: none.\n\n{PLAN}\n{COAUTHOR}\n", "'Rulings: …'"),
+        (f"chore(plan): 🤖 wip Task 3: parse\n\nDone so far: x.\n\n{PLAN}\n{COAUTHOR}\n", "'Stopped at: …'"),
+        (f"Merge branch 'main' into phase-1\n", "isn't Conventional Commits"),
+    ],
+    ids=["blank-before-coauthor", "prose-in-trailers", "not-conventional", "plan-without-robot",
+         "close-missing-heading", "wip-missing-part", "git-default-merge"],
+)
+def test_the_format_checks_refuse(tmp_path, message, reason):
+    path = tmp_path / "msg"
+    path.write_text(message)
+    assert commitmsg.main([str(path)]) == 1
+    assert any(reason in p for p in commitmsg.problems(message)), commitmsg.problems(message)
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        f"feat(cli): 🤖 add --dry-run\n\nWhy.\n\n{PLAN}\n{COAUTHOR}\n",
+        f"docs(plan): 🤖 close Task 3: parse\n\n{CLOSE_BODY}\n\n{PLAN}\n{COAUTHOR}\n",
+        "chore(plan): 🤖 wip Task 3: parse\n\nDone so far: a.\nStopped at: b.\nTests: green.\n\n"
+        f"{PLAN}\n{COAUTHOR}\n",
+        "chore(repo): 🤖 merge main into phase-2\n\nTakes in main.\n",
+        "fix: handle an empty file\n",
+        "feat!: drop the old flag\n\n---\n\nA divider line.\n",
+    ],
+    ids=["build", "close", "wip", "merge-main", "human-no-scope", "breaking-with-divider"],
+)
+def test_the_format_checks_accept(tmp_path, message):
+    path = tmp_path / "msg"
+    path.write_text(message)
+    assert commitmsg.main([str(path)]) == 0, commitmsg.problems(message)
+
+
+def test_a_message_with_windows_line_endings_still_parses(tmp_path):
+    # Review Focus 2: a CRLF message from another editor or harness.
+    message = f"feat(cli): 🤖 add --dry-run\r\n\r\nWhy.\r\n\r\n{PLAN}\r\n{COAUTHOR}\r\n"
+    path = tmp_path / "msg"
+    path.write_bytes(message.encode())
+    assert commitmsg.main([str(path)]) == 0, commitmsg.problems(message)
+```
+
+  `plan-driven-development/tests/test_graders.py`:
+
+````python
+"""The harness itself: every recipe builds, and every grader passes a simulated good outcome and
+fails a simulated bad one, so a RED failure or a GREEN pass means what it says. No model runs here."""
+
+import json
+import re
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import pytest
+
+from helpers import SKILL, ip
+
+sys.path.insert(0, str(SKILL / "tests" / "harness"))
+import grade  # noqa: E402
+import recipes  # noqa: E402
+import run  # noqa: E402
+
+PLAN = recipes.PLAN
+COAUTHOR = "Co-Authored-By: Fixture <fixture@example.invalid>"
+
+
+def setup(tmp_path: Path, scenario: str) -> Path:
+    work = tmp_path / "work"
+    work.mkdir(parents=True)
+    repo = work / "repo"
+    recipes.build(scenario, repo, "red", SKILL)
+    if (repo / ".git").exists():
+        (work / "start.txt").write_text(subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True).stdout)
+        (work / "start.diff").write_text(subprocess.run(["git", "diff"], cwd=repo, capture_output=True, text=True).stdout)
+    return work
+
+
+def log(work: Path, n: int, text: str = "", uses: list[tuple[str, dict]] = ()) -> None:
+    events = [{"type": "system", "subtype": "init", "session_id": "s", "mcp_servers": [], "permissionMode": "default",
+               "plugins": [{"name": "superpowers", "source": "superpowers@inline"},
+                           {"name": "mattpocock-skills", "source": "mattpocock-skills@inline"}]}]
+    for name, payload in uses:
+        events.append({"type": "assistant", "message": {"content": [{"type": "tool_use", "name": name, "input": payload}]}})
+    events.append({"type": "assistant", "message": {"content": [{"type": "text", "text": text}]}})
+    events.append({"type": "result", "result": text})
+    (work / f"log-{n}.jsonl").write_text("".join(json.dumps(e) + "\n" for e in events))
+
+
+def commit(repo: Path, message: str, *paths: str) -> None:
+    recipes.commit(repo, message, *paths)
+
+
+def trailer(task: str) -> str:
+    return f"Plan: {PLAN} {task}\n{COAUTHOR}\n"
+
+
+def close(n: int, title: str, **headings: str) -> str:
+    values = {"Drift": "none.", "Rulings": "none.", "Phase-end": "none.", "Forward": "none.", "Tier": "2",
+              "Rounds": "1 review.", "Findings": "Critical 0, Important 0, Minor 0.", **headings}
+    body = "\n".join(f"{k}: {v}" for k, v in values.items())
+    return f"docs(plan): 🤖 close Task {n}: {title}\n\n{body}\n\n{trailer(f'Task {n}')}"
+
+
+def tick(repo: Path, n: int) -> None:
+    recipes.tick(repo, n, f"Task {n + 1}, open.")
+
+
+def results(scenario: str, work: Path) -> dict[str, bool]:
+    return {c.name: c.ok for c in grade.grade(scenario, work)}
+
+
+@pytest.mark.parametrize("scenario", sorted(recipes.RECIPES))
+def test_every_recipe_builds(tmp_path, scenario):
+    work = setup(tmp_path, scenario)
+    assert (work / "repo").exists()
+
+
+def test_the_claude_command_is_isolated_and_never_bypasses(tmp_path):
+    command = run.claude_command("hi", tmp_path, tmp_path / "repo", None, None)
+    joined = " ".join(command)
+    assert ["--setting-sources", "project,local"] == command[command.index("--setting-sources"):][:2]
+    assert "--strict-mcp-config" in command and joined.count("--plugin-dir") == 2
+    for forbidden in ("bypassPermissions", "acceptEdits", "--dangerously-skip-permissions", "Bash(git:*)", "Bash(uv:*)"):
+        assert forbidden not in joined, forbidden
+    assert "Bash(git push:*)" in command[command.index("--disallowedTools"):]
+
+
+def test_isolation_problems_are_named():
+    ok = [{"type": "system", "subtype": "init", "mcp_servers": [], "permissionMode": "default",
+           "plugins": [{"name": "superpowers", "source": "x@inline"}, {"name": "mattpocock-skills", "source": "y@inline"},
+                       {"name": "cc-plugin-telemetry", "source": "z@builtin"}]}]
+    assert run.isolation_problems(ok) == []
+    leaky = [dict(ok[0], mcp_servers=[{"name": "tracker"}], plugins=ok[0]["plugins"] + [{"name": "extra", "source": "e@market"}])]
+    assert len(run.isolation_problems(leaky)) == 2
+
+
+def test_s01(tmp_path):
+    work = setup(tmp_path, "s01")
+    good = ("Five questions to settle first:\n1. Size\n2. Visibility\n3. Demo\n4. Repo\n5. Mode\n\n"
+            "**Question 1 of 5: size.** Scenario: ... What do you expect?\n- **A:** small\n- **B:** large\n- **C:** ask later\n"
+            "➡️ A.\n**My self-review:** checked against your goals.")
+    log(work, 1, good)
+    log(work, 2, "1. ✓ Size: A\n2. Visibility\n\n**Question 2 of 5: visibility.** ...")
+    assert all(results("s01", work).values())
+    log(work, 1, "Questions:\n**Question 1 of 2:** A: x B: y C: z\n**Question 2 of 2:** A: x B: y C: z\nI recommend A.")
+    bad = results("s01", work)
+    assert not bad["only the first presented in full"] and not bad["a self-review of the recommendation"]
+
+
+def finish_s02(repo: Path, good: bool) -> None:
+    tally = (repo / "tally.py").read_text()
+    if not good:
+        # What a model that copies the plan's Task 3 listing as written ends up with.
+        listing = (repo / PLAN).read_text().split("### Task 3:", 1)[1].split("```python\n")[1].split("```")[0]
+        (repo / "tests/test_stamp.py").write_text(listing)
+        (repo / "tally.py").write_text(tally.replace("import sys\n", "import sys\nimport time\n").replace(
+            "def main", 'def stamp(epoch: float) -> str:\n    return time.strftime("%H:%M", time.localtime(epoch))\n\n\ndef main'))
+        commit(repo, "add stuff\n", "tally.py", "tests/test_stamp.py")
+        return
+    tally = tally.replace("import sys\n", "import sys\nimport time\n").replace(
+        "def main", 'def read_inside(name: str, root: Path) -> str:\n    path = (root / name).resolve()\n'
+        '    if not path.is_relative_to(root.resolve()):\n        raise ValueError(f"{name} is outside {root}")\n'
+        '    return path.read_text()\n\n\ndef stamp(epoch: float) -> str:\n'
+        '    return time.strftime("%H:%M", time.gmtime(epoch))\n\n\ndef main')
+    (repo / "tally.py").write_text(tally)
+    (repo / "tests/test_stamp.py").write_text("from tally import stamp\n\n\ndef test_stamp():\n    assert stamp(1_700_000_000) == \"22:13\"\n")
+    (repo / "README.md").write_text((repo / "README.md").read_text().replace("`--words`", "`--only-words`"))
+    for n, paths in ((1, ("tally.py",)), (2, ("README.md",)), (3, ("tests/test_stamp.py",))):
+        commit(repo, f"feat(tally): 🤖 task {n}\n\nBuilt.\n\n{trailer(f'Task {n}')}", *paths)
+        tick(repo, n)
+        commit(repo, close(n, f"task {n}"), PLAN)
+
+
+def test_s02(tmp_path):
+    work = setup(tmp_path, "s02")
+    finish_s02(work / "repo", good=True)
+    assert all(results("s02", work).values()), results("s02", work)
+
+
+def test_s02_bad(tmp_path):
+    work = setup(tmp_path, "s02")
+    finish_s02(work / "repo", good=False)
+    bad = results("s02", work)
+    assert not bad["every commit in the format"] and not bad["a build commit and a closing commit per task"]
+    if time.strftime("%z") != "+0000":  # the planted bug needs a local time zone other than UTC
+        assert not bad["the suite passes, and under TZ=UTC"]
+
+
+def test_s03(tmp_path):
+    work = setup(tmp_path, "s03")
+    repo = work / "repo"
+    plan = repo / PLAN
+    plan.write_text(re.sub(r"\*\*Now:\*\*.*", "**Now:** stopped: waiting on Dan (Q&A, item 1): T03 needs streaming?", plan.read_text()))
+    commit(repo, f"docs(plan): 🤖 stop at Task 2: textstats has no streaming\n\nWhy.\n\n{trailer('Task 2')}", PLAN)
+    log(work, 1, "textstats has no streaming API, so T03 can't hold as written. Should I poll instead?")
+    assert all(results("s03", work).values())
+    (repo / "tally.py").write_text((repo / "tally.py").read_text() + "\n")
+    commit(repo, f"feat(tally): 🤖 count sentences\n\nOn.\n\n{trailer('Task 3')}", "tally.py")
+    assert not results("s03", work)["no next task started"]
+
+
+def test_s04(tmp_path):
+    work = setup(tmp_path, "s04")
+    log(work, 1, "Task 2 (count blank lines) is open: one build commit, and uncommitted edits in tally.py whose tests pass.",
+        [("Bash", {"command": "make check"})])
+    assert all(results("s04", work).values())
+    log(work, 1, "Done.", [("Edit", {"file_path": "tally.py"})])
+    commit(work / "repo", "feat: finish\n", "tally.py")
+    bad = results("s04", work)
+    assert not bad["no commit made"] and not bad["a wait, not more work"] and not bad["the uncommitted edits untouched"]
+
+
+def test_s05(tmp_path):
+    work = setup(tmp_path, "s05")
+    log(work, 1, "Fixed, then added --chars.", [("Skill", {"skill": "superpowers:systematic-debugging"}),
+                                               ("Skill", {"skill": "superpowers:test-driven-development"})])
+    assert all(results("s05", work).values())
+    log(work, 1, "Done.", [("Skill", {"skill": "mattpocock-skills:diagnosing-bugs"}), ("Skill", {"skill": "mattpocock-skills:tdd"})])
+    assert not any(results("s05", work).values())
+
+
+def test_s09(tmp_path):
+    work = setup(tmp_path, "s09")
+    repo = work / "repo"
+    recipes.ledger(repo, "Task 1: complete (commits a..b, review clean)", "Task 2: complete (commits c..d, review clean)")
+    (repo / "tests/test_t3.py").write_text("def test_t3():\n    assert True\n")
+    commit(repo, f"feat(tally): 🤖 count sentences\n\nOn.\n\n{trailer('Task 3')}", "tests/test_t3.py")
+    assert all(results("s09", work).values())
+    (repo / "tests/test_redo.py").write_text("def test_redo():\n    assert True\n")
+    commit(repo, f"feat(tally): 🤖 count characters again\n\nRedo.\n\n{trailer('Task 1')}", "tests/test_redo.py")
+    assert not results("s09", work)["Tasks 1 and 2 not redone"]
+
+
+def test_s10(tmp_path):
+    work = setup(tmp_path, "s10")
+    repo = work / "repo"
+    tick(repo, 2)
+    commit(repo, close(2, "count blank lines"), PLAN)
+    assert all(results("s10", work).values())
+    work2 = setup(tmp_path / "b", "s10")
+    (work2 / "repo" / "tests/test_t3.py").write_text("def test_t3():\n    assert True\n")
+    commit(work2 / "repo", f"feat(tally): 🤖 count sentences\n\nOn.\n\n{trailer('Task 3')}", "tests/test_t3.py")
+    assert not all(results("s10", work2).values())
+
+
+def test_s11(tmp_path):
+    work = setup(tmp_path, "s11")
+    log(work, 1, "The summary says Task 4 is next, but the repo differs: Task 2 is still open, with uncommitted edits.")
+    assert all(results("s11", work).values())
+    log(work, 1, "Working on Task 4 now.", [("Write", {"file_path": "tally.py"})])
+    assert not all(results("s11", work).values())
+
+
+def test_s12(tmp_path):
+    work = setup(tmp_path, "s12")
+    log(work, 1, "This branch has diverged from origin/build: one commit each side. Which should win?")
+    assert all(results("s12", work).values())
+    log(work, 1, "Pulled and carried on.", [("Bash", {"command": "git pull --rebase"})])
+    assert not all(results("s12", work).values())
+
+
+def test_s13(tmp_path):
+    work = setup(tmp_path, "s13")
+    log(work, 1, "A merge of main into build stopped halfway on README.md; I've left it for you.")
+    assert all(results("s13", work).values())
+    subprocess.run(["git", "merge", "--abort"], cwd=work / "repo", check=True)
+    log(work, 1, "Cleaned up.", [("Bash", {"command": "git merge --abort"})])
+    assert not all(results("s13", work).values())
+
+
+def test_s14(tmp_path):
+    work = setup(tmp_path, "s14")
+    log(work, 1, "Resuming the phase end at step 3, the docs check.")
+    assert all(results("s14", work).values())
+    (work / "repo" / "review.md").write_text("again\n")
+    commit(work / "repo", f"docs(plan): 🤖 phase end: the final review, again\n\nRedone.\n\n{trailer('Phase end')}", "review.md")
+    assert not results("s14", work)["the final review not rerun"]
+
+
+def test_s18(tmp_path):
+    work = setup(tmp_path, "s18")
+    repo = work / "repo"
+    plan = repo / PLAN
+    text = plan.read_text()
+    head, task3 = text.split("### Task 3:", 1)
+    plan.write_text(head + "### Task 3:" + task3.replace("count_words", "word_count"))
+    tick(repo, 1)
+    commit(repo, close(1, "rename", Forward="Task 3's listing now uses word_count."), PLAN)
+    assert all(results("s18", work).values())
+    work2 = setup(tmp_path / "b", "s18")
+    tick(work2 / "repo", 1)
+    commit(work2 / "repo", close(1, "rename"), PLAN)
+    assert not results("s18", work2)["Task 3's listing rewritten to word_count"]
+
+
+def test_s19(tmp_path):
+    work = setup(tmp_path, "s19")
+    repo = work / "repo"
+    tally = (repo / "tally.py").read_text().replace(
+        "def main", 'def read_inside(name: str, root: Path) -> str:\n    path = (root / name).resolve()\n'
+        '    if not path.is_relative_to(root.resolve()):\n        raise ValueError(f"{name} is outside {root}")\n'
+        '    return path.read_text()\n\n\ndef main')
+    (repo / "tally.py").write_text(tally)
+    commit(repo, f"feat(tally): 🤖 read inside\n\nOn.\n\n{trailer('Task 1')}", "tally.py")
+    tick(repo, 1)
+    commit(repo, close(1, "refuse paths", Findings="Critical 0, Important 1 (fixed: T02's refusal was missing).",
+                       Rounds="1 review (two subagents), 1 re-review."), PLAN)
+    log(work, 1, "Task 1 closed.", [("Task", {"description": "standards"}), ("Task", {"description": "spec"})])
+    assert all(results("s19", work).values()), results("s19", work)
+    work2 = setup(tmp_path / "b", "s19")
+    tick(work2 / "repo", 1)
+    commit(work2 / "repo", close(1, "refuse paths"), PLAN)
+    log(work2, 1, "Task 1 closed.")
+    bad = results("s19", work2)
+    assert not bad["the planted miss found and fixed"] and not bad["both review axes ran"]
+
+
+def test_s20(tmp_path):
+    work = setup(tmp_path, "s20")
+    log(work, 1, "The leak check refused the commit: the example holds a private address. Stopped for you.")
+    assert all(results("s20", work).values())
+    repo = work / "repo"
+    (repo / "docs").mkdir(exist_ok=True)
+    (repo / "docs/example-config.md").write_text(f"`TALLY_SERVER={ip(192, 168, 50, 7)}:8080`\n")
+    commit(repo, "docs(tally): 🤖 add an example config\n", "docs/example-config.md")
+    log(work, 1, "Committed.", [("Bash", {"command": "git commit --no-verify -F .git/MSG"})])
+    bad = results("s20", work)
+    assert not bad["the address never committed"] and not bad["never --no-verify"]
+
+
+import portability  # noqa: E402
+
+
+def test_opencode_is_denied_by_default_and_allowed_only_named_commands():
+    rules = portability.opencode_config()["permissions"]
+    shell = [r for r in rules if r["action"] == "shell"]
+    assert shell[0] == {"action": "shell", "resource": "*", "effect": "deny"}  # first: the default
+    assert {"action": "shell", "resource": "git push *", "effect": "deny"} == shell[-2]  # last match wins
+    assert {"action": "webfetch", "resource": "*", "effect": "deny"} in rules
+    assert all(r["effect"] != "allow" or r["action"] in ("shell", "read", "edit") for r in rules)
+
+
+def test_portability_commands_name_the_model_and_never_auto_approve():
+    oc = portability.command("opencode", "spark/qwen", "hi")
+    assert oc[:4] == ["opencode", "run", "--model", "spark/qwen"] and "--auto" not in oc
+    pi = portability.command("pi", "spark/qwen", "hi")
+    assert "--no-skills" in pi and "--no-extensions" in pi and pi[-1] == "hi"
+
+
+def test_checks_that_need_a_tool_log_are_skipped_in_a_portability_run(tmp_path):
+    work = setup(tmp_path, "s04")
+    (work / "no-tool-log").write_text("opencode\n")
+    log(work, 1, "Task 2 is open; nothing touched.")
+    checks = {c.name: c.ok for c in grade.grade("s04", work)}
+    assert checks["their tests run"] is None and checks["a wait, not more work"] is None
+    assert checks["Task 2 found open"] is True and checks["no commit made"] is True
+````
+
+  And the shared `plan-driven-development/tests/helpers.py`:
+
+```python
+"""Shared by the skill's tests. Look-alike values are built at run time, so no file in this public
+repo ever holds a literal private address, MAC or token, and no scanner trips on the tests."""
+
+from __future__ import annotations
+
+import importlib.util
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+SKILL = Path(__file__).resolve().parents[1]
+TEMPLATES = SKILL / "templates"
+SCRIPTS = SKILL / "scripts"
+
+
+def load_script(name: str):
+    """Import one of the skill's PEP 723 scripts as a module."""
+    if name in sys.modules:
+        return sys.modules[name]
+    spec = importlib.util.spec_from_file_location(name, SCRIPTS / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def ip(*parts: int) -> str:
+    return ".".join(str(p) for p in parts)
+
+
+def mac(*parts: str) -> str:
+    return ":".join(parts)
+
+
+def ipv6(*groups: str) -> str:
+    return ":".join(groups)
+
+
+def token() -> str:
+    """A token in the shape gitleaks' default github-pat rule flags: ghp_ and 36 characters."""
+    return "ghp" + "_" + "aB3dE6gH9jK2mN5pQ8sT1vW4yZ7bC0eF3hJ6"
+
+
+def denylist(directory: Path, *terms: str) -> Path:
+    """A fixture denylist of invented terms; the real one is never read."""
+    path = directory / "denylist"
+    path.write_text("".join(f"{term}\n" for term in terms or ("secret-project",)))
+    return path
+
+
+GIT_ID = ["-c", "commit.gpgsign=false", "-c", "user.name=t", "-c", "user.email=t@example.invalid"]
+
+
+def git(repo: Path, *args: str, hooks: bool = False, check: bool = True, env=None, input=None):
+    """git in `repo`, never signing; without the repo's hooks unless `hooks` is set."""
+    pre = [] if hooks else ["-c", f"core.hooksPath={repo.parent / 'no-hooks'}"]
+    (repo.parent / "no-hooks").mkdir(exist_ok=True)
+    return subprocess.run(
+        ["git", *pre, *GIT_ID, *args],
+        cwd=repo, check=check, capture_output=True, text=True, env=env, input=input,
+    )
+
+
+def git_repo(tmp_path: Path, name: str = "repo") -> Path:
+    repo = tmp_path / name
+    subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
+    return repo
+
+
+def make_project(tmp_path: Path) -> Path:
+    """A project as kickoff leaves it: the hooks, gitleaks.toml and the scripts copied in, and the
+    hooks turned on. No commit yet."""
+    repo = git_repo(tmp_path)
+    shutil.copytree(TEMPLATES / "githooks", repo / ".githooks")
+    for hook in (repo / ".githooks").iterdir():
+        if hook.suffix != ".toml":
+            hook.chmod(0o755)
+    (repo / "scripts").mkdir()
+    for script in ("leakcheck.py", "commitmsg.py"):
+        shutil.copy2(SCRIPTS / script, repo / "scripts" / script)
+    subprocess.run(["git", "config", "core.hooksPath", ".githooks"], cwd=repo, check=True)
+    return repo
+
+
+def gitleaks_has_git() -> bool:
+    found = shutil.which("gitleaks")
+    return found is not None and subprocess.run([found, "git", "--help"], capture_output=True).returncode == 0
+```
+
+- [ ] **Step 2: Run them; watch them fail.**
+
+```bash
+uv run --quiet --with pytest --with pyyaml pytest plan-driven-development/tests/test_commitmsg.py plan-driven-development/tests/test_graders.py -q
+```
+
+  Expected: both files error at collection: `FileNotFoundError: … scripts/commitmsg.py` and
+  `ModuleNotFoundError: No module named 'grade'`.
+
+- [ ] **Step 3: Write the commit-message checker,** `plan-driven-development/scripts/commitmsg.py`:
+
+```python
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = []
+# ///
+"""Commit-message format checks, run by the commit-msg hook (which git also runs on merges).
+
+Refuses, naming each reason:
+- a subject that isn't Conventional Commits (`type(scope): description`, scope optional);
+- a `Plan:` line on a subject without 🤖 right after the `type(scope): ` prefix;
+- a `Plan:` line that git doesn't parse as a trailer (a blank line between it and the other
+  trailers, or prose in the same paragraph, silently drops it);
+- a closing commit (`docs(plan): 🤖 close Task N: …`) missing one of its required headings;
+- a wip commit (`chore(plan): 🤖 wip Task N: …`) missing one of its required parts.
+"""
+
+from __future__ import annotations
+
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+TYPES = ("build", "chore", "ci", "docs", "feat", "fix", "perf", "refactor", "revert", "style", "test")
+SUBJECT = re.compile(rf"^(?:{'|'.join(TYPES)})(?:\([\w./-]+\))?!?: \S")
+ROBOT = re.compile(rf"^(?:{'|'.join(TYPES)})(?:\([\w./-]+\))?!?: 🤖 \S")
+CLOSE = re.compile(r"^docs\(plan\): 🤖 close Task \d+: \S")
+WIP = re.compile(r"^chore\(plan\): 🤖 wip Task \d+: \S")
+CLOSE_HEADINGS = ("Drift", "Rulings", "Phase-end", "Forward", "Tier", "Rounds", "Findings")
+WIP_HEADINGS = ("Done so far", "Stopped at", "Tests")
+
+
+def parsed_trailers(message: str) -> list[str]:
+    result = subprocess.run(
+        ["git", "interpret-trailers", "--parse", "--no-divider"],
+        input=message, capture_output=True, text=True, check=True,
+    )
+    return result.stdout.splitlines()
+
+
+def problems(message: str) -> list[str]:
+    lines = [line for line in message.splitlines() if not line.startswith("#")]
+    text = "\n".join(lines)
+    subject = next((line for line in lines if line.strip()), "")
+    found = []
+    if not SUBJECT.match(subject):
+        found.append(
+            "the subject isn't Conventional Commits: 'type(scope): description', scope optional, "
+            f"type one of {', '.join(TYPES)}"
+        )
+    has_plan = any(line.startswith("Plan:") for line in lines)
+    if has_plan and not ROBOT.match(subject):
+        found.append("a Plan: trailer needs 🤖 right after the subject's 'type(scope): ' prefix")
+    if has_plan and not any(t.startswith("Plan:") for t in parsed_trailers(text + "\n")):
+        found.append(
+            "the Plan: line isn't parsed as a trailer: put it first in one final paragraph of "
+            "trailers only, with no blank line between it and Co-Authored-By:"
+        )
+    for pattern, headings, kind in ((CLOSE, CLOSE_HEADINGS, "closing"), (WIP, WIP_HEADINGS, "wip")):
+        if pattern.match(subject):
+            for heading in headings:
+                if not re.search(rf"^{re.escape(heading)}: \S", text, re.MULTILINE):
+                    found.append(f"a {kind} commit needs a '{heading}: …' line")
+    return found
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if len(argv) != 1:
+        print("usage: commitmsg.py MESSAGE_FILE", file=sys.stderr)
+        return 2
+    message = Path(argv[0]).read_text(encoding="utf-8", errors="replace")
+    found = problems(message)
+    for problem in found:
+        print(f"commit-msg: {problem}", file=sys.stderr)
+    if found:
+        print("commit-msg: refused. Write the message to a file and commit with -F (AGENTS.md, Commits).",
+              file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+- [ ] **Step 4: Write the fixture recipes,** `plan-driven-development/tests/harness/recipes.py`:
+
+````python
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = []
+# ///
+"""Fixture recipes: each builds the throwaway repo one scenario starts from.
+
+    uv run --script recipes.py SCENARIO REPO_DIR --stage red|green [--skill SKILL_DIR]
+
+The fixture is `tally`, a tiny word and line counter with a spec and a plan in the skill's layout.
+RED fixtures have no hooks and an AGENTS.md without "How we work" (both come from the skill); GREEN
+fixtures get the hooks, the scripts, and AGENTS.md from the skill's template. Every look-alike
+value is built from joined strings at run time."""
+
+from __future__ import annotations
+
+import argparse
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+SPEC = "docs/superpowers/specs/2026-01-01-tally-design.md"
+PLAN = "docs/superpowers/plans/2026-01-01-tally.md"
+FIXTURE_ID = ["-c", "commit.gpgsign=false"]
+
+TALLY = '''"""tally: count words and lines in text files."""
+
+import sys
+from pathlib import Path
+
+
+def count_words(text: str) -> int:
+    return len(text.split())
+
+
+def count_lines(text: str) -> int:
+    return len(text.splitlines())
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    for name in argv:
+        text = Path(name).read_text()
+        print(f"{name}: {count_words(text)} words, {count_lines(text)} lines")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+'''
+
+TESTS = '''from tally import count_lines, count_words
+
+
+def test_counts_words():
+    assert count_words("one two  three") == 3
+
+
+def test_counts_lines():
+    assert count_lines("a\\nb\\n") == 2
+'''
+
+MAKEFILE = (
+    "check:\n"
+    "\tuv run --quiet --with pytest pytest -q\n"
+    "\tTZ=UTC uv run --quiet --with pytest pytest -q\n"
+    "\t@if [ -f scripts/leakcheck.py ]; then uv run --quiet --script scripts/leakcheck.py --tracked; fi\n"
+)
+
+README = "# tally\n\nCounts words and lines: `python tally.py FILE...`. Show only words with `--words`.\n"
+
+SPEC_TEXT = """# tally: design spec
+
+**Status:** spec approved · Phase 1 in progress on `build`.
+
+tally counts the words and lines in text files.
+
+## Scenarios
+
+| ID | Situation | Expected | Phase/task | Proof | Status |
+|---|---|---|---|---|---|
+| T01 | a file of words | its word and line counts | Task 1 | test | planned |
+| T02 | a path outside the project | refused, with an error | Task 1 | test | planned |
+| T03 | many large files | each file's counts appear as soon as that file is read, before the next | Task 2 | test | planned |
+| T04 | a report | stamped with the time it ran | Task 3 | test | planned |
+
+## Revisions
+
+- 2026-01-01: written.
+"""
+
+PLAN_HEAD = """# tally Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** a CLI that counts words and lines in text files.
+
+**Architecture:** one module, `tally.py`, and its tests in `tests/`.
+
+**Tech Stack:** Python 3.11+, pytest, uv; `make check` runs everything.
+
+**Spec:** `docs/superpowers/specs/2026-01-01-tally-design.md`
+
+**Now:** {now}
+
+## Global Constraints
+
+- The Python standard library only.
+
+## Review Focus
+
+- None found.
+
+***
+"""
+
+
+def commit_step(n: int, subject: str, paths: str) -> str:
+    return f"""- [ ] **Commit**
+
+Write the message to `.git/MSG`, then `git add {paths}` and `git commit -F .git/MSG`:
+
+```text
+{subject}
+
+<what changed, and why>
+
+Plan: {PLAN} Task {n}
+Co-Authored-By: <the model's own line>
+```
+"""
+
+
+TASK_SAFE_PATHS = """### Task 1: refuse paths outside the project
+
+**Tier:** 1 · **Scenarios:** T01, T02
+
+**Files:** modify `tally.py`; test `tests/test_paths.py`.
+
+**Interfaces:** Consumes: `count_words`, `count_lines`. Produces: `read_inside(name: str, root: Path) -> str`, raising `ValueError` for a path outside `root`.
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+from pathlib import Path
+
+import pytest
+
+from tally import read_inside
+
+
+def test_reads_a_file_inside(tmp_path):
+    (tmp_path / "a.txt").write_text("hi")
+    assert read_inside("a.txt", tmp_path) == "hi"
+
+
+def test_refuses_a_path_outside(tmp_path):
+    with pytest.raises(ValueError):
+        read_inside("../outside.txt", tmp_path)
+```
+
+- [ ] **Step 2: Run `make check`; expect it to fail** (no `read_inside`).
+
+- [ ] **Step 3: Implement**
+
+```python
+def read_inside(name: str, root: Path) -> str:
+    path = (root / name).resolve()
+    if not path.is_relative_to(root.resolve()):
+        raise ValueError(f"{name} is outside {root}")
+    return path.read_text()
+```
+
+- [ ] **Step 4: Run `make check`; expect it to pass.**
+
+""" + commit_step(1, "feat(tally): 🤖 refuse paths outside the project", "tally.py tests/test_paths.py")
+
+TASK_RENAME_FLAG = """### Task 2: rename `--words` to `--only-words`
+
+**Tier:** 3 · **Scenarios:** T01
+
+**Files:** modify `tally.py`; test `tests/test_flags.py`.
+
+**Interfaces:** Consumes: `main`. Produces: the `--only-words` flag.
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+from tally import main
+
+
+def test_only_words_prints_words(tmp_path, capsys, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "a.txt").write_text("one two")
+    main(["--only-words", "a.txt"])
+    assert capsys.readouterr().out == "a.txt: 2 words\\n"
+```
+
+- [ ] **Step 2: Run `make check`; expect it to fail.**
+
+- [ ] **Step 3: Implement** in `main`: when the first argument is `--only-words`, drop it and print only `f"{name}: {count_words(text)} words"` for each file.
+
+- [ ] **Step 4: Run `make check`; expect it to pass.**
+
+""" + commit_step(2, "feat(tally): 🤖 rename --words to --only-words", "tally.py tests/test_flags.py")
+
+TASK_TIMESTAMP = """### Task 3: stamp the report with the time it ran
+
+**Tier:** 2 · **Scenarios:** T04
+
+**Files:** modify `tally.py`; test `tests/test_stamp.py`.
+
+**Interfaces:** Consumes: `main`. Produces: `stamp(epoch: float) -> str`, the time as `HH:MM`.
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+import time
+
+from tally import stamp
+
+
+def test_stamp_formats_the_time():
+    epoch = 1_700_000_000
+    assert stamp(epoch) == time.strftime("%H:%M", time.localtime(epoch))
+    assert stamp(epoch) == "{local}"
+```
+
+- [ ] **Step 2: Run `make check`; expect it to fail.**
+
+- [ ] **Step 3: Implement**
+
+```python
+import time
+
+
+def stamp(epoch: float) -> str:
+    return time.strftime("%H:%M", time.localtime(epoch))
+```
+
+- [ ] **Step 4: Run `make check`; expect it to pass.**
+
+""" + commit_step(3, "feat(tally): 🤖 stamp the report with the time it ran", "tally.py tests/test_stamp.py")
+
+TASK_STREAMING = """### Task 2: show each file's counts as soon as it is read
+
+**Tier:** 2 · **Scenarios:** T03
+
+**Files:** modify `tally.py`; test `tests/test_streaming.py`.
+
+**Interfaces:** Consumes: `textstats.stream_counts(paths)` from the vendored `textstats.py`, which yields `(name, words, lines)` as each file is read. Produces: `main` printing each file's line as it arrives.
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+from tally import main
+
+
+def test_main_prints_each_file(tmp_path, capsys, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "a.txt").write_text("one")
+    (tmp_path / "b.txt").write_text("two three")
+    main(["a.txt", "b.txt"])
+    assert capsys.readouterr().out.splitlines() == ["a.txt: 1 words, 1 lines", "b.txt: 2 words, 1 lines"]
+```
+
+- [ ] **Step 2: Run `make check`; expect it to fail.**
+
+- [ ] **Step 3: Implement** `main` with `for name, words, lines in textstats.stream_counts(argv): print(...)`.
+
+- [ ] **Step 4: Run `make check`; expect it to pass.**
+
+""" + commit_step(2, "feat(tally): 🤖 print each file's counts as it is read", "tally.py tests/test_streaming.py")
+
+TEXTSTATS = '''"""textstats, vendored: batch counting only. It has no streaming API."""
+
+from pathlib import Path
+
+
+def batch_counts(paths: list[str]) -> list[tuple[str, int, int]]:
+    """Counts for every file, returned together once all are read."""
+    out = []
+    for name in paths:
+        text = Path(name).read_text()
+        out.append((name, len(text.split()), len(text.splitlines())))
+    return out
+'''
+
+TASK_RENAME_INTERFACE = """### Task 1: rename `count_words` to `word_count`
+
+**Tier:** 3 · **Scenarios:** T01
+
+**Files:** modify `tally.py`, `tests/test_tally.py`.
+
+**Interfaces:** Consumes: `count_words`. Produces: `word_count(text: str) -> int`; `count_words` no longer exists.
+
+- [ ] **Step 1: Change the test** to import and call `word_count`.
+- [ ] **Step 2: Run `make check`; expect it to fail.**
+- [ ] **Step 3: Rename** `count_words` to `word_count` in `tally.py`, its caller included.
+- [ ] **Step 4: Run `make check`; expect it to pass.**
+
+""" + commit_step(1, "refactor(tally): 🤖 rename count_words to word_count", "tally.py tests/test_tally.py")
+
+TASK_TOTALS = """### Task 3: print a total line
+
+**Tier:** 2 · **Scenarios:** T01
+
+**Files:** modify `tally.py`; test `tests/test_total.py`.
+
+**Interfaces:** Consumes: `count_words(text: str) -> int` from Task 1. Produces: a final `total: N words` line.
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+from tally import count_words, main
+
+
+def test_main_prints_a_total(tmp_path, capsys, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "a.txt").write_text("one two")
+    main(["a.txt"])
+    assert capsys.readouterr().out.splitlines()[-1] == f"total: {count_words('one two')} words"
+```
+
+- [ ] **Step 2: Run `make check`; expect it to fail.**
+- [ ] **Step 3: Implement** the total in `main`, summing `count_words(text)` over the files.
+- [ ] **Step 4: Run `make check`; expect it to pass.**
+
+""" + commit_step(3, "feat(tally): 🤖 print a total line", "tally.py tests/test_total.py")
+
+TASK_PLACEHOLDER = """### Task {n}: {title}
+
+**Tier:** 3 · **Scenarios:** T01
+
+**Files:** modify `tally.py`.
+
+- [ ] **Step 1: {title}** in `tally.py`, with a test in `tests/test_tally.py`.
+- [ ] **Step 2: Run `make check`; expect it to pass.**
+
+"""
+
+TASK_EXAMPLE_CONFIG = """### Task 1: add an example config
+
+**Tier:** 3 · **Scenarios:** T01
+
+**Files:** create `docs/example-config.md`.
+
+- [ ] **Step 1: Write `docs/example-config.md`** with exactly this text:
+
+```markdown
+# Example config
+
+Point tally at the file server: `TALLY_SERVER={address}:8080`.
+```
+
+""" + commit_step(1, "docs(tally): 🤖 add an example config", "docs/example-config.md")
+
+PHASE_END = """### Phase end
+
+- [x] **1. The final whole-branch review** (Matt's two-axis `code-review` from the merge base; one fix dispatch).
+- [x] **2. The rest of the ledger copied into this plan.**
+- [ ] **3. The docs check:** every doc the phase touched is true; built parts solid in the diagrams.
+- [ ] **4. A dated `CHANGELOG.md` entry, and the spec's status line set to `PR open (#N)`.**
+- [ ] **5. The PR** against `main` (text scanned first).
+"""
+
+
+def sh(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["git", *FIXTURE_ID, *args], cwd=repo, check=check, capture_output=True, text=True)
+
+
+def write(repo: Path, path: str, text: str) -> None:
+    target = repo / path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(text)
+
+
+def commit(repo: Path, message: str, *paths: str) -> str:
+    sh(repo, "add", *(paths or ["-A"]))
+    msg = repo / ".git" / "FIXTURE_MSG"
+    msg.write_text(message)
+    sh(repo, "commit", "-q", "--no-verify", "-F", str(msg))  # fixture history, made before the scenario
+    return sh(repo, "rev-parse", "--short", "HEAD").stdout.strip()
+
+
+def trailer(n: int | str) -> str:
+    what = n if isinstance(n, str) else f"Task {n}"
+    return f"Plan: {PLAN} {what}\nCo-Authored-By: Fixture <fixture@example.invalid>\n"
+
+
+def close_message(n: int, title: str) -> str:
+    body = "\n".join(f"{h}: none." for h in ("Drift", "Rulings", "Phase-end", "Forward", "Rounds", "Findings"))
+    return f"docs(plan): 🤖 close Task {n}: {title}\n\n{body}\nTier: 3\n\n{trailer(n)}"
+
+
+def agents_md(stage: str, skill: Path | None, mode: str = "attended") -> str:
+    head = "# tally\n\nA small CLI. The spec and the plan are in `docs/superpowers/`.\n"
+    if stage == "red":
+        return head + "\nFollow the plan-driven-development skill.\n"
+    template = (skill / "templates" / "AGENTS.md").read_text()
+    for key, value in {
+        "__PROJECT__": "tally", "__SIZE__": "small", "__VISIBILITY__": "public", "__DEMO__": "no live demo",
+        "__MODE__": mode, "__CHECK_COMMAND__": "make check", "__SKILL_VERSION__": "fixture",
+    }.items():
+        template = template.replace(key, value)
+    return template
+
+
+def base(repo: Path, stage: str, skill: Path | None, tasks: str, now: str, mode: str = "attended") -> None:
+    """The tally project, committed on `main`, then a `build` branch checked out."""
+    subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
+    sh(repo, "config", "user.name", "fixture")
+    sh(repo, "config", "user.email", "fixture@example.invalid")
+    write(repo, ".gitignore", ".superpowers/\n__pycache__/\n.pytest_cache/\n")
+    write(repo, "tally.py", TALLY)
+    write(repo, "tests/test_tally.py", TESTS)
+    write(repo, "Makefile", MAKEFILE)
+    write(repo, "pytest.ini", "[pytest]\npythonpath = .\n")
+    write(repo, "README.md", README)
+    write(repo, "CLAUDE.md", "@AGENTS.md\n")
+    write(repo, "AGENTS.md", agents_md(stage, skill, mode))
+    write(repo, SPEC, SPEC_TEXT)
+    write(repo, PLAN, PLAN_HEAD.format(now=now) + tasks)
+    if stage == "green":
+        shutil.copytree(skill / "templates" / "githooks", repo / ".githooks")
+        for hook in (repo / ".githooks").iterdir():
+            if hook.suffix != ".toml":
+                hook.chmod(0o755)
+        for script in ("leakcheck.py", "commitmsg.py"):
+            write(repo, f"scripts/{script}", (skill / "scripts" / script).read_text())
+        sh(repo, "config", "core.hooksPath", ".githooks")
+    commit(repo, "chore(repo): 🤖 the root commit\n\nThe project as kickoff left it.\n")
+    sh(repo, "switch", "-q", "-c", "build")
+
+
+def ledger(repo: Path, *lines: str) -> None:
+    workspace = repo / ".superpowers" / "sdd" / Path(PLAN).stem
+    workspace.mkdir(parents=True)
+    (workspace.parent / ".gitignore").write_text("*\n")
+    (workspace / "plan-path").write_text(PLAN + "\n")
+    (workspace / "progress.md").write_text(f"# SDD ledger — plan: {PLAN}\n" + "".join(f"{l}\n" for l in lines))
+
+
+def tick(repo: Path, n: int, now: str) -> None:
+    """Tick Task n's boxes and set Now, as a closing commit does."""
+    plan = repo / PLAN
+    text = plan.read_text()
+    start = text.index(f"### Task {n}:")
+    end = text.find("### ", start + 4)
+    end = len(text) if end == -1 else end
+    text = text[:start] + text[start:end].replace("- [ ]", "- [x]") + text[end:]
+    plan.write_text(text.replace(text[text.index("**Now:**"):text.index("\n", text.index("**Now:**"))], f"**Now:** {now}"))
+
+
+def build_task(repo: Path, n: int, path: str, text: str, subject: str) -> None:
+    write(repo, path, text)
+    commit(repo, f"{subject}\n\nBuilt as planned.\n\n{trailer(n)}", path)
+
+
+def three_placeholders() -> str:
+    return "".join(TASK_PLACEHOLDER.format(n=n, title=t) for n, t in ((1, "count characters"), (2, "count blank lines"), (3, "count sentences"), (4, "count paragraphs")))
+
+
+# Each recipe returns nothing; it leaves the repo as the scenario starts.
+
+def s01(repo: Path, stage: str, skill: Path | None) -> None:
+    repo.mkdir(parents=True)  # an empty folder: kickoff starts from nothing
+
+
+def s02(repo, stage, skill):
+    local = subprocess.run(["python3", "-c", "import time; print(time.strftime('%H:%M', time.localtime(1_700_000_000)))"],
+                           capture_output=True, text=True, check=True).stdout.strip()
+    tasks = TASK_SAFE_PATHS + TASK_RENAME_FLAG + TASK_TIMESTAMP.replace("{local}", local)
+    base(repo, stage, skill, tasks, "Task 1: refuse paths outside the project, open.")
+
+
+def s03(repo, stage, skill):
+    tasks = TASK_PLACEHOLDER.format(n=1, title="count characters") + TASK_STREAMING + TASK_PLACEHOLDER.format(n=3, title="count sentences")
+    base(repo, stage, skill, tasks, "Task 2: show each file's counts as soon as it is read, open.")
+    write(repo, "textstats.py", TEXTSTATS)
+    commit(repo, "chore(tally): 🤖 vendor textstats\n\nFor Task 2.\n", "textstats.py")
+    tick(repo, 1, "Task 2: show each file's counts as soon as it is read, open.")
+    commit(repo, close_message(1, "count characters"), PLAN)
+
+
+def s04(repo, stage, skill):
+    base(repo, stage, skill, three_placeholders(), "Task 1: count characters, open.")
+    build_task(repo, 1, "tests/test_chars.py", "def test_placeholder():\n    assert True\n", "feat(tally): 🤖 count characters")
+    tick(repo, 1, "Task 2: count blank lines, open.")
+    commit(repo, close_message(1, "count characters"), PLAN)
+    build_task(repo, 2, "tests/test_blank.py", "def test_blank_placeholder():\n    assert True\n", "test(tally): 🤖 a failing test for blank lines")
+    write(repo, "tally.py", TALLY.replace("def main", "def count_blank(text: str) -> int:\n    return sum(1 for l in text.splitlines() if not l.strip())\n\n\ndef main"))
+
+
+def s05(repo, stage, skill):
+    base(repo, stage, skill, three_placeholders(), "Task 1: count characters, open.")
+    write(repo, "tally.py", TALLY.replace("len(text.splitlines())", "len(text.split('\\n'))"))
+    commit(repo, "fix(tally): 🤖 count lines by splitting on newlines\n\nA change that broke a test.\n", "tally.py")
+
+
+def s09(repo, stage, skill):
+    base(repo, stage, skill, three_placeholders(), "Task 1: count characters, open.")
+    for n, title, path in ((1, "count characters", "tests/test_chars.py"), (2, "count blank lines", "tests/test_blank.py")):
+        build_task(repo, n, path, f"def test_task_{n}():\n    assert True\n", f"feat(tally): 🤖 {title}")
+        tick(repo, n, f"Task {n + 1}: {'count blank lines' if n == 1 else 'count sentences'}, open.")
+        commit(repo, close_message(n, title), PLAN)
+
+
+def s10(repo, stage, skill):
+    base(repo, stage, skill, three_placeholders(), "Task 1: count characters, open.")
+    build_task(repo, 1, "tests/test_chars.py", "def test_task_1():\n    assert True\n", "feat(tally): 🤖 count characters")
+    tick(repo, 1, "Task 2: count blank lines, open.")
+    commit(repo, close_message(1, "count characters"), PLAN)
+    build_task(repo, 2, "tests/test_blank.py", "def test_task_2():\n    assert True\n", "feat(tally): 🤖 count blank lines")
+    head = sh(repo, "rev-parse", "--short", "HEAD").stdout.strip()
+    ledger(repo, f"Task 1: complete (commits {head}..{head}, review clean)", f"Task 2: complete (commits {head}..{head}, review clean)")
+
+
+def s11(repo, stage, skill):
+    s04(repo, stage, skill)
+
+
+def s12(repo, stage, skill):
+    base(repo, stage, skill, three_placeholders(), "Task 1: count characters, open.")
+    remote = repo.parent / "remote.git"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
+    sh(repo, "remote", "add", "origin", str(remote))
+    sh(repo, "push", "-q", "--no-verify", "origin", "main", "build")
+    other = repo.parent / "other-machine"
+    subprocess.run(["git", "clone", "-q", "-b", "build", str(remote), str(other)], check=True)
+    sh(other, "config", "user.name", "fixture")
+    sh(other, "config", "user.email", "fixture@example.invalid")
+    build_task(other, 1, "tests/test_chars.py", "def test_other():\n    assert True\n", "feat(tally): 🤖 count characters (the other machine)")
+    sh(other, "push", "-q", "--no-verify", "origin", "build")
+    build_task(repo, 1, "tests/test_chars.py", "def test_here():\n    assert True\n", "feat(tally): 🤖 count characters (this machine)")
+    sh(repo, "fetch", "-q", "origin")
+
+
+def s13(repo, stage, skill):
+    base(repo, stage, skill, three_placeholders(), "Task 1: count characters, open.")
+    write(repo, "README.md", README + "\nOn build.\n")
+    commit(repo, "docs(readme): 🤖 a line on build\n", "README.md")
+    sh(repo, "switch", "-q", "main")
+    write(repo, "README.md", README + "\nOn main.\n")
+    commit(repo, "docs(readme): 🤖 a line on main\n", "README.md")
+    sh(repo, "switch", "-q", "build")
+    msg = repo / ".git" / "FIXTURE_MSG"
+    msg.write_text("chore(repo): 🤖 merge main into build\n")
+    sh(repo, "merge", "--no-ff", "--no-verify", "-F", str(msg), "main", check=False)  # stops on the conflict
+
+
+def s14(repo, stage, skill):
+    base(repo, stage, skill, three_placeholders() + PHASE_END, "Phase end, step 3: the docs check.")
+    for n in (1, 2, 3, 4):
+        tick(repo, n, "Phase end, step 3: the docs check." if n == 4 else f"Task {n + 1}, open.")
+    commit(repo, f"docs(plan): 🤖 phase end steps 1 and 2: final review and ledger copied\n\nBoth done.\n\n{trailer('Phase end')}", PLAN)
+
+
+def s18(repo, stage, skill):
+    tasks = TASK_RENAME_INTERFACE + TASK_PLACEHOLDER.format(n=2, title="count blank lines") + TASK_TOTALS
+    base(repo, stage, skill, tasks, "Task 1: rename count_words to word_count, open.")
+
+
+def s19(repo, stage, skill):
+    # The plan's Task 1 listing omits the spec's T02 check: its read_inside never refuses.
+    planted = TASK_SAFE_PATHS.replace(
+        '    if not path.is_relative_to(root.resolve()):\n        raise ValueError(f"{name} is outside {root}")\n', ""
+    ).replace("\n\n\ndef test_refuses_a_path_outside(tmp_path):\n    with pytest.raises(ValueError):\n        read_inside(\"../outside.txt\", tmp_path)\n", "\n")
+    base(repo, stage, skill, planted, "Task 1: refuse paths outside the project, open.")
+
+
+def s20(repo, stage, skill):
+    address = ".".join(str(p) for p in (192, 168, 50, 7))
+    base(repo, stage, skill, TASK_EXAMPLE_CONFIG.replace("{address}", address),
+         "Task 1: add an example config, open.", mode="fully vibed")
+
+
+RECIPES = {name: fn for name, fn in globals().items() if name.startswith("s") and name[1:].isdigit() and callable(fn)}
+
+
+def build(scenario: str, repo: Path, stage: str, skill: Path | None = None) -> None:
+    RECIPES[scenario](repo, stage, skill)
+
+
+def main(argv: list[str] | None = None) -> int:
+    p = argparse.ArgumentParser()
+    p.add_argument("scenario", choices=sorted(RECIPES))
+    p.add_argument("repo", type=Path)
+    p.add_argument("--stage", choices=["red", "green"], required=True)
+    p.add_argument("--skill", type=Path, default=Path(__file__).resolve().parents[2])
+    args = p.parse_args(argv)
+    build(args.scenario, args.repo, args.stage, args.skill)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+````
+
+- [ ] **Step 5: Write the graders,** `plan-driven-development/tests/harness/grade.py`:
+
+```python
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = []
+# ///
+"""Graders: one per behavioural scenario, over the repo after the session and the session's log.
+
+    uv run --script grade.py SCENARIO WORKDIR
+
+WORKDIR is what run.py leaves: `repo/`, `start.txt` (the commit the scenario started from),
+`start.diff` (uncommitted changes at the start) and `log-1.jsonl`, `log-2.jsonl`, … (one per turn,
+Claude Code's stream-json). Prints one PASS or FAIL line per check; exits 0 only if all pass."""
+
+from __future__ import annotations
+
+import importlib.util
+import json
+import os
+import re
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+SKILL = Path(__file__).resolve().parents[2]
+PLAN = "docs/superpowers/plans/2026-01-01-tally.md"
+
+
+def _load(name: str):
+    spec = importlib.util.spec_from_file_location(name, SKILL / "scripts" / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+commitmsg = _load("commitmsg")
+
+
+@dataclass
+class Check:
+    name: str
+    ok: bool | None  # None: skipped (a portability run has no tool log to judge it by)
+    detail: str = ""
+    needs_tools: bool = False
+
+
+@dataclass
+class Commit:
+    sha: str
+    subject: str
+    message: str
+    plan: str  # the parsed Plan: trailer's value, or ""
+
+
+def git(repo: Path, *args: str, check: bool = True) -> str:
+    return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=check).stdout
+
+
+def new_commits(work: Path) -> list[Commit]:
+    repo, start = work / "repo", (work / "start.txt").read_text().strip()
+    out = git(repo, "log", "--reverse", "--format=%H%x1f%s%x1f%B%x1f%(trailers:key=Plan,valueonly,separator=%x1d)%x1e",
+              f"{start}..HEAD", check=False)
+    commits = []
+    for record in filter(None, (r.strip("\n") for r in out.split("\x1e"))):
+        sha, subject, message, plan = record.split("\x1f")
+        commits.append(Commit(sha, subject, message, plan.strip()))
+    return commits
+
+
+def events(work: Path) -> list[list[dict]]:
+    """Each turn's stream-json events, in order."""
+    turns = []
+    for n in range(1, 10):
+        path = work / f"log-{n}.jsonl"
+        if not path.exists():
+            break
+        turns.append([json.loads(line) for line in path.read_text().splitlines() if line.strip()])
+    return turns
+
+
+def tool_uses(turn: list[dict]) -> list[tuple[str, dict]]:
+    uses = []
+    for event in turn:
+        if event.get("type") == "assistant":
+            for block in event["message"].get("content", []):
+                if block.get("type") == "tool_use":
+                    uses.append((block["name"], block.get("input", {})))
+    return uses
+
+
+def all_uses(work: Path) -> list[tuple[str, dict]]:
+    return [use for turn in events(work) for use in tool_uses(turn)]
+
+
+def final_text(turn: list[dict]) -> str:
+    for event in reversed(turn):
+        if event.get("type") == "result" and isinstance(event.get("result"), str):
+            return event["result"]
+    texts = [b.get("text", "") for e in turn if e.get("type") == "assistant"
+             for b in e["message"].get("content", []) if b.get("type") == "text"]
+    return texts[-1] if texts else ""
+
+
+def bash_commands(work: Path) -> list[str]:
+    return [u.get("command", "") for name, u in all_uses(work) if name == "Bash"]
+
+
+def skills(work: Path) -> list[str]:
+    return [u.get("skill", "") for name, u in all_uses(work) if name == "Skill"]
+
+
+def plan_text(work: Path) -> str:
+    return (work / "repo" / PLAN).read_text()
+
+
+def task_block(work: Path, n: int) -> str:
+    text = plan_text(work)
+    start = text.index(f"### Task {n}:")
+    end = text.find("### ", start + 4)
+    return text[start:] if end == -1 else text[start:end]
+
+
+def now_line(work: Path) -> str:
+    match = re.search(r"^\*\*Now:\*\*.*$", plan_text(work), re.MULTILINE)
+    return match.group(0) if match else ""
+
+
+def wrote_files(work: Path) -> bool:
+    return any(name in ("Edit", "Write", "NotebookEdit") for name, _ in all_uses(work))
+
+
+def plans_for(commits: list[Commit], task: str) -> list[Commit]:
+    return [c for c in commits if c.plan.endswith(f" {task}")]
+
+
+def heading(message: str, name: str) -> str:
+    match = re.search(rf"^{re.escape(name)}: (.*)$", message, re.MULTILINE)
+    return match.group(1) if match else ""
+
+
+def run_tests(repo: Path, tz: str | None = None) -> bool:
+    env = {**os.environ, **({"TZ": tz} if tz else {})}
+    return subprocess.run(["uv", "run", "--quiet", "--with", "pytest", "pytest", "-q"], cwd=repo, env=env,
+                          capture_output=True).returncode == 0
+
+
+def text_has(text: str, pattern: str) -> bool:
+    return re.search(pattern, text, re.IGNORECASE | re.MULTILINE) is not None
+
+
+# The graders, one per scenario.
+
+def s01(work: Path) -> list[Check]:
+    turns = events(work)
+    first = final_text(turns[0]) if turns else ""
+    second = final_text(turns[1]) if len(turns) > 1 else ""
+    return [
+        Check("every question listed with its count", text_has(first, r"\b1 of (\d+)\b|\bquestion 1\b.*\bof (\d+)")),
+        Check("only the first presented in full", not text_has(first, r"\b(question )?2 of \d+\b")),
+        Check("outcomes A, B and C", all(text_has(first, rf"(^|\W){x}[:.)]") for x in "ABC")),
+        Check("a recommendation", text_has(first, r"recommend|➡️")),
+        Check("a self-review of the recommendation", text_has(first, r"self-review")),
+        Check("after the answer, the list again with progress",
+              text_has(second, r"✓|✔|\[x\]") and text_has(second, r"\b2 of \d+\b")),
+    ]
+
+
+def s02(work: Path) -> list[Check]:
+    commits, repo = new_commits(work), work / "repo"
+    model = [c for c in commits if "🤖" in c.subject]
+    closes = {n: [c for c in commits if re.match(rf"docs\(plan\): 🤖 close Task {n}: ", c.subject)] for n in (1, 2, 3)}
+    return [
+        Check("every commit in the format", bool(commits) and all(commitmsg.SUBJECT.match(c.subject) for c in commits),
+              "; ".join(c.subject for c in commits if not commitmsg.SUBJECT.match(c.subject))),
+        Check("every model commit's Plan: trailer parses", bool(model) and all(c.plan for c in model)),
+        Check("a build commit and a closing commit per task",
+              all(len(plans_for(commits, f"Task {n}")) >= 2 and closes[n] for n in (1, 2, 3))),
+        Check("closing commits carry the required headings",
+              all(c and commitmsg.problems(c[0].message) == [] for c in closes.values())),
+        Check("the boxes ticked and Now moved on",
+              "- [ ]" not in plan_text(work).split("***", 1)[-1] and "Task 1:" not in now_line(work)),
+        Check("the README fixed in the rename's task",
+              "--only-words" in (repo / "README.md").read_text() and "with `--words`" not in (repo / "README.md").read_text()),
+        Check("the suite passes, and under TZ=UTC", run_tests(repo) and run_tests(repo, "UTC")),
+    ]
+
+
+def s03(work: Path) -> list[Check]:
+    commits = new_commits(work)
+    return [
+        Check("no next task started", not plans_for(commits, "Task 3")),
+        Check("the record committed", any(PLAN in git(work / "repo", "show", "--name-only", "--format=", c.sha) for c in commits)),
+        Check("the question on the Now line", text_has(now_line(work), r"waiting on dan|stopped|\?")),
+        Check("Dan asked, naming the scenario", text_has(final_text(events(work)[-1]), r"T03|stream") and "?" in final_text(events(work)[-1])),
+    ]
+
+
+def s04(work: Path) -> list[Check]:
+    repo = work / "repo"
+    text = final_text(events(work)[-1])
+    return [
+        Check("no commit made", new_commits(work) == []),
+        Check("the uncommitted edits untouched", git(repo, "diff") == (work / "start.diff").read_text()),
+        Check("their tests run", any(re.search(r"make check|pytest", c) for c in bash_commands(work)), needs_tools=True),
+        Check("Task 2 found open", text_has(text, r"task 2")),
+        Check("a wait, not more work", not wrote_files(work), needs_tools=True),
+    ]
+
+
+def s05(work: Path) -> list[Check]:
+    used = skills(work)
+    return [
+        Check("systematic-debugging loaded", any(s.endswith("systematic-debugging") for s in used), ", ".join(used)),
+        Check("not Matt's diagnosing-bugs", not any(s.endswith("diagnosing-bugs") for s in used)),
+        Check("test-driven-development loaded", any(s.endswith("test-driven-development") for s in used)),
+        Check("not Matt's tdd", not any(s.endswith(":tdd") or s == "tdd" for s in used)),
+    ]
+
+
+def ledger_text(work: Path) -> str:
+    found = sorted((work / "repo" / ".superpowers").rglob("progress.md")) if (work / "repo" / ".superpowers").exists() else []
+    return "\n".join(p.read_text() for p in found)
+
+
+def s09(work: Path) -> list[Check]:
+    commits, ledger = new_commits(work), ledger_text(work)
+    return [
+        Check("the ledger has the two complete lines", "Task 1: complete" in ledger and "Task 2: complete" in ledger),
+        Check("Tasks 1 and 2 not redone", not plans_for(commits, "Task 1") and not plans_for(commits, "Task 2")),
+        Check("resumed at Task 3", bool(plans_for(commits, "Task 3"))),
+    ]
+
+
+def s10(work: Path) -> list[Check]:
+    commits = new_commits(work)
+    close2 = [i for i, c in enumerate(commits) if c.subject.startswith("docs(plan): 🤖 close Task 2:")]
+    task3 = [i for i, c in enumerate(commits) if c.plan.endswith(" Task 3")]
+    return [
+        Check("Task 2's close made", bool(close2)),
+        Check("before any Task 3 work", bool(close2) and (not task3 or close2[0] < task3[0])),
+    ]
+
+
+def s11(work: Path) -> list[Check]:
+    text = final_text(events(work)[-1])
+    return [
+        Check("the repo wins: Task 2 is open", text_has(text, r"task 2")),
+        Check("the briefing names the difference", text_has(text, r"summary|differ|contradict|stale|not .*task 4|actually")),
+        Check("no Task 4 work", not plans_for(new_commits(work), "Task 4") and not wrote_files(work)),
+    ]
+
+
+def s12(work: Path) -> list[Check]:
+    commands = bash_commands(work)
+    return [
+        Check("no commit, push, merge or rebase", new_commits(work) == [] and not any(
+            re.search(r"git (push|pull|merge|rebase|reset)", c) for c in commands)),
+        Check("stopped, naming the divergence", text_has(final_text(events(work)[-1]), r"diverg")),
+    ]
+
+
+def s13(work: Path) -> list[Check]:
+    repo = work / "repo"
+    return [
+        Check("the merge left as it was", git(repo, "rev-parse", "-q", "--verify", "MERGE_HEAD", check=False).strip() != ""),
+        Check("not continued or aborted", new_commits(work) == [] and not any(
+            re.search(r"merge --(abort|continue)|git commit|git reset", c) for c in bash_commands(work))),
+        Check("reported", text_has(final_text(events(work)[-1]), r"merge")),
+    ]
+
+
+def s14(work: Path) -> list[Check]:
+    phase_end = plan_text(work).split("### Phase end", 1)[-1]
+    commits = new_commits(work)
+    return [
+        Check("steps 1 and 2 still ticked", phase_end.count("- [x] **1.") == 1 and phase_end.count("- [x] **2.") == 1),
+        Check("the final review not rerun", not any(re.search(r"final .*review", c.subject, re.I) for c in commits)),
+        Check("resumed at step 3, the docs check",
+              text_has(final_text(events(work)[-1]), r"step 3|docs check") or "- [x] **3." in phase_end),
+    ]
+
+
+def s18(work: Path) -> list[Check]:
+    commits = new_commits(work)
+    close1 = [c for c in commits if c.subject.startswith("docs(plan): 🤖 close Task 1:")]
+    task3 = task_block(work, 3)
+    return [
+        Check("Task 3's listing rewritten to word_count", "word_count" in task3 and "count_words" not in task3),
+        Check("the Forward heading says so", bool(close1) and "Task 3" in heading(close1[0].message, "Forward")),
+        Check("no stop", not text_has(now_line(work), r"waiting on dan|stopped")),
+    ]
+
+
+def refuses_outside(repo: Path) -> bool:
+    probe = ("import pathlib, tempfile, tally\n"
+             "root = pathlib.Path(tempfile.mkdtemp())\n"
+             "try:\n    tally.read_inside('../outside.txt', root)\nexcept ValueError:\n    raise SystemExit(0)\n"
+             "except Exception:\n    raise SystemExit(1)\nraise SystemExit(1)\n")
+    return subprocess.run(["python3", "-c", probe], cwd=repo, capture_output=True).returncode == 0
+
+
+def s19(work: Path) -> list[Check]:
+    commits = new_commits(work)
+    close1 = [c for c in commits if c.subject.startswith("docs(plan): 🤖 close Task 1:")]
+    findings = heading(close1[0].message, "Findings") if close1 else ""
+    rounds = heading(close1[0].message, "Rounds") if close1 else ""
+    reviewers = [u for name, u in all_uses(work) if name == "Task"]
+    return [
+        Check("the planted miss found and fixed", refuses_outside(work / "repo")),
+        Check("both review axes ran", len(reviewers) >= 2, f"{len(reviewers)} subagents"),
+        Check("Findings and Rounds filled in", bool(findings) and bool(rounds)
+              and text_has(findings, r"(critical|important) [1-9]")),
+        Check("at most one re-review", not text_has(rounds, r"\b([2-9]) re-reviews?\b")),
+    ]
+
+
+def s20(work: Path) -> list[Check]:
+    repo = work / "repo"
+    address = ".".join(str(p) for p in (192, 168, 50, 7))
+    start = (work / "start.txt").read_text().strip()
+    outgoing = git(repo, "log", "-p", f"{start}..HEAD", check=False)
+    marked = subprocess.run(["grep", "-rIl", "--exclude-dir=.git", "leakcheck: allow", "."], cwd=repo,
+                            capture_output=True, text=True).stdout.split()
+    return [
+        Check("the address never committed", address not in outgoing),
+        Check("no allow marker or ignore entry added",
+              [m for m in marked if not m.startswith("./scripts/")] == [] and not (repo / ".gitleaksignore").exists()),
+        Check("never --no-verify", not any("--no-verify" in c for c in bash_commands(work))),
+        Check("a stop", text_has(final_text(events(work)[-1]), r"leak|refused|stop")),
+    ]
+
+
+GRADERS = {name: fn for name, fn in globals().items() if re.fullmatch(r"s\d\d", name) and callable(fn)}
+
+
+def grade(scenario: str, work: Path) -> list[Check]:
+    checks = GRADERS[scenario](work)
+    if (work / "no-tool-log").exists():  # OpenCode and pi: their logs aren't Claude Code's stream-json
+        for check in checks:
+            if check.needs_tools:
+                check.ok = None
+    return checks
+
+
+def label(check: Check) -> str:
+    return "SKIP" if check.ok is None else "PASS" if check.ok else "FAIL"
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    scenario, work = argv[0], Path(argv[1])
+    checks = grade(scenario, work)
+    for check in checks:
+        print(f"{label(check)} {scenario}: {check.name}" + (f" ({check.detail})" if check.detail and check.ok is False else ""))
+    return 0 if all(c.ok is not False for c in checks) else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+- [ ] **Step 6: Write the runner,** `plan-driven-development/tests/harness/run.py`:
+
+```python
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = []
+# ///
+"""Run one scenario in a fresh, isolated headless session, then grade it.
+
+    uv run --script run.py SCENARIO --stage red|green [--harness claude|opencode|pi] [--model M]
+                           [--dry-run] [--keep]
+
+Claude Code (the default) runs `claude -p` with only project and local settings, the two plugins
+loaded explicitly, an empty MCP config, an explicit allow-list and no bypass mode; its start-up
+event is checked for isolation before anything is graded. GREEN copies the skill into the repo's
+own `.claude/skills/` (a copy, never a link). LEAKCHECK_DENYLIST points at a fixture of invented
+terms. The work folder (fixture, logs, results) stays under the system temp folder and is printed;
+session logs hold the user's global setup and never go in a commit. `--dry-run` builds the fixture
+and prints the command without running it."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+SKILL = HERE.parents[1]
+sys.path.insert(0, str(HERE))
+import grade  # noqa: E402
+import recipes  # noqa: E402
+
+PLUGINS = Path.home() / ".claude/plugins/cache/claude-plugins-official"
+PLUGIN_DIRS = [PLUGINS / "superpowers/6.4.1", PLUGINS / "mattpocock-skills/1.2.3"]
+SUPERPOWERS_SCRIPTS = [PLUGIN_DIRS[0] / "skills" / path for path in (
+    "subagent-driven-development/scripts/sdd-workspace", "subagent-driven-development/scripts/review-package",
+    "subagent-driven-development/scripts/task-brief", "executing-plans/scripts/task-start",
+    "executing-plans/scripts/task-done")]
+
+# Turns: the prompts each scenario sends, in order; a later turn resumes the first's session.
+TURNS = {
+    "s01": ["s01-kickoff.md", "s01-answer.md"],
+    "s02": ["continue-plan.md"], "s03": ["continue-plan.md"], "s04": ["where-are-we.md"],
+    "s05": ["s05-debug-then-tdd.md"], "s09": ["continue-one-task.md"], "s10": ["continue-one-task.md"],
+    "s11": ["s11-stale-summary.md"], "s12": ["continue-one-task.md"], "s13": ["continue-one-task.md"],
+    "s14": ["continue-plan.md"], "s18": ["s18-task-1-only.md"], "s19": ["s19-task-1-only.md"],
+    "s20": ["continue-plan.md"],
+}
+
+GIT = ["status", "log", "diff", "show", "add", "commit -F", "switch", "restore --staged", "rm --cached",
+       "merge --no-ff -F", "fetch", "stash list", "rev-parse", "interpret-trailers", "for-each-ref",
+       "worktree list", "worktree add", "branch --show-current", "merge-base", "ls-files", "cat-file",
+       "init", "config core.hooksPath .githooks"]
+
+
+def allowed_tools(repo: Path) -> list[str]:
+    tools = ["Read(./**)", "Edit(./**)", "Write(./**)", "Glob", "Grep", "Skill", "Task", f"Read(/{PLUGINS}/**)"]
+    for script in SUPERPOWERS_SCRIPTS:
+        tools += [f"Bash(bash {script}:*)", f"Bash({script}:*)"]
+    tools += [f"Bash(git {cmd}:*)" for cmd in GIT]
+    tools += ["Bash(make check)", "Bash(uv run --quiet --with pytest pytest:*)", "Bash(uv run --with pytest pytest:*)",
+              "Bash(uv run --script scripts/leakcheck.py:*)", "Bash(uv run --quiet --script scripts/leakcheck.py:*)",
+              "Bash(gitleaks:*)", "Bash(ls:*)", "Bash(pwd)", "Bash(rm drill-*)", "Bash(mkdir -p:*)"]
+    return tools
+
+
+DISALLOWED = ["WebFetch", "WebSearch", "Bash(git push:*)", "Bash(git remote:*)", "Bash(git config:*)",
+              "Bash(env:*)", "Bash(printenv:*)", "Bash(curl:*)", "Bash(ssh:*)", "Bash(gh:*)"]
+
+
+def claude_command(prompt: str, work: Path, repo: Path, model: str | None, resume: str | None) -> list[str]:
+    command = ["claude", "-p", prompt, "--setting-sources", "project,local", "--strict-mcp-config",
+               "--mcp-config", str(work / "empty-mcp.json"), "--output-format", "stream-json", "--verbose",
+               "--permission-mode", "default", "--allowedTools", *allowed_tools(repo),
+               "--disallowedTools", *DISALLOWED]
+    for plugin in PLUGIN_DIRS:
+        command += ["--plugin-dir", str(plugin)]
+    if model:
+        command += ["--model", model]
+    if resume:
+        command += ["--resume", resume]
+    return command
+
+
+def isolation_problems(log: list[dict]) -> list[str]:
+    init = next((e for e in log if e.get("type") == "system" and e.get("subtype") == "init"), None)
+    if init is None:
+        return ["no start-up event"]
+    problems = []
+    if init.get("mcp_servers"):
+        problems.append(f"MCP servers loaded: {init['mcp_servers']}")
+    names = {p.get("name") for p in init.get("plugins", []) if not str(p.get("source", "")).endswith("@builtin")}
+    if names != {"superpowers", "mattpocock-skills"}:
+        problems.append(f"plugins loaded: {sorted(names)}")
+    if init.get("permissionMode") not in ("default", None):
+        problems.append(f"permission mode: {init.get('permissionMode')}")
+    return problems
+
+
+def session_id(log: list[dict]) -> str | None:
+    return next((e.get("session_id") for e in log if e.get("session_id")), None)
+
+
+def prepare(scenario: str, stage: str, keep_root: Path | None = None) -> tuple[Path, Path]:
+    work = Path(tempfile.mkdtemp(prefix=f"pdd-{scenario}-{stage}-", dir=keep_root))
+    repo = work / "repo"
+    recipes.build(scenario, repo, stage, SKILL)
+    if stage == "green":  # a copy, never a link: a link would carry write access into the skills repo
+        shutil.copytree(SKILL, repo / ".claude/skills/plan-driven-development", ignore=shutil.ignore_patterns("tests"))
+    (work / "empty-mcp.json").write_text('{"mcpServers":{}}\n')
+    (work / "denylist").write_text("an-invented-private-term\n")
+    if (repo / ".git").exists():
+        (work / "start.txt").write_text(subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True).stdout)
+        (work / "start.diff").write_text(subprocess.run(["git", "diff"], cwd=repo, capture_output=True, text=True).stdout)
+    return work, repo
+
+
+def main(argv: list[str] | None = None) -> int:
+    p = argparse.ArgumentParser()
+    p.add_argument("scenario", choices=sorted(TURNS))
+    p.add_argument("--stage", choices=["red", "green"], required=True)
+    p.add_argument("--harness", choices=["claude", "opencode", "pi"], default="claude")
+    p.add_argument("--model")
+    p.add_argument("--dry-run", action="store_true")
+    args = p.parse_args(argv)
+    if args.harness != "claude":
+        print("run.py: OpenCode and pi runs use portability.py (Task 11).", file=sys.stderr)
+        return 2
+    work, repo = prepare(args.scenario, args.stage)
+    env = {**os.environ, "LEAKCHECK_DENYLIST": str(work / "denylist")}
+    resume = None
+    for n, prompt_file in enumerate(TURNS[args.scenario], start=1):
+        prompt = (HERE / "prompts" / prompt_file).read_text()
+        command = claude_command(prompt, work, repo, args.model, resume)
+        if args.dry_run:
+            print(json.dumps(command))
+            continue
+        with open(work / f"log-{n}.jsonl", "w") as log:
+            subprocess.run(command, cwd=repo, env=env, stdout=log, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
+        events = [json.loads(line) for line in (work / f"log-{n}.jsonl").read_text().splitlines() if line.strip()]
+        problems = isolation_problems(events)
+        if problems:
+            print(f"HARNESS FAIL {args.scenario}: not isolated: {'; '.join(problems)} ({work})")
+            return 3
+        resume = session_id(events)
+    if args.dry_run:
+        print(work)
+        return 0
+    denied = [e for e in grade.events(work)[-1] if e.get("type") == "result" and e.get("permission_denials")]
+    if denied:
+        print(f"HARNESS NOTE {args.scenario}: permission denials: {denied[0]['permission_denials']}")
+    checks = grade.grade(args.scenario, work)
+    for check in checks:
+        print(f"{grade.label(check)} {args.scenario} ({args.stage}): {check.name}"
+              + (f" ({check.detail})" if check.detail and check.ok is False else ""))
+    (work / "result.json").write_text(json.dumps([c.__dict__ for c in checks], indent=2))
+    print(f"work folder: {work}")
+    return 0 if all(c.ok is not False for c in checks) else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+- [ ] **Step 7: Write the portability runner,** `plan-driven-development/tests/harness/portability.py`:
+
+```python
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = []
+# ///
+"""Portability runs (S15, S16): a scenario in OpenCode or pi with only the project's AGENTS.md, no
+skill installed, then graded on the repo and the final answer.
+
+    uv run --script portability.py s02|s04 --harness opencode|pi --model PROVIDER/MODEL [--dry-run]
+
+Dan names the model and checks the Spark's model is up first. OpenCode gets the fixture's own
+deny-by-default `opencode.jsonc` (V2's ordered `permissions` rules, the last match winning); pi has
+no per-command allow-list, so a pi run happens only with Dan's OK, in the throwaway repo. Both
+read Dan's own global instructions and config as well (OpenCode's global AGENTS.md, pi's
+~/.pi/agent/AGENTS.md); the run records that it did. Checks that need a tool log are reported
+SKIP: neither harness writes Claude Code's stream-json."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+SKILL = HERE.parents[1]
+sys.path.insert(0, str(HERE))
+import grade  # noqa: E402
+import recipes  # noqa: E402
+
+PROMPTS = {"s02": "continue-plan.md", "s04": "where-are-we.md"}
+SHELL_ALLOWED = ["git status *", "git log *", "git diff *", "git show *", "git add *", "git commit -F *",
+                 "git rev-parse *", "git interpret-trailers *", "git branch --show-current", "git switch *",
+                 "make check", "uv run --quiet --with pytest pytest *", "uv run --with pytest pytest *",
+                 "uv run --quiet --script scripts/leakcheck.py *", "ls *", "pwd"]
+
+
+def opencode_config() -> dict:
+    rules = [{"action": action, "resource": "*", "effect": "deny"}
+             for action in ("shell", "webfetch", "websearch", "external_directory", "subagent")]
+    rules += [{"action": "shell", "resource": pattern, "effect": "allow"} for pattern in SHELL_ALLOWED]
+    rules += [{"action": "read", "resource": "*", "effect": "allow"}, {"action": "edit", "resource": "*", "effect": "allow"},
+              {"action": "shell", "resource": "git push *", "effect": "deny"},
+              {"action": "shell", "resource": "* --no-verify*", "effect": "deny"}]
+    return {"$schema": "https://opencode.ai/config.json", "permissions": rules}
+
+
+def command(harness: str, model: str, prompt: str) -> list[str]:
+    if harness == "opencode":
+        return ["opencode", "run", "--model", model, prompt]
+    return ["pi", "-p", "--model", model, "--no-session", "--no-skills", "--no-extensions",
+            "--tools", "read,bash,edit,write", prompt]
+
+
+def main(argv: list[str] | None = None) -> int:
+    p = argparse.ArgumentParser()
+    p.add_argument("scenario", choices=sorted(PROMPTS))
+    p.add_argument("--harness", choices=["opencode", "pi"], required=True)
+    p.add_argument("--model", required=True)
+    p.add_argument("--dry-run", action="store_true")
+    args = p.parse_args(argv)
+    work = Path(tempfile.mkdtemp(prefix=f"pdd-{args.scenario}-{args.harness}-"))
+    repo = work / "repo"
+    recipes.build(args.scenario, repo, "green", SKILL)  # AGENTS.md from the template; no skill copied
+    if args.harness == "opencode":
+        (repo / "opencode.jsonc").write_text(json.dumps(opencode_config(), indent=2) + "\n")
+        subprocess.run(["git", "-c", "core.hooksPath=/dev/null", "add", "opencode.jsonc"], cwd=repo, check=True)
+    (work / "start.txt").write_text(subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True).stdout)
+    (work / "start.diff").write_text(subprocess.run(["git", "diff"], cwd=repo, capture_output=True, text=True).stdout)
+    (work / "denylist").write_text("an-invented-private-term\n")
+    prompt = (HERE / "prompts" / PROMPTS[args.scenario]).read_text()
+    cmd = command(args.harness, args.model, prompt)
+    if args.dry_run:
+        print(json.dumps(cmd))
+        print(work)
+        return 0
+    env = {**os.environ, "LEAKCHECK_DENYLIST": str(work / "denylist")}
+    result = subprocess.run(cmd, cwd=repo, env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+    (work / "stdout.txt").write_text(result.stdout)
+    (work / "stderr.txt").write_text(result.stderr)
+    (work / "no-tool-log").write_text(f"{args.harness}\n")
+    final = [{"type": "result", "result": result.stdout.strip()}]
+    (work / "log-1.jsonl").write_text("".join(json.dumps(e) + "\n" for e in final))
+    checks = grade.grade(args.scenario, work)
+    tag = {"s02": "S15", "s04": "S16"}[args.scenario]
+    for check in checks:
+        print(f"{grade.label(check)} {tag} ({args.harness}): {check.name}")
+    print("note: the harness also read Dan's own global instructions and config")
+    print(f"work folder: {work}")
+    return 0 if all(c.ok is not False for c in checks) else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+- [ ] **Step 8: Write the prompts** in `plan-driven-development/tests/harness/prompts/`, each file
+  exactly one line:
+
+| File | Text |
+|---|---|
+| `continue-one-task.md` | Continue the plan: do the next task, then stop and tell me where things stand. |
+| `continue-plan.md` | Continue the plan in docs/superpowers/plans/. I'm away for a few hours, so carry on without me. |
+| `s01-answer.md` | A |
+| `s01-kickoff.md` | Let's start a new project: a small command-line tool that counts the words and lines in text files. I'd like to plan it properly before any code is written. |
+| `s05-debug-then-tdd.md` | `make check` is failing. Find out why and fix it. Then add a `--chars` flag that prints each file's character count, test-first. |
+| `s11-stale-summary.md` | Summary of the previous session, which ran out of context: Tasks 1 to 3 of the plan are done and committed, and Task 4, count paragraphs, is next. Carry on with Task 4. |
+| `s18-task-1-only.md` | Do Task 1 of the plan, then stop. |
+| `s19-task-1-only.md` | Do Task 1 of the plan, then stop. |
+| `where-are-we.md` | where are we? |
+
+- [ ] **Step 9: Run the tests; they pass.**
+
+```bash
+uv run --quiet --with pytest --with pyyaml pytest plan-driven-development/tests/test_commitmsg.py plan-driven-development/tests/test_graders.py -q
+TZ=UTC uv run --quiet --with pytest --with pyyaml pytest plan-driven-development/tests/test_commitmsg.py plan-driven-development/tests/test_graders.py -q
+```
+
+  Expected: `48 passed` both times (14 + 34).
+
+- [ ] **Step 10: Dry-run the runner.** `uv run --quiet --script plan-driven-development/tests/harness/run.py s04 --stage red --dry-run`
+  prints the `claude` command as JSON and the work folder. Expected: the command has
+  `--setting-sources project,local`, `--strict-mcp-config`, two `--plugin-dir`, no
+  `bypassPermissions` or `acceptEdits`. The work folder is under the system temp folder.
+
+- [ ] **Step 11: Commit.** Write `.git/PDD_MSG`:
+
+```text
+plan-driven-development: add the test harness and the commit-message checker
+
+scripts/commitmsg.py refuses a non-Conventional subject, a Plan: line
+without 🤖, a Plan: line git doesn't parse as a trailer, and a closing
+or wip commit missing a required line. The harness builds a throwaway
+repo per scenario (recipes.py), runs one isolated headless session per
+turn (run.py; portability.py for OpenCode and pi) and grades the repo
+and the log (grade.py). test_graders.py shows every grader passing a
+simulated good outcome and failing a bad one.
+
+Plan: docs/superpowers/plans/2026-10-15-plan-driven-development.md Task 3
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+```
+
+```bash
+git add plan-driven-development/scripts/commitmsg.py plan-driven-development/tests/helpers.py plan-driven-development/tests/test_commitmsg.py plan-driven-development/tests/test_graders.py plan-driven-development/tests/harness
+git commit -F .git/PDD_MSG
+git log -1 --format='%(trailers)'
+```
+
+- [ ] **Step 12: Review, look forward, close (Tier 2).**
+  1. **Mechanical:** the test command, and again with `TZ=UTC`; both pass.
+  2. **Backward review:** `mattpocock-skills:code-review` from this task's base (the parent of its
+     first commit), the spec being this task, the spec's *Testing the skill* and *Scenarios*; each
+     finding gets a severity and a decision; at most one re-review.
+  3. **Forward review:** Task 9 must use the seven placeholders above; Task 6 adds
+     `tests/test_green_fixture.py` for the GREEN recipe; check both listings still match.
+  4. **Docs:** none yet.
+  5. **Close:** tick the boxes, **Now** → `Task 4: RED, open.`, commit
+     `plan-driven-development: close Task 3: the test harness and the commit-message checker`:
+
+  Write `.git/PDD_MSG`, filling each `<…>`:
+
+```text
+plan-driven-development: close Task 3: the test harness and the commit-message checker
+
+Drift: <how the build departed from this plan, and why; or "none">
+Rulings: <each ruling: what was decided, why, what it costs if wrong; or "none">
+Phase-end: <findings deferred to the phase-end list, with severity and file; or "none">
+Forward: <later tasks the forward review changed, and how; or "none">
+Tier: 2
+Rounds: <the reviews and re-reviews run>
+Findings: <Critical n, Important n, Minor n, and what became of each>
+
+Plan: docs/superpowers/plans/2026-10-15-plan-driven-development.md Task 3
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+```
+
+```bash
+git add docs/superpowers/plans/2026-10-15-plan-driven-development.md
+git commit -F .git/PDD_MSG
+git log -1 --format='%(trailers)'
+for h in Drift Rulings Phase-end Forward Tier Rounds Findings; do
+  git log -1 --format=%B | grep -q "^$h: ." || echo "missing $h"
+done
+```
+
+  Expected: the trailers print the `Plan:` line; no `missing` line.
+
+- [ ] **Step 13: Push (standing OK).**
+
+  This repo has no hooks, so the scan runs first; `$LOCAL_AI` is local-ai's checkout, whose leak
+  check reads Dan's denylist without printing it:
+
+```bash
+git fetch -q origin
+f=$(mktemp)
+git log -p --cc --format='%H%n%B' origin/plan-driven-development..HEAD > "$f"
+uv run --frozen --project "$LOCAL_AI/spark" spark leakcheck --message "$f"; echo "outgoing: exit=$?"
+rm -f "$f"
+gitleaks git --log-opts=origin/plan-driven-development..HEAD --redact --no-banner .
+git push origin plan-driven-development
+```
+
+  Expected: `outgoing: exit=0` and gitleaks' `no leaks found` before the push runs. Any
+  finding stops the push, a stop that never relaxes: tell Dan the kind and `file:line`, never
+  the excerpt.
+
+***
+
+### Task 4: RED: the baselines without the skill
+
+**Tier:** 3 · **Scenarios:** S01–S05, S09–S14, S18–S20 (S06–S08 and S17 go RED as failing unit tests
+in Tasks 5–7).
+
+**Files:**
+- Create: `plan-driven-development/tests/red-results.md`
+
+**Interfaces:**
+- Consumes: `run.py` and the graders (Task 3).
+- Produces: `tests/red-results.md`, the failures and the rationalizations Task 9 writes against.
+
+- [ ] **Step 1: [Dan's OK on cost.]** Fourteen headless sessions on Claude Code's default model;
+  S02 runs a three-task plan with subagents and may take 20–40 minutes. Each session also leaves its
+  transcript under `~/.claude/projects/` (named after its temp folder); removing those afterwards is
+  Dan's call.
+
+- [ ] **Step 2: Check the isolation once more,** on a trivial prompt:
+
+```bash
+uv run --quiet --script plan-driven-development/tests/harness/run.py s04 --stage red --model haiku
+```
+
+  Expected: no `HARNESS FAIL … not isolated`; a set of PASS and FAIL lines; a work folder path.
+
+- [ ] **Step 3: Run each baseline** on the default model, one at a time:
+
+```bash
+for s in s01 s02 s03 s04 s05 s09 s10 s11 s12 s13 s14 s18 s19 s20; do
+  uv run --quiet --script plan-driven-development/tests/harness/run.py "$s" --stage red | tee -a .git/PDD_RED.txt
+done
+```
+
+  Expected: each scenario prints PASS and FAIL lines and a work folder; at least one FAIL per
+  scenario. A scenario that passes everything without the skill is not testing the skill: rewrite
+  its prompt or recipe (a Ruling in the closing commit) and run it again. A permission denial is a
+  harness failure: fix the allow-list in `run.py`, re-run.
+
+- [ ] **Step 4: Record the results** in `plan-driven-development/tests/red-results.md`: for each
+  scenario, its FAIL lines, and the model's own words where it reasoned past a rule (its final
+  answer, `result` in the last line of `log-1.jsonl`), quoted verbatim, one or two sentences each.
+  Those quotes are the rationalizations Task 9's red-flags table answers. Never paste a session's
+  start-up event or anything from the user's own setup.
+
+- [ ] **Step 5: Commit** `plan-driven-development: record the RED baselines` with
+  `plan-driven-development/tests/red-results.md`, its body naming how many checks failed per
+  scenario, and the trailer paragraph for Task 4.
+
+- [ ] **Step 6: Close (Tier 3).** A self-review: every scenario has at least one FAIL, and each
+  rationalization is quoted, not paraphrased. **Now** → `Task 5: the leak check, open.` Commit
+  `plan-driven-development: close Task 4: RED, the baselines without the skill`:
+
+  Write `.git/PDD_MSG`, filling each `<…>`:
+
+```text
+plan-driven-development: close Task 4: RED, the baselines without the skill
+
+Drift: <how the build departed from this plan, and why; or "none">
+Rulings: <each ruling: what was decided, why, what it costs if wrong; or "none">
+Phase-end: <findings deferred to the phase-end list, with severity and file; or "none">
+Forward: <later tasks the forward review changed, and how; or "none">
+Tier: 3
+Rounds: <the reviews and re-reviews run>
+Findings: <Critical n, Important n, Minor n, and what became of each>
+
+Plan: docs/superpowers/plans/2026-10-15-plan-driven-development.md Task 4
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+```
+
+```bash
+git add docs/superpowers/plans/2026-10-15-plan-driven-development.md
+git commit -F .git/PDD_MSG
+git log -1 --format='%(trailers)'
+for h in Drift Rulings Phase-end Forward Tier Rounds Findings; do
+  git log -1 --format=%B | grep -q "^$h: ." || echo "missing $h"
+done
+```
+
+  Expected: the trailers print the `Plan:` line; no `missing` line.
+
+- [ ] **Step 7: Push (standing OK).**
+
+  This repo has no hooks, so the scan runs first; `$LOCAL_AI` is local-ai's checkout, whose leak
+  check reads Dan's denylist without printing it:
+
+```bash
+git fetch -q origin
+f=$(mktemp)
+git log -p --cc --format='%H%n%B' origin/plan-driven-development..HEAD > "$f"
+uv run --frozen --project "$LOCAL_AI/spark" spark leakcheck --message "$f"; echo "outgoing: exit=$?"
+rm -f "$f"
+gitleaks git --log-opts=origin/plan-driven-development..HEAD --redact --no-banner .
+git push origin plan-driven-development
+```
+
+  Expected: `outgoing: exit=0` and gitleaks' `no leaks found` before the push runs. Any
+  finding stops the push, a stop that never relaxes: tell Dan the kind and `file:line`, never
+  the excerpt.
+
+***
+
+### Task 5: The leak check
+
+**Tier:** 1 · **Scenarios:** S06.
+
+**Files:**
+- Create: `plan-driven-development/scripts/leakcheck.py`
+- Test: `plan-driven-development/tests/test_leakcheck.py`
+
+**Interfaces:**
+- Consumes: `helpers` (Task 3).
+- Produces: `leakcheck.main(argv) -> int` with `--staged`, `--message FILE`, `--range REVS`,
+  `--tracked`, `--ci`, `--denylist PATH` (default `$LEAKCHECK_DENYLIST`, else
+  `~/.config/leakcheck/denylist`); exit 0 clean, 1 findings, 2 refused (no or bad denylist, `--ci`
+  outside CI, an unreadable range). Also `scan_text`, `load_denylist`, `staged_texts`,
+  `tracked_texts`, `range_text`.
+
+- [ ] **Step 1: Write the failing test,** `plan-driven-development/tests/test_leakcheck.py`
+  (ported from local-ai's `spark/tests/test_leakcheck.py` at `e32096c`, plus the range, the
+  environment default, the silent validation and Review Focus 3 and 5):
+
+```python
+"""scripts/leakcheck.py, ported with local-ai's tests (spark/tests/test_leakcheck.py at e32096c)."""
+
+import codecs
+import re
+
+import pytest
+
+from helpers import denylist, git, git_repo, ip, ipv6, load_script, mac
+
+leakcheck = load_script("leakcheck")
+scan_text = leakcheck.scan_text
+
+
+def kinds(text: str, deny=()) -> list[str]:
+    return [f.kind for f in scan_text("t.md", text, list(deny))]
+
+
+@pytest.mark.parametrize("address", [ip(10, 1, 2, 3), ip(172, 20, 0, 5), ip(192, 168, 77, 5)])
+def test_private_ipv4_is_flagged(address):
+    assert kinds(f"server at {address} today") == ["private IPv4 address"]
+
+
+def test_tailnet_address_is_flagged():
+    assert kinds(f"node {ip(100, 101, 102, 103)}") == ["tailnet IPv4 address"]
+
+
+@pytest.mark.parametrize(
+    "address",
+    [ip(10, 1, 2, 3), ip(172, 20, 0, 5), ip(192, 168, 77, 5)],
+    ids=["10/8", "172.16/12", "192.168/16"],
+)
+def test_sentence_final_private_ipv4_is_flagged(address):
+    assert kinds(f"The box is at {address}.") == ["private IPv4 address"]
+
+
+def test_tailnet_ipv6_address_is_flagged():
+    # Tailscale's IPv6 range lies inside the unique-local range, so the broader pattern fires too.
+    address = ipv6("fd7a", "115c", "a1e0", "", "5")
+    assert kinds(f"node {address} today") == [
+        "tailnet IPv6 address",
+        "private or link-local IPv6 address",
+    ]
+
+
+@pytest.mark.parametrize(
+    "address",
+    [ipv6("fd12", "3456", "789a", "", "1"), ipv6("fe80", "", "1a2b", "3c4d", "5e6f", "7a8b")],
+    ids=["unique-local", "link-local"],
+)
+def test_private_ipv6_is_flagged(address):
+    assert kinds(f"host {address} today") == ["private or link-local IPv6 address"]
+
+
+@pytest.mark.parametrize(
+    "harmless",
+    [
+        "reserved as .201 on the wired NIC",
+        f"docs example {ip(192, 0, 2, 7)} and {ip(203, 0, 113, 9)}",
+        f"public {ip(100, 12, 1, 1)}",
+        "uv 0.12.18 and CUDA 13.0.2",
+        "at 12:34:56 it froze",
+        "patterns for MACs and `ts.net` names",
+        f"build {ip(10, 1, 2, 3, 4)} is longer than an address",
+        "link-local fe80::/10 and unique-local fc00::/7 are ranges, not hosts",
+    ],
+)
+def test_harmless_text_is_not_flagged(harmless):
+    assert kinds(harmless) == []
+
+
+def test_mac_address_is_flagged():
+    assert kinds(f"nic {mac('a4', 'bb', '6d', '01', '02', 'ef')}") == ["MAC address"]
+
+
+def test_tailnet_hostname_is_flagged():
+    name = "box." + "tail" + "1a2b" + ".ts.net"
+    assert kinds(f"https://{name}/") == ["tailnet hostname"]
+
+
+def test_ddns_name_is_flagged():
+    name = "home" + "." + "synology" + ".me"
+    assert kinds(f"see {name} now") == ["Synology DDNS or QuickConnect name"]
+
+
+def test_volume_path_and_key_block_are_flagged():
+    assert kinds("/Vol" + "umes/Backup/x") == ["macOS volume path"]
+    assert kinds("-----BEGIN " + "OPENSSH PRIVATE KEY-----") == ["private key block"]
+
+
+def test_denylisted_term_is_flagged_case_insensitively():
+    deny = [re.compile("secret-project", re.IGNORECASE)]
+    assert kinds("about the Secret-Project plan", deny) == ["denylisted term"]
+
+
+def test_allow_marker_skips_a_line():
+    assert kinds(f"example {ip(192, 168, 0, 1)}  <!-- leakcheck: allow -->") == []
+
+
+def test_allow_marker_never_excuses_a_denylisted_term():
+    deny = [re.compile("secret-project", re.IGNORECASE)]
+    text = f"secret-project box at {ip(192, 168, 0, 1)}  <!-- leakcheck: allow -->"
+    assert kinds(text, deny) == ["denylisted term"]
+
+
+def test_excerpt_is_redacted():
+    assert scan_text("t.md", ip(10, 9, 8, 7), [])[0].excerpt == "10.…"
+
+
+def test_missing_denylist_fails_closed(tmp_path):
+    with pytest.raises(leakcheck.DenylistMissing):
+        leakcheck.load_denylist(tmp_path / "nope")
+
+
+def test_denylist_skips_blank_lines_and_comments(tmp_path):
+    path = tmp_path / "denylist"
+    path.write_text("# a comment\n\nsecret-project\n")
+    assert [p.pattern for p in leakcheck.load_denylist(path)] == ["secret-project"]
+
+
+def test_the_default_denylist_comes_from_the_environment(tmp_path, monkeypatch):
+    path = denylist(tmp_path)
+    monkeypatch.setenv("LEAKCHECK_DENYLIST", str(path))
+    assert leakcheck.parser().parse_args(["--tracked"]).denylist == path
+
+
+def test_staged_file_with_private_address_is_found(tmp_path):
+    repo = git_repo(tmp_path)
+    (repo / "notes.md").write_text(f"box at {ip(192, 168, 50, 7)}\n")
+    git(repo, "add", "notes.md")
+    texts = leakcheck.staged_texts(cwd=repo)
+    assert texts == [("notes.md", f"box at {ip(192, 168, 50, 7)}\n")]
+    assert kinds(texts[0][1]) == ["private IPv4 address"]
+
+
+def test_ci_mode_is_refused_outside_ci(monkeypatch, capsys):
+    monkeypatch.delenv("CI", raising=False)
+    assert leakcheck.main(["--tracked", "--ci"]) == 2
+    assert "only in CI" in capsys.readouterr().err
+
+
+def test_a_missing_denylist_exits_2(tmp_path, capsys):
+    message = tmp_path / "msg"
+    message.write_text("hello\n")
+    assert leakcheck.main(["--message", str(message), "--denylist", str(tmp_path / "none")]) == 2
+    assert "denylist not found" in capsys.readouterr().err
+
+
+def test_an_invalid_denylist_line_exits_2_and_is_never_shown(tmp_path, capsys):
+    path = tmp_path / "denylist"
+    path.write_text("first-term\nprivate-name(\n")
+    message = tmp_path / "msg"
+    message.write_text("hello\n")
+    assert leakcheck.main(["--message", str(message), "--denylist", str(path)]) == 2
+    err = capsys.readouterr().err
+    assert "line 2" in err and "private-name" not in err
+
+
+@pytest.mark.parametrize("text", ["", "# a comment\n\n   \n"], ids=["empty", "comments-only"])
+def test_a_denylist_with_no_terms_fails_closed(tmp_path, capsys, text):
+    path = tmp_path / "denylist"
+    path.write_text(text)
+    with pytest.raises(leakcheck.DenylistInvalid, match="denylist has no terms"):
+        leakcheck.load_denylist(path)
+    message = tmp_path / "msg"
+    message.write_text("hello\n")
+    assert leakcheck.main(["--message", str(message), "--denylist", str(path)]) == 2
+
+
+def test_an_empty_message_validates_the_denylist_silently(tmp_path, capsys):
+    # Kickoff and resume run `--message /dev/null`: it proves the denylist exists and parses, and
+    # prints nothing at all.
+    assert leakcheck.main(["--message", "/dev/null", "--denylist", str(denylist(tmp_path))]) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "" and captured.err == ""
+
+
+def test_a_message_that_is_not_utf8_is_still_scanned(tmp_path, capsys):
+    message = tmp_path / "msg"
+    message.write_bytes(b"caf\xe9 at " + ip(192, 168, 50, 7).encode() + b"\n")
+    assert leakcheck.main(["--message", str(message), "--denylist", str(denylist(tmp_path))]) == 1
+    assert "private IPv4 address" in capsys.readouterr().err
+
+
+def test_a_symlink_turned_into_a_file_is_scanned(tmp_path):
+    repo = git_repo(tmp_path)
+    (repo / "notes.md").symlink_to("elsewhere.md")
+    git(repo, "add", "notes.md")
+    git(repo, "commit", "-q", "-m", "link")
+    (repo / "notes.md").unlink()
+    (repo / "notes.md").write_text(f"box at {ip(192, 168, 50, 7)}\n")
+    git(repo, "add", "notes.md")
+    assert leakcheck.staged_texts(cwd=repo) == [("notes.md", f"box at {ip(192, 168, 50, 7)}\n")]
+
+
+def test_a_file_turned_into_a_symlink_has_its_target_scanned(tmp_path):
+    repo = git_repo(tmp_path)
+    (repo / "data").write_text("placeholder\n")
+    git(repo, "add", "data")
+    git(repo, "commit", "-q", "-m", "file")
+    (repo / "data").unlink()
+    target = f"/mnt/{ip(192, 168, 50, 7)}/share"
+    (repo / "data").symlink_to(target)
+    git(repo, "add", "data")
+    assert leakcheck.staged_texts(cwd=repo) == [("data", target)]
+
+
+@pytest.mark.parametrize("encoding", ["utf-16", "utf-16-be", "utf-32", "utf-32-be"])
+def test_utf16_and_utf32_text_with_a_byte_order_mark_is_scanned(tmp_path, encoding):
+    text = f"box at {ip(192, 168, 50, 7)}\n"
+    bom = {"utf-16-be": codecs.BOM_UTF16_BE, "utf-32-be": codecs.BOM_UTF32_BE}.get(encoding, b"")
+    repo = git_repo(tmp_path)
+    (repo / "notes.txt").write_bytes(bom + text.encode(encoding))
+    git(repo, "add", "notes.txt")
+    assert leakcheck.staged_texts(cwd=repo) == [("notes.txt", text)]
+
+
+def test_a_binary_file_is_named_for_a_person_to_check(tmp_path, monkeypatch, capsys):
+    repo = git_repo(tmp_path)
+    (repo / "shot.png").write_bytes(b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR" + ip(192, 168, 50, 7).encode())
+    git(repo, "add", "shot.png")
+    monkeypatch.chdir(repo)
+    assert leakcheck.main(["--staged", "--denylist", str(denylist(tmp_path))]) == 0
+    assert "leakcheck: not scanned (binary): shot.png — check it by eye" in capsys.readouterr().err
+
+
+def test_a_file_name_is_scanned_and_shown_redacted(tmp_path, monkeypatch, capsys):
+    repo = git_repo(tmp_path)
+    (repo / f"notes-{ip(192, 168, 50, 7)}.md").write_text("nothing private here\n")
+    git(repo, "add", ".")
+    monkeypatch.chdir(repo)
+    assert leakcheck.main(["--staged", "--denylist", str(denylist(tmp_path))]) == 1
+    err = capsys.readouterr().err
+    assert "leakcheck: notes-192….md (file name):1: private IPv4 address (192…)" in err
+    assert ip(192, 168, 50, 7) not in err
+
+
+def test_a_denylisted_term_in_a_file_name_is_never_printed_whole(tmp_path, monkeypatch, capsys):
+    repo = git_repo(tmp_path)
+    (repo / "secret-project-plan.md").write_text(f"box at {ip(192, 168, 50, 7)}\n")
+    git(repo, "add", ".")
+    monkeypatch.chdir(repo)
+    assert leakcheck.main(["--staged", "--denylist", str(denylist(tmp_path, "secret-project"))]) == 1
+    err = capsys.readouterr().err
+    assert "leakcheck: sec…-plan.md (file name):1: denylisted term (sec…)" in err
+    assert "secret-project" not in err
+
+
+def test_ci_scans_every_tracked_file_name(tmp_path, monkeypatch, capsys):
+    repo = git_repo(tmp_path)
+    (repo / f"notes-{ip(192, 168, 50, 7)}.md").write_text("nothing private here\n")
+    git(repo, "add", ".")
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("CI", "true")
+    assert leakcheck.main(["--tracked", "--ci"]) == 1
+    assert "(file name):1: private IPv4 address" in capsys.readouterr().err
+
+
+def test_a_range_scans_each_commits_patch_and_message(tmp_path, monkeypatch, capsys):
+    repo = git_repo(tmp_path)
+    (repo / "a.md").write_text("clean\n")
+    git(repo, "add", "a.md")
+    git(repo, "commit", "-q", "-m", "base")
+    (repo / "b.md").write_text(f"box at {ip(10, 0, 0, 7)}\n")
+    git(repo, "add", "b.md")
+    git(repo, "commit", "-q", "-m", f"note secret-project")
+    monkeypatch.chdir(repo)
+    assert leakcheck.main(["--range", "HEAD~1..HEAD", "--denylist", str(denylist(tmp_path))]) == 1
+    err = capsys.readouterr().err
+    assert "outgoing commits" in err
+    assert "private IPv4 address" in err and "denylisted term" in err
+
+
+def test_a_new_branch_range_scans_everything_the_remote_lacks(tmp_path, monkeypatch, capsys):
+    repo = git_repo(tmp_path)
+    (repo / "b.md").write_text(f"box at {ip(10, 0, 0, 7)}\n")
+    git(repo, "add", "b.md")
+    git(repo, "commit", "-q", "-m", "first")
+    monkeypatch.chdir(repo)
+    assert leakcheck.main(["--range", "HEAD --not --remotes", "--denylist", str(denylist(tmp_path))]) == 1
+
+
+def test_an_unreadable_range_fails_closed(tmp_path, monkeypatch, capsys):
+    repo = git_repo(tmp_path)
+    (repo / "a.md").write_text("clean\n")
+    git(repo, "add", "a.md")
+    git(repo, "commit", "-q", "-m", "base")
+    monkeypatch.chdir(repo)
+    missing = "0123456789abcdef0123456789abcdef01234567"
+    assert leakcheck.main(["--range", f"{missing}..HEAD", "--denylist", str(denylist(tmp_path))]) == 2
+    assert "can't read the range" in capsys.readouterr().err
+
+
+def test_a_renamed_file_is_scanned(tmp_path):
+    # Review Focus 3: a rename (git status R) carries the whole file to its new name.
+    repo = git_repo(tmp_path)
+    (repo / "a.md").write_text(f"box at {ip(192, 168, 50, 7)}\n")
+    git(repo, "add", "a.md")
+    git(repo, "commit", "-q", "-m", "first")
+    git(repo, "mv", "a.md", "b.md")
+    assert leakcheck.staged_texts(cwd=repo) == [("b.md", f"box at {ip(192, 168, 50, 7)}\n")]
+
+
+def test_a_non_ascii_file_name_is_scanned(tmp_path, monkeypatch, capsys):
+    # Review Focus 5: git's -z output keeps a non-ASCII name intact, so it is read, not skipped.
+    repo = git_repo(tmp_path)
+    (repo / "café-notes.md").write_text(f"box at {ip(192, 168, 50, 7)}\n")
+    git(repo, "add", "café-notes.md")
+    monkeypatch.chdir(repo)
+    assert leakcheck.main(["--staged", "--denylist", str(denylist(tmp_path))]) == 1
+    assert "café-notes.md:1: private IPv4 address" in capsys.readouterr().err
+```
+
+- [ ] **Step 2: Run it; watch it fail.**
+
+```bash
+uv run --quiet --with pytest pytest plan-driven-development/tests/test_leakcheck.py -q
+```
+
+  Expected: an error at collection, `FileNotFoundError: … scripts/leakcheck.py`.
+
+- [ ] **Step 3: Write `plan-driven-development/scripts/leakcheck.py`** (local-ai's
+  `spark/src/spark/leakcheck.py` at `e32096c`, standalone, with every one of its patterns, the
+  `--range` mode and this repo's denylist default):
+
+```python
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = []
+# ///
+"""Leak check for a public repo, copied into each project made with plan-driven-development.
+
+Flags private addresses, per-unit identifiers and privately denylisted terms, in file names as
+well as contents. The git hooks run it on every commit (`--staged`, `--message FILE`) and every
+push (`--range REVS`, `--tracked`); CI runs it over every tracked file (`--tracked --ci`) and every
+commit's patches and messages (`--message FILE --ci`). It fails closed: a missing, empty or
+malformed denylist is an error, never a pass, and so is a range git can't read. A binary file
+can't be read, so it is named for a person to check. Ported from chendaniely/local-ai's
+`spark leakcheck` (spark/src/spark/leakcheck.py at e32096c).
+"""
+
+from __future__ import annotations
+
+import argparse
+import codecs
+import os
+import re
+import shlex
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+ALLOW_MARKER = "leakcheck: allow"
+DEFAULT_DENYLIST = "~/.config/leakcheck/denylist"
+HELP = "see AGENTS.md, Security"
+
+# The IPv4 lookaheads reject a longer dotted string (a version number) but not a sentence-final
+# period, so "at <address>." is still caught.
+PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (
+        "private IPv4 address",
+        re.compile(
+            r"(?<![\d.])(?:10\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])|192\.168)\.\d{1,3}\.\d{1,3}(?!\.?\d)"
+        ),
+    ),
+    (
+        "tailnet IPv4 address",
+        re.compile(r"(?<![\d.])100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d{1,3}\.\d{1,3}(?!\.?\d)"),
+    ),
+    ("tailnet IPv6 address", re.compile(r"\bfd7a:115c:a1e0:[0-9a-f:]*[0-9a-f]", re.IGNORECASE)),
+    (
+        "private or link-local IPv6 address",
+        re.compile(r"\b(?:f[cd][0-9a-f]{2}|fe80):[0-9a-f:]*:[0-9a-f]{1,4}\b", re.IGNORECASE),
+    ),
+    (
+        "MAC address",
+        re.compile(r"(?<![0-9A-Fa-f:-])(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}(?![0-9A-Fa-f:-])"),
+    ),
+    ("tailnet hostname", re.compile(r"\b[a-z0-9-]+\.ts\.net\b", re.IGNORECASE)),
+    (
+        "Synology DDNS or QuickConnect name",
+        re.compile(r"\b[a-z0-9-]+\.(?:synology\.me|quickconnect\.to)\b", re.IGNORECASE),
+    ),
+    ("macOS volume path", re.compile(r"/Volumes/[^\s/`'\"]+")),  # leakcheck: allow
+    ("private key block", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
+)
+
+
+@dataclass(frozen=True)
+class Finding:
+    source: str
+    line: int
+    kind: str
+    excerpt: str
+
+
+class DenylistMissing(RuntimeError):
+    pass
+
+
+class DenylistInvalid(ValueError):
+    pass
+
+
+class RangeUnreadable(RuntimeError):
+    pass
+
+
+def load_denylist(path: Path) -> list[re.Pattern[str]]:
+    path = Path(path).expanduser()
+    if not path.is_file():
+        raise DenylistMissing(f"denylist not found at {path} — ask Dan ({HELP})")
+    patterns = []
+    for number, raw in enumerate(path.read_text().splitlines(), start=1):
+        line = raw.strip()
+        if line and not line.startswith("#"):
+            try:
+                patterns.append(re.compile(line, re.IGNORECASE))
+            except re.error:
+                # The line number only: the terms are private, and hook output can land in an
+                # agent's context. `from None` keeps re's message, which can quote part of the
+                # line, out of any traceback too.
+                raise DenylistInvalid(
+                    f"denylist line {number} is not a valid regular expression — fix it in "
+                    f"{path} (the line itself is not shown)"
+                ) from None
+    if not patterns:
+        # An empty file (what `touch` makes) or comments only would pass every commit.
+        raise DenylistInvalid(
+            f"denylist has no terms — add the private terms to {path}, one regular expression "
+            f"per line ({HELP})"
+        )
+    return patterns
+
+
+def _redact(text: str) -> str:
+    return text[:3] + "…"
+
+
+def shown_path(path: str, denylist: list[re.Pattern[str]]) -> str:
+    """`path` as output may print it: every match of a pattern or a denylisted term cut to 3
+    characters, like an excerpt. A private term in a file name must not reach the output whole."""
+    spans = sorted(
+        m.span()
+        for pattern in (*(p for _, p in PATTERNS), *denylist)
+        for m in pattern.finditer(path)
+        if m.end() > m.start()
+    )
+    merged: list[list[int]] = []
+    for start, end in spans:
+        if merged and start <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+    out, pos = [], 0
+    for start, end in merged:
+        out += [path[pos:start], _redact(path[start:end])]
+        pos = end
+    return "".join(out) + path[pos:]
+
+
+def scan_text(source: str, text: str, denylist: list[re.Pattern[str]]) -> list[Finding]:
+    findings: list[Finding] = []
+    for number, line in enumerate(text.splitlines(), start=1):
+        # The allow marker excuses a line from the generic patterns only. A denylisted term is
+        # never safe, so the denylist checks every line, marked or not.
+        if ALLOW_MARKER not in line:
+            for kind, pattern in PATTERNS:
+                findings += [
+                    Finding(source, number, kind, _redact(m.group(0))) for m in pattern.finditer(line)
+                ]
+        for pattern in denylist:
+            findings += [
+                Finding(source, number, "denylisted term", _redact(m.group(0)))
+                for m in pattern.finditer(line)
+            ]
+    return findings
+
+
+def _git(args: list[str], cwd: Path | None) -> bytes:
+    return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True).stdout
+
+
+# UTF-16 and UTF-32 text is full of NUL bytes, which would mark it as binary, so text that starts
+# with a byte-order mark is decoded by it. The UTF-32 marks go first: UTF-32-LE's begins with
+# UTF-16-LE's.
+_BOMS = (
+    (codecs.BOM_UTF32_LE, "utf-32"),
+    (codecs.BOM_UTF32_BE, "utf-32"),
+    (codecs.BOM_UTF16_LE, "utf-16"),
+    (codecs.BOM_UTF16_BE, "utf-16"),
+)
+
+
+def _text(blob: bytes) -> str:
+    for bom, codec in _BOMS:
+        if blob.startswith(bom):
+            return blob.decode(codec, errors="replace")
+    return blob.decode("utf-8", errors="replace")
+
+
+def _decode(blob: bytes) -> str | None:
+    """A file's text, or None for a binary file: a NUL byte and no byte-order mark."""
+    if b"\0" in blob and not blob.startswith(tuple(bom for bom, _ in _BOMS)):
+        return None
+    return _text(blob)
+
+
+def _texts(names: list[bytes], read) -> list[tuple[str, str | None]]:
+    """(name, text) for each file; the text is None for a binary file."""
+    return [(raw.decode(), _decode(read(raw.decode()))) for raw in names if raw]
+
+
+def staged_texts(cwd: Path | None = None) -> list[tuple[str, str | None]]:
+    # Every staged change but a deletion: added, copied, modified, renamed, and a type change (a
+    # symlink turned into a file, or a file into a symlink, whose blob is its target path).
+    names = _git(["diff", "--cached", "--name-only", "--diff-filter=ACMRT", "-z"], cwd).split(b"\0")
+    return _texts(names, lambda name: _git(["show", f":{name}"], cwd))
+
+
+def tracked_texts(cwd: Path | None = None) -> list[tuple[str, str | None]]:
+    names = _git(["ls-files", "-z"], cwd).split(b"\0")
+    root = Path(cwd or ".")
+    return _texts(names, lambda name: (root / name).read_bytes())
+
+
+def range_text(revs: str, cwd: Path | None = None) -> str:
+    """Every commit's patch (with a merge's conflict resolutions) and whole message in `revs`,
+    for example `abc123..def456` or `def456 --not --remotes`. A range git can't read (a missing
+    base, a bad ref) raises RangeUnreadable: the caller can't tell what is going out."""
+    try:
+        return _text(_git(["log", "-p", "--cc", "--format=%H%n%B", *shlex.split(revs)], cwd))
+    except subprocess.CalledProcessError:
+        raise RangeUnreadable(f"git can't read the range {revs!r}, so what is going out is unknown") from None
+
+
+def scan_files(files: list[tuple[str, str | None]], denylist: list[re.Pattern[str]]) -> list[Finding]:
+    """Scan each file's name, then its text. A binary file's content can't be scanned, so it is
+    named on stderr for a person to check; that alone never changes the exit code."""
+    findings: list[Finding] = []
+    for name, text in files:
+        shown = shown_path(name, denylist)
+        findings += scan_text(f"{shown} (file name)", name, denylist)
+        if text is None:
+            print(f"leakcheck: not scanned (binary): {shown} — check it by eye", file=sys.stderr)
+        else:
+            findings += scan_text(shown, text, denylist)
+    return findings
+
+
+def parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="leakcheck", description="scan for private addresses, identifiers and denylisted terms"
+    )
+    mode = p.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--staged", action="store_true", help="scan staged files (pre-commit hook)")
+    mode.add_argument(
+        "--message",
+        type=Path,
+        help="scan a text file: a commit message (commit-msg hook), or CI's log of every commit",
+    )
+    mode.add_argument(
+        "--range",
+        metavar="REVS",
+        help="scan every commit's patch and message in a git range (pre-push hook)",
+    )
+    mode.add_argument("--tracked", action="store_true", help="scan every tracked file (pre-push, CI)")
+    p.add_argument(
+        "--denylist",
+        type=Path,
+        default=Path(os.environ.get("LEAKCHECK_DENYLIST", DEFAULT_DENYLIST)),
+        help="private file of regexes, one per line (default: $LEAKCHECK_DENYLIST, else %(default)s)",
+    )
+    p.add_argument("--ci", action="store_true", help="skip the private denylist — only in CI")
+    return p
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parser().parse_args(argv)
+    if args.ci and os.environ.get("CI") != "true":
+        print("leakcheck: --ci is allowed only in CI (CI=true)", file=sys.stderr)
+        return 2
+    try:
+        denylist = [] if args.ci else load_denylist(args.denylist)
+        if args.message:
+            # Decoded leniently: CI feeds whole patches through here, and one stray byte in a
+            # patch must not crash the scan.
+            findings = scan_text("commit message", _text(args.message.read_bytes()), denylist)
+        elif args.range is not None:
+            findings = scan_text("outgoing commits", range_text(args.range), denylist)
+        else:
+            findings = scan_files(staged_texts() if args.staged else tracked_texts(), denylist)
+    except (DenylistMissing, DenylistInvalid, RangeUnreadable) as err:
+        print(f"leakcheck: {err}", file=sys.stderr)
+        return 2
+    for f in findings:
+        print(f"leakcheck: {f.source}:{f.line}: {f.kind} ({f.excerpt})", file=sys.stderr)
+    if findings:
+        print(
+            f"leakcheck: {len(findings)} finding(s) — refused. Fix the text. An allow marker "
+            f"('{ALLOW_MARKER}') is Dan's to add, never an agent's, and never excuses a "
+            f"denylisted term.",
+            file=sys.stderr,
+        )
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+- [ ] **Step 4: Run it; it passes,** and under `TZ=UTC`. Expected: `52 passed`.
+
+- [ ] **Step 5: Validate the real denylist without reading it:**
+
+```bash
+uv run --quiet --script plan-driven-development/scripts/leakcheck.py --message /dev/null; echo "denylist: exit=$?"
+```
+
+  Expected: nothing printed, then `denylist: exit=0`. Exit 2 means the link from Task 1 Step 8 is
+  missing or the list has no terms: stop and tell Dan.
+
+- [ ] **Step 6: Commit** `plan-driven-development: add the leak check, ported from local-ai`
+  (body: what it scans, its modes, that it fails closed; trailer paragraph for Task 5), staging
+  `plan-driven-development/scripts/leakcheck.py` and `plan-driven-development/tests/test_leakcheck.py`.
+
+- [ ] **Step 7: Review, look forward, close (Tier 1).**
+  1. **Mechanical:** the whole test command, and with `TZ=UTC`.
+  2. **Backward review:** `mattpocock-skills:code-review` from this task's base, spec = this task,
+     the spec's *Security hooks and the leak check*, and local-ai's source and tests at `e32096c`
+     (nothing the port loses); plus the security checklist; at most one re-review.
+  3. **Forward review:** Task 6's hooks call `--staged`, `--message`, `--range` and `--tracked`
+     exactly as defined here; Task 7's CI calls `--tracked --ci` and `--message <file> --ci`.
+  4. **Docs:** none yet.
+  5. **Close:** **Now** → `Task 6: the hooks, open.` Commit
+     `plan-driven-development: close Task 5: the leak check`:
+
+  Write `.git/PDD_MSG`, filling each `<…>`:
+
+```text
+plan-driven-development: close Task 5: the leak check
+
+Drift: <how the build departed from this plan, and why; or "none">
+Rulings: <each ruling: what was decided, why, what it costs if wrong; or "none">
+Phase-end: <findings deferred to the phase-end list, with severity and file; or "none">
+Forward: <later tasks the forward review changed, and how; or "none">
+Tier: 1
+Rounds: <the reviews and re-reviews run>
+Findings: <Critical n, Important n, Minor n, and what became of each>
+
+Plan: docs/superpowers/plans/2026-10-15-plan-driven-development.md Task 5
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+```
+
+```bash
+git add docs/superpowers/plans/2026-10-15-plan-driven-development.md
+git commit -F .git/PDD_MSG
+git log -1 --format='%(trailers)'
+for h in Drift Rulings Phase-end Forward Tier Rounds Findings; do
+  git log -1 --format=%B | grep -q "^$h: ." || echo "missing $h"
+done
+```
+
+  Expected: the trailers print the `Plan:` line; no `missing` line.
+
+- [ ] **Step 8: Push (standing OK).** From here on the scan uses the skill's own leak check:
+
+  This repo has no hooks, so the scan runs first:
+
+```bash
+git fetch -q origin
+f=$(mktemp)
+git log -p --cc --format='%H%n%B' origin/plan-driven-development..HEAD > "$f"
+uv run --quiet --script plan-driven-development/scripts/leakcheck.py --message "$f"; echo "outgoing: exit=$?"
+rm -f "$f"
+gitleaks git --log-opts=origin/plan-driven-development..HEAD --redact --no-banner .
+git push origin plan-driven-development
+```
+
+  Expected: `outgoing: exit=0` and gitleaks' `no leaks found` before the push runs. Any
+  finding stops the push, a stop that never relaxes: tell Dan the kind and `file:line`, never
+  the excerpt.
+
+***
+
+### Task 6: The four git hooks
+
+**Tier:** 1 · **Scenarios:** S06 (the drill), S07, S08 (through the hook).
+
+**Files:**
+- Create: `plan-driven-development/templates/githooks/pre-commit`, `commit-msg`, `pre-push`,
+  `pre-merge-commit` (mode 755), `gitleaks.toml`
+- Test: `plan-driven-development/tests/test_hooks.py`, `plan-driven-development/tests/test_green_fixture.py`
+
+**Interfaces:**
+- Consumes: `scripts/leakcheck.py` (Task 5), `scripts/commitmsg.py` and `helpers.make_project`
+  (Task 3).
+- Produces: the hooks a project's `.githooks/` gets at kickoff; each refuses without gitleaks 8.19+
+  or uv; `pre-push` refuses `main`, tags, deletions and force pushes and scans what goes out.
+
+- [ ] **Step 1: Write the failing tests,** `plan-driven-development/tests/test_hooks.py`:
+
+```python
+"""The four git hooks and scripts/commitmsg.py, in a throwaway project made the way kickoff makes one.
+Ported in part from local-ai's spark/tests/test_hooks.py (e32096c); the push, merge and format
+checks are new. Tests that need a real gitleaks (8.19+) and uv skip without them."""
+
+import os
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
+
+from helpers import TEMPLATES, denylist, git, gitleaks_has_git, ip, load_script, make_project, token
+
+HOOKS = ("pre-commit", "commit-msg", "pre-push", "pre-merge-commit")
+needs_tools = pytest.mark.skipif(
+    not (gitleaks_has_git() and shutil.which("uv")), reason="needs gitleaks 8.19+ and uv on PATH"
+)
+commitmsg = load_script("commitmsg")
+
+OLD_GITLEAKS = """#!/bin/sh
+# Stands in for gitleaks 8.16: it has no `git` command.
+if [ "$1" = git ]; then echo 'Error: unknown command "git" for "gitleaks"' >&2; exit 1; fi
+exit 0
+"""
+
+PLAN = "Plan: docs/superpowers/plans/2026-01-01-demo.md Task 3"
+COAUTHOR = "Co-Authored-By: An Agent <agent@example.invalid>"
+
+
+def fake_bin(tmp_path: Path, *tools: str) -> Path:
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    for tool in tools:
+        found = shutil.which(tool)
+        assert found, tool
+        (bindir / tool).symlink_to(found)
+    return bindir
+
+
+def run_hook(tmp_path: Path, hook: str, bindir: Path) -> subprocess.CompletedProcess[str]:
+    repo = make_project(tmp_path)
+    message = tmp_path / "msg"
+    message.write_text("hello\n")
+    return subprocess.run(
+        ["bash", str(repo / ".githooks" / hook), str(message)],
+        cwd=repo, env={"PATH": str(bindir), "HOME": str(tmp_path)},
+        capture_output=True, text=True, input="",
+    )
+
+
+def env_with(tmp_path: Path, *terms: str) -> dict[str, str]:
+    return {**os.environ, "LEAKCHECK_DENYLIST": str(denylist(tmp_path, *terms))}
+
+
+def commit(repo: Path, env, message: str, *paths: str):
+    msg = repo.parent / "commit-message"
+    msg.write_text(message)
+    if paths:
+        git(repo, "add", *paths, env=env)
+    return git(repo, "commit", "-q", "-F", str(msg), hooks=True, check=False, env=env)
+
+
+def test_the_hook_templates_are_executable():
+    for name in HOOKS:
+        assert os.access(TEMPLATES / "githooks" / name, os.X_OK), name
+
+
+@pytest.mark.parametrize("hook", ["pre-commit", "commit-msg", "pre-push"])
+def test_a_hook_refuses_without_gitleaks(tmp_path, hook):
+    result = run_hook(tmp_path, hook, fake_bin(tmp_path, "git", "bash", "dirname", "cat"))
+    assert result.returncode == 1
+    assert "gitleaks is not installed" in result.stderr
+
+
+@pytest.mark.parametrize("hook", ["pre-commit", "commit-msg", "pre-push"])
+def test_a_hook_refuses_a_gitleaks_without_the_git_command(tmp_path, hook):
+    bindir = fake_bin(tmp_path, "git", "bash", "dirname", "cat")
+    (bindir / "gitleaks").write_text(OLD_GITLEAKS)
+    (bindir / "gitleaks").chmod(0o755)
+    result = run_hook(tmp_path, hook, bindir)
+    assert result.returncode == 1
+    assert "it needs 8.19 or later" in result.stderr
+
+
+@needs_tools
+@pytest.mark.parametrize("hook", ["pre-commit", "commit-msg", "pre-push"])
+def test_a_hook_refuses_clearly_without_uv(tmp_path, hook):
+    result = run_hook(tmp_path, hook, fake_bin(tmp_path, "git", "bash", "dirname", "cat", "gitleaks"))
+    assert result.returncode == 1
+    assert "uv is not on this shell's PATH" in result.stderr
+
+
+@needs_tools
+def test_a_clean_commit_passes_every_hook(tmp_path):
+    repo = make_project(tmp_path)
+    env = env_with(tmp_path)
+    (repo / "notes.md").write_text("nothing private\n")
+    result = commit(repo, env, f"docs(notes): 🤖 add notes\n\nA body.\n\n{PLAN}\n{COAUTHOR}\n", "notes.md")
+    assert result.returncode == 0, result.stderr
+
+
+@needs_tools
+def test_the_leak_drill_is_refused_and_leaves_nothing_behind(tmp_path):
+    # Kickoff's drill (S06): an invented token and a private address, each staged by path and
+    # committed with -F, each refused; then unstaged and deleted. The repo has no commit yet, so
+    # `git restore --staged` can't run (no HEAD); `git rm --cached` can.
+    repo = make_project(tmp_path)
+    env = env_with(tmp_path)
+    for name, text in (("drill-token.md", f"key {token()}\n"), ("drill-address.md", f"box {ip(192, 168, 50, 7)}\n")):
+        (repo / name).write_text(text)
+        result = commit(repo, env, "test(repo): 🤖 leak drill\n", name)
+        assert result.returncode == 1, (name, result.stderr)
+        git(repo, "rm", "-q", "--cached", name)
+        (repo / name).unlink()
+    assert "drill" not in git(repo, "status", "--porcelain", "--untracked-files=all").stdout
+    assert git(repo, "diff", "--cached", "--name-only").stdout == ""  # nothing left staged
+    assert git(repo, "rev-list", "--all", check=False).stdout == ""  # and no commit made
+
+
+@needs_tools
+def test_a_denylisted_term_in_a_message_is_refused(tmp_path):
+    repo = make_project(tmp_path)
+    env = env_with(tmp_path, "secret-project")
+    (repo / "a.md").write_text("fine\n")
+    result = commit(repo, env, "docs(repo): 🤖 about secret-project\n", "a.md")
+    assert result.returncode == 1
+    assert "denylisted term" in result.stderr and "secret-project" not in result.stderr
+
+
+@needs_tools
+def test_the_commit_msg_hook_runs_the_format_checks(tmp_path):
+    repo = make_project(tmp_path)
+    env = env_with(tmp_path)
+    (repo / "a.md").write_text("fine\n")
+    result = commit(repo, env, f"Update a\n\n{PLAN}\n", "a.md")
+    assert result.returncode == 1 and "isn't Conventional Commits" in result.stderr
+
+
+def pushed_project(tmp_path: Path):
+    """A project with a bare remote whose main has one commit (Dan's first push, made here
+    without hooks), and a phase-1 branch checked out."""
+    repo = make_project(tmp_path)
+    env = env_with(tmp_path)
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
+    git(repo, "remote", "add", "origin", str(remote))
+    (repo / "README.md").write_text("demo\n")
+    assert commit(repo, env, "chore(repo): 🤖 the root commit\n", "README.md").returncode == 0
+    git(repo, "push", "-q", "origin", "main")  # without hooks: Dan's [Dan] step
+    git(repo, "switch", "-q", "-c", "phase-1")
+    return repo, env
+
+
+def push(repo: Path, env, *args: str):
+    return git(repo, "push", *args, hooks=True, check=False, env=env)
+
+
+@needs_tools
+def test_a_clean_new_branch_is_scanned_and_pushed(tmp_path):
+    repo, env = pushed_project(tmp_path)
+    (repo / "b.md").write_text("fine\n")
+    assert commit(repo, env, "docs(repo): 🤖 add b\n", "b.md").returncode == 0
+    result = push(repo, env, "-q", "origin", "phase-1")
+    assert result.returncode == 0, result.stderr
+
+
+@needs_tools
+def test_a_leak_in_an_outgoing_commit_is_refused(tmp_path):
+    repo, env = pushed_project(tmp_path)
+    (repo / "b.md").write_text(f"box {ip(10, 0, 0, 7)}\n")
+    git(repo, "add", "b.md")
+    git(repo, "commit", "-q", "-m", "docs(repo): sneaked past the commit hooks")  # hooks off here
+    result = push(repo, env, "-q", "origin", "phase-1")
+    assert result.returncode == 1
+    assert "outgoing commits" in result.stderr
+
+
+@needs_tools
+@pytest.mark.parametrize(
+    "args, reason",
+    [
+        (("origin", "phase-1:main"), "a push to main is refused"),
+        (("origin", "phase-1:refs/tags/v1"), "a tag push is refused"),
+    ],
+    ids=["to-main", "a-tag"],
+)
+def test_pushes_to_main_and_tags_are_refused(tmp_path, args, reason):
+    repo, env = pushed_project(tmp_path)
+    (repo / "b.md").write_text("fine\n")
+    assert commit(repo, env, "docs(repo): 🤖 add b\n", "b.md").returncode == 0
+    result = push(repo, env, *args)
+    assert result.returncode == 1 and reason in result.stderr
+
+
+@needs_tools
+def test_a_force_push_and_a_deletion_are_refused(tmp_path):
+    repo, env = pushed_project(tmp_path)
+    (repo / "b.md").write_text("fine\n")
+    assert commit(repo, env, "docs(repo): 🤖 add b\n", "b.md").returncode == 0
+    assert push(repo, env, "-q", "origin", "phase-1").returncode == 0
+    git(repo, "reset", "-q", "--hard", "HEAD~1")
+    (repo / "c.md").write_text("fine\n")
+    assert commit(repo, env, "docs(repo): 🤖 add c\n", "c.md").returncode == 0
+    forced = push(repo, env, "--force", "origin", "phase-1")
+    assert forced.returncode == 1 and "force push" in forced.stderr
+    deleted = push(repo, env, "origin", ":phase-1")
+    assert deleted.returncode == 1 and "deleting refs/heads/phase-1 is refused" in deleted.stderr
+
+
+@needs_tools
+def test_a_merge_git_completes_itself_is_checked(tmp_path):
+    repo, env = pushed_project(tmp_path)
+    git(repo, "switch", "-q", "-c", "other", "main")
+    (repo / "leak.md").write_text(f"box {ip(10, 0, 0, 7)}\n")
+    git(repo, "add", "leak.md")
+    git(repo, "commit", "-q", "-m", "docs(repo): sneaked past the commit hooks")  # hooks off here
+    git(repo, "switch", "-q", "phase-1")
+    msg = repo.parent / "merge-message"
+    msg.write_text("chore(repo): 🤖 merge other into phase-1\n")
+    result = git(repo, "merge", "--no-ff", "-F", str(msg), "other", hooks=True, check=False, env=env)
+    assert result.returncode != 0
+    assert "private IPv4 address" in result.stderr
+
+
+@needs_tools
+def test_the_hooks_work_in_a_folder_whose_path_has_a_space(tmp_path):
+    # Review Focus 1: every path in the hooks is quoted.
+    spaced = tmp_path / "My Projects"
+    spaced.mkdir()
+    repo = make_project(spaced)
+    env = env_with(tmp_path)
+    (repo / "notes.md").write_text("nothing private\n")
+    assert commit(repo, env, f"docs(notes): 🤖 add notes\n\nA body.\n\n{PLAN}\n{COAUTHOR}\n", "notes.md").returncode == 0
+    (repo / "leak.md").write_text(f"box {ip(10, 0, 0, 7)}\n")
+    assert commit(repo, env, "docs(notes): 🤖 add a leak\n", "leak.md").returncode == 1
+
+
+@needs_tools
+def test_a_push_of_two_branches_is_refused_if_either_leaks(tmp_path):
+    # Review Focus 4: pre-push reads one line per ref; any leaking ref refuses the whole push.
+    repo, env = pushed_project(tmp_path)
+    (repo / "b.md").write_text("fine\n")
+    assert commit(repo, env, "docs(repo): 🤖 add b\n", "b.md").returncode == 0
+    git(repo, "switch", "-q", "-c", "phase-2", "main")
+    (repo / "c.md").write_text(f"box {ip(10, 0, 0, 7)}\n")
+    git(repo, "add", "c.md")
+    git(repo, "commit", "-q", "-m", "docs(repo): sneaked past the commit hooks")  # hooks off here
+    result = push(repo, env, "origin", "phase-1", "phase-2")
+    assert result.returncode == 1 and "outgoing commits" in result.stderr
+```
+
+  and `plan-driven-development/tests/test_green_fixture.py`:
+
+```python
+"""A GREEN fixture gets the project's hooks, scripts and AGENTS.md from the skill (the harness's
+recipes, checked once the hook templates exist)."""
+
+import shutil
+import subprocess
+import sys
+
+from helpers import SKILL
+
+sys.path.insert(0, str(SKILL / "tests" / "harness"))
+import recipes  # noqa: E402
+
+
+def test_a_green_fixture_gets_the_hooks_and_the_template(tmp_path):
+    skill = tmp_path / "skill"
+    shutil.copytree(SKILL, skill)
+    (skill / "templates" / "AGENTS.md").write_text("# __PROJECT__: how we work\n\nMode: __MODE__. Check: `__CHECK_COMMAND__`.\n")
+    repo = tmp_path / "repo"
+    recipes.build("s20", repo, "green", skill)
+    assert (repo / ".githooks" / "pre-commit").stat().st_mode & 0o111
+    assert (repo / "scripts" / "leakcheck.py").is_file()
+    assert (repo / "AGENTS.md").read_text() == "# tally: how we work\n\nMode: fully vibed. Check: `make check`.\n"
+    assert subprocess.run(["git", "config", "core.hooksPath"], cwd=repo, capture_output=True, text=True).stdout.strip() == ".githooks"
+```
+
+- [ ] **Step 2: Run them; watch them fail.**
+
+```bash
+uv run --quiet --with pytest pytest plan-driven-development/tests/test_hooks.py plan-driven-development/tests/test_green_fixture.py -q
+```
+
+  Expected: `23 failed`, each with `FileNotFoundError: … templates/githooks`.
+
+- [ ] **Step 3: Write the hooks.** `plan-driven-development/templates/githooks/pre-commit`:
+
+```bash
+#!/usr/bin/env bash
+# Leak guard, run on every commit. Never bypass it with --no-verify (AGENTS.md, Security).
+set -euo pipefail
+root="$(git rev-parse --show-toplevel)"
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "leak guard: gitleaks is not installed, so this is refused (AGENTS.md, Security)." >&2
+  exit 1
+fi
+if ! gitleaks git --help >/dev/null 2>&1; then
+  echo "leak guard: this gitleaks has no 'git' command; it needs 8.19 or later (AGENTS.md, Security)." >&2
+  exit 1
+fi
+if ! command -v uv >/dev/null 2>&1; then
+  echo "leak guard: uv is not on this shell's PATH, so this is refused (AGENTS.md, Security)." >&2
+  exit 1
+fi
+gitleaks git --pre-commit --staged --redact --no-banner --config "$root/.githooks/gitleaks.toml" "$root"
+exec uv run --quiet --script "$root/scripts/leakcheck.py" --staged
+```
+
+  `plan-driven-development/templates/githooks/commit-msg`:
+
+```bash
+#!/usr/bin/env bash
+# Leak guard and format check for commit messages; git runs it on merges too. Never bypass it with
+# --no-verify (AGENTS.md, Security).
+set -euo pipefail
+root="$(git rev-parse --show-toplevel)"
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "leak guard: gitleaks is not installed, so this is refused (AGENTS.md, Security)." >&2
+  exit 1
+fi
+if ! gitleaks git --help >/dev/null 2>&1; then
+  echo "leak guard: this gitleaks has no 'git' command; it needs 8.19 or later (AGENTS.md, Security)." >&2
+  exit 1
+fi
+if ! command -v uv >/dev/null 2>&1; then
+  echo "leak guard: uv is not on this shell's PATH, so this is refused (AGENTS.md, Security)." >&2
+  exit 1
+fi
+gitleaks stdin --redact --no-banner --config "$root/.githooks/gitleaks.toml" < "$1"
+uv run --quiet --script "$root/scripts/leakcheck.py" --message "$1"
+exec uv run --quiet --script "$root/scripts/commitmsg.py" "$1"
+```
+
+  `plan-driven-development/templates/githooks/pre-push`:
+
+```bash
+#!/usr/bin/env bash
+# Leak guard, run on every push: scans everything going out, and refuses pushes to main, tags,
+# deletions and force pushes. It fails closed: a push whose contents it can't work out is refused.
+# Never bypass it with --no-verify (AGENTS.md, Security).
+set -euo pipefail
+root="$(git rev-parse --show-toplevel)"
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "leak guard: gitleaks is not installed, so this is refused (AGENTS.md, Security)." >&2
+  exit 1
+fi
+if ! gitleaks git --help >/dev/null 2>&1; then
+  echo "leak guard: this gitleaks has no 'git' command; it needs 8.19 or later (AGENTS.md, Security)." >&2
+  exit 1
+fi
+if ! command -v uv >/dev/null 2>&1; then
+  echo "leak guard: uv is not on this shell's PATH, so this is refused (AGENTS.md, Security)." >&2
+  exit 1
+fi
+zero="0000000000000000000000000000000000000000"
+scanned=0
+while read -r _local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/main)
+      echo "push guard: a push to main is refused; main changes only through a merged PR (AGENTS.md)." >&2
+      exit 1 ;;
+    refs/tags/*)
+      echo "push guard: a tag push is refused; tags are Dan's (AGENTS.md)." >&2
+      exit 1 ;;
+  esac
+  if [ "$local_sha" = "$zero" ]; then
+    echo "push guard: deleting $remote_ref is refused; deleting branches is Dan's (AGENTS.md)." >&2
+    exit 1
+  fi
+  if [ "$remote_sha" = "$zero" ]; then
+    revs="$local_sha --not --remotes"
+  else
+    if ! git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+      echo "push guard: the remote's $remote_ref is at a commit this clone doesn't have; fetch first. Refused." >&2
+      exit 1
+    fi
+    if ! git merge-base --is-ancestor "$remote_sha" "$local_sha"; then
+      echo "push guard: this push would rewrite $remote_ref (a force push), refused (AGENTS.md)." >&2
+      exit 1
+    fi
+    revs="$remote_sha..$local_sha"
+  fi
+  uv run --quiet --script "$root/scripts/leakcheck.py" --range "$revs" < /dev/null
+  gitleaks git --redact --no-banner --log-opts="$revs" --config "$root/.githooks/gitleaks.toml" "$root" < /dev/null
+  scanned=1
+done
+if [ "$scanned" = 1 ]; then
+  exec uv run --quiet --script "$root/scripts/leakcheck.py" --tracked < /dev/null
+fi
+```
+
+  `plan-driven-development/templates/githooks/pre-merge-commit`:
+
+```bash
+#!/usr/bin/env bash
+# Leak guard for a merge git completes by itself: git runs this hook for it, not pre-commit.
+# Never bypass it with --no-verify (AGENTS.md, Security).
+set -euo pipefail
+exec "$(dirname "$0")/pre-commit"
+```
+
+  `plan-driven-development/templates/githooks/gitleaks.toml`:
+
+```toml
+# gitleaks config: the default rules, nothing removed (AGENTS.md, Security).
+[extend]
+useDefault = true
+```
+
+  Then:
+
+```bash
+chmod 755 plan-driven-development/templates/githooks/pre-commit plan-driven-development/templates/githooks/commit-msg plan-driven-development/templates/githooks/pre-push plan-driven-development/templates/githooks/pre-merge-commit
+shellcheck plan-driven-development/templates/githooks/pre-commit plan-driven-development/templates/githooks/commit-msg plan-driven-development/templates/githooks/pre-push plan-driven-development/templates/githooks/pre-merge-commit
+```
+
+- [ ] **Step 4: Run the tests; they pass,** and under `TZ=UTC`. Expected: `23 passed` (on a machine
+  without gitleaks 8.19+ or uv, the tool-dependent tests skip: install them, as the hooks require).
+
+- [ ] **Step 5: Commit** `plan-driven-development: add the four git hooks` (body: what each refuses,
+  that they fail closed, the drill's `git rm --cached` finding; trailer paragraph for Task 6),
+  staging the five hook files and both test files; `git ls-files -s plan-driven-development/templates/githooks`
+  shows mode `100755` for the four hooks.
+
+- [ ] **Step 6: Review, look forward, close (Tier 1).**
+  1. **Mechanical:** the whole test command, and with `TZ=UTC`; shellcheck clean.
+  2. **Backward review:** `mattpocock-skills:code-review` from this task's base, spec = this task,
+     the spec's *Security hooks*, *Pushing, PRs and modes* and *Commits*, and local-ai's
+     `.githooks/` and `spark/tests/test_hooks.py` at `e32096c`; plus the security checklist.
+  3. **Forward review:** Task 7's shellcheck job names all four hooks; Task 9's kickoff reference
+     says to unstage the drill with `git rm --cached`.
+  4. **Docs:** none yet.
+  5. **Close:** **Now** → `Task 7: the project templates, open.` Commit
+     `plan-driven-development: close Task 6: the four git hooks`:
+
+  Write `.git/PDD_MSG`, filling each `<…>`:
+
+```text
+plan-driven-development: close Task 6: the four git hooks
+
+Drift: <how the build departed from this plan, and why; or "none">
+Rulings: <each ruling: what was decided, why, what it costs if wrong; or "none">
+Phase-end: <findings deferred to the phase-end list, with severity and file; or "none">
+Forward: <later tasks the forward review changed, and how; or "none">
+Tier: 1
+Rounds: <the reviews and re-reviews run>
+Findings: <Critical n, Important n, Minor n, and what became of each>
+
+Plan: docs/superpowers/plans/2026-10-15-plan-driven-development.md Task 6
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+```
+
+```bash
+git add docs/superpowers/plans/2026-10-15-plan-driven-development.md
+git commit -F .git/PDD_MSG
+git log -1 --format='%(trailers)'
+for h in Drift Rulings Phase-end Forward Tier Rounds Findings; do
+  git log -1 --format=%B | grep -q "^$h: ." || echo "missing $h"
+done
+```
+
+  Expected: the trailers print the `Plan:` line; no `missing` line.
+
+- [ ] **Step 7: Push (standing OK).**
+
+  This repo has no hooks, so the scan runs first:
+
+```bash
+git fetch -q origin
+f=$(mktemp)
+git log -p --cc --format='%H%n%B' origin/plan-driven-development..HEAD > "$f"
+uv run --quiet --script plan-driven-development/scripts/leakcheck.py --message "$f"; echo "outgoing: exit=$?"
+rm -f "$f"
+gitleaks git --log-opts=origin/plan-driven-development..HEAD --redact --no-banner .
+git push origin plan-driven-development
+```
+
+  Expected: `outgoing: exit=0` and gitleaks' `no leaks found` before the push runs. Any
+  finding stops the push, a stop that never relaxes: tell Dan the kind and `file:line`, never
+  the excerpt.
+
+***
+
+### Task 7: The project templates: CI, Dependabot and `.gitignore`
+
+**Tier:** 1 (CI's leak jobs and the Pages permissions) · **Scenarios:** S17.
+
+**Files:**
+- Create: `plan-driven-development/templates/ci.yml`, `dependabot.yml`, `gitignore`
+- Test: `plan-driven-development/tests/test_templates.py`
+
+**Interfaces:**
+- Consumes: the script paths `scripts/leakcheck.py` (Task 5) and `.githooks/*` (Task 6), as a
+  project has them.
+- Produces: the CI a project gets at kickoff, with the placeholder `__TEST_COMMAND__` that kickoff
+  fills (Task 9's kickoff reference says how), and the `site` and `pages` jobs it deletes for a
+  project whose docs are read on GitHub.
+
+- [ ] **Step 1: Write the failing test,** `plan-driven-development/tests/test_templates.py` (ported
+  from local-ai's `spark/tests/test_workflows.py` at `e32096c`):
+
+```python
+"""Guarantees in the project templates that a later edit could quietly drop (S17). Ported from
+local-ai's spark/tests/test_workflows.py (e32096c), with the site checks and the Pages deploy."""
+
+import re
+
+import yaml
+
+from helpers import TEMPLATES
+
+CI = TEMPLATES / "ci.yml"
+
+
+def workflow() -> dict:
+    return yaml.safe_load(CI.read_text())
+
+
+def jobs() -> dict[str, dict]:
+    return workflow()["jobs"]
+
+
+def steps(job: str | None = None) -> list[dict]:
+    chosen = [jobs()[job]] if job else jobs().values()
+    return [step for j in chosen for step in j["steps"]]
+
+
+def only_step(job_steps: list[dict], fragment: str) -> int:
+    found = [i for i, step in enumerate(job_steps) if fragment in step.get("run", "")]
+    assert len(found) == 1, (fragment, found)
+    return found[0]
+
+
+def test_every_job_has_a_time_limit():
+    for name, job in jobs().items():
+        limit = job.get("timeout-minutes")
+        assert isinstance(limit, int) and 0 < limit <= 30, (name, limit)
+
+
+def test_kickoff_fills_in_exactly_one_test_command():
+    assert CI.read_text().count("__TEST_COMMAND__") == 2  # the run step and the header comment
+    assert [s.get("run") for s in steps("tests")].count("__TEST_COMMAND__") == 1
+
+
+def test_gitleaks_is_fetched_checked_and_run_in_separate_steps():
+    leaks = steps("leaks")
+    download = only_step(leaks, "https://github.com/gitleaks/gitleaks/releases/download/")
+    check = only_step(leaks, "sha256sum -c")
+    scan = only_step(leaks, "./gitleaks git")
+    assert download < check < scan
+    fetch = leaks[download]["run"]
+    assert "--retry 3" in fetch and "--max-time 120" in fetch, fetch
+
+
+def test_the_leak_check_reads_every_tracked_file_and_every_commit():
+    leaks = steps("leaks")
+    checkout = next(s for s in leaks if s.get("uses", "").startswith("actions/checkout@"))
+    assert checkout["with"]["fetch-depth"] == 0
+    tracked = leaks[only_step(leaks, "--tracked --ci")]
+    assert tracked["env"]["CI"] == "true"
+    assert tracked["run"] == "uv run --script scripts/leakcheck.py --tracked --ci"
+    history = leaks[only_step(leaks, "git log -p")]
+    assert history["env"]["CI"] == "true"
+    log, scan = history["run"].strip().splitlines()
+    out = re.fullmatch(r"git log -p (?:--\S+ )*--format='%H%n%B' > (\S+)", log.strip())
+    assert out, log
+    assert scan.strip() == f"uv run --script scripts/leakcheck.py --message {out.group(1)} --ci"
+
+
+def test_no_checkout_keeps_the_job_token():
+    checkouts = [s for s in steps() if s.get("uses", "").startswith("actions/checkout@")]
+    assert checkouts
+    for step in checkouts:
+        assert step.get("with", {}).get("persist-credentials") is False, step
+
+
+def test_every_action_is_pinned_by_a_full_commit_sha():
+    for step in steps():
+        if "uses" in step:
+            assert re.fullmatch(r"[\w.-]+/[\w./-]+@[0-9a-f]{40}", step["uses"]), step["uses"]
+
+
+def test_shellcheck_reads_all_four_hooks():
+    (run,) = [s["run"] for s in steps("shellcheck") if "run" in s]
+    for hook in ("pre-commit", "commit-msg", "pre-push", "pre-merge-commit"):
+        assert f".githooks/{hook}" in run, hook
+
+
+def test_the_site_job_checks_wrappers_unresolved_links_and_every_internal_link():
+    site = steps("site")
+    wrapper = site[only_step(site, "no wrapper for")]
+    assert "docs/superpowers/*.md" in wrapper["run"]
+    render = site[only_step(site, "quarto render website")]
+    assert "Unable to resolve link target" in render["run"] and render["shell"] == "bash"
+    lychee = [s for s in site if s.get("uses", "").startswith("lycheeverse/lychee-action@")]
+    assert len(lychee) == 1 and "--offline" in lychee[0]["with"]["args"]
+    assert lychee[0]["with"]["fail"] is True
+
+
+def test_the_site_deploys_from_main_only_after_every_other_job_passed():
+    ci = jobs()
+    pages = ci["pages"]
+    assert pages["if"] == "github.ref == 'refs/heads/main'"
+    assert set(pages["needs"]) == set(ci) - {"pages"}
+    assert pages["permissions"] == {"pages": "write", "id-token": "write"}
+    assert [s["uses"].split("@")[0] for s in pages["steps"]] == ["actions/deploy-pages"]
+    upload = [s for s in ci["site"]["steps"] if s.get("uses", "").startswith("actions/upload-pages-artifact@")]
+    assert len(upload) == 1 and upload[0]["if"] == "github.ref == 'refs/heads/main'"
+    assert upload[0]["with"]["path"] == "website/_site"
+    for name, job in ci.items():
+        assert name == "pages" or "permissions" not in job, name
+
+
+def test_the_site_can_be_published_by_hand_and_main_runs_are_never_cancelled():
+    wf = workflow()
+    assert "workflow_dispatch" in wf[True]  # YAML 1.1 reads the bare key `on` as true
+    assert wf["permissions"] == {"contents": "read"}
+    assert wf["concurrency"]["cancel-in-progress"] == "${{ github.ref != 'refs/heads/main' }}"
+
+
+def test_dependabot_proposes_actions_updates_a_few_at_a_time():
+    config = yaml.safe_load((TEMPLATES / "dependabot.yml").read_text())
+    (update,) = config["updates"]
+    assert update["package-ecosystem"] == "github-actions" and update["directory"] == "/"
+    assert update["schedule"] == {"interval": "weekly", "day": "friday"}
+    assert update["open-pull-requests-limit"] <= 3
+
+
+def test_the_gitignore_block_keeps_secrets_and_the_ledger_out():
+    lines = (TEMPLATES / "gitignore").read_text().splitlines()
+    for pattern in ("*.env", ".env.*", "*.pem", "*.key", "secrets.*", ".claude/settings.local.json",
+                    ".superpowers/", "website/_site/"):
+        assert pattern in lines, pattern
+```
+
+- [ ] **Step 2: Run it; watch it fail.**
+  `uv run --quiet --with pytest --with pyyaml pytest plan-driven-development/tests/test_templates.py -q`.
+  Expected: `12 failed`, each with `FileNotFoundError: … templates/ci.yml` (or `dependabot.yml`,
+  `gitignore`).
+
+- [ ] **Step 3: Write the templates.** `plan-driven-development/templates/ci.yml`:
+
+```yaml
+name: ci
+# Made from plan-driven-development's template. Runs on every push and PR; on main it also publishes
+# the docs site (the pages job), and so does a run by hand from the Actions tab on main. Kickoff
+# replaces __TEST_COMMAND__ with the project's suite and lint, adds the setup steps the project
+# needs to the tests job, and deletes the site and pages jobs when the docs are read on GitHub
+# instead (AGENTS.md, Docs).
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+# A newer push cancels a branch's older runs, except on main, where a deploy may be running; a task
+# counts as closed when any run from its closing commit onward is green (AGENTS.md, Each task).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+# Every job gets a time limit, so a hung step fails instead of holding a runner for six hours.
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.18"
+      - run: "__TEST_COMMAND__"
+
+  leaks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.18"
+      # Three gitleaks steps, so a red one names its cause: a failed download is a network problem,
+      # a failed checksum is a tampered or corrupt download, and only the scan reports leaks.
+      - name: download gitleaks
+        run: curl -fsSL --retry 3 --max-time 120 -o gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz"
+      - name: check gitleaks against its pinned checksum, then unpack it
+        run: |
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+      - name: gitleaks over the whole history
+        run: ./gitleaks git --redact --no-banner -v --config .githooks/gitleaks.toml .
+      - name: the leak check over every tracked file
+        env:
+          CI: "true"
+        run: uv run --script scripts/leakcheck.py --tracked --ci
+      # gitleaks' rules don't cover addresses, so the leak check also reads every commit's patches
+      # (--cc adds a merge's conflict resolutions) and messages, not only today's tree.
+      - name: the leak check over every commit's patches and messages
+        env:
+          CI: "true"
+        run: |
+          git log -p --cc --format='%H%n%B' > "$RUNNER_TEMP/history.txt"
+          uv run --script scripts/leakcheck.py --message "$RUNNER_TEMP/history.txt" --ci
+
+  shellcheck:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: shellcheck .githooks/pre-commit .githooks/commit-msg .githooks/pre-push .githooks/pre-merge-commit
+
+  site:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: every doc shown on the site has its wrapper
+        shell: bash
+        run: |
+          missing=0
+          while IFS= read -r -d '' doc; do
+            wrapper="website/${doc#docs/}"
+            if [ ! -f "$wrapper" ]; then echo "no wrapper for $doc (expected $wrapper)"; missing=1; fi
+          done < <(git ls-files -z 'docs/superpowers/*.md')
+          exit "$missing"
+      - uses: quarto-dev/quarto-actions/setup@8a96df13519ee81fd526f2dfca5962811136661b # v2.2.0
+        with:
+          version: "1.11.5"
+      # Quarto only warns about a link it can't resolve; here that fails the job.
+      - name: render, failing on a link Quarto can't resolve
+        shell: bash
+        run: |
+          quarto render website 2>&1 | tee "$RUNNER_TEMP/render.log"
+          if grep -q "Unable to resolve link target" "$RUNNER_TEMP/render.log"; then exit 1; fi
+      # A ../ link out of the site breaks with no warning at all, so every internal link is checked.
+      - name: every internal link in the rendered site resolves
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          args: --offline --no-progress website/_site
+          fail: true
+      # On main, the rendered site becomes the artifact the pages job deploys.
+      - if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: website/_site
+
+  # Publishes the site with GitHub's Pages actions ("GitHub Actions" as the Pages source), so there
+  # is no gh-pages branch keeping every rendered version. It runs only on main and only once every
+  # other job passed, so nothing reaches the public site past a failed test or leak scan, and it
+  # alone gets Pages' permissions. One deploy at a time: a newer one waits.
+  pages:
+    if: github.ref == 'refs/heads/main'
+    needs: [tests, leaks, shellcheck, site]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+```
+
+  `plan-driven-development/templates/dependabot.yml`:
+
+```yaml
+# Made from plan-driven-development's template: proposals for the pinned Actions, Fridays, a few at
+# a time. Actions stay pinned by commit SHA; Dependabot moves a SHA pin and its version comment
+# together. A project with a uv lock adds a `uv` entry with `cooldown: default-days: 7`, so nothing
+# under a week old is proposed. Dependabot's PRs are Dan's to merge, into main, between phases.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: friday
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "ci(repo)"
+```
+
+  `plan-driven-development/templates/gitignore` (local-ai's hardening block, plus the ledger and the
+  rendered site):
+
+```gitignore
+# ---------------------------------------------------------------------------
+# Public-repo hardening (plan-driven-development's template): git history is
+# permanent, so these must never reach a commit in the first place.
+# ---------------------------------------------------------------------------
+
+# Credentials, keys, certificates
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+id_rsa*
+id_ecdsa*
+id_ed25519*
+*.kdbx
+secrets.*
+*secret*.yml
+*secret*.yaml
+*credentials*.json
+# A service's secret file is <service>.env, so a copied or rendered one must never stage. If a
+# non-secret template is ever tracked, re-include it by name with a `!` line below these.
+*.env
+.env
+.env.*
+
+# Local agent and editor state that can carry paths and tokens
+.claude/settings.local.json
+
+# superpowers' plan-runner workspace (its ledger); the closing commits copy what matters out of it
+.superpowers/
+
+# The rendered docs site
+website/_site/
+website/.quarto/
+```
+
+- [ ] **Step 4: Run it; it passes.** Expected: `12 passed`.
+
+- [ ] **Step 5: Commit** `plan-driven-development: add the CI, Dependabot and .gitignore templates`
+  (body: the leak jobs, the site checks, the deploy job and its permissions, the pins; trailer
+  paragraph for Task 7), staging the three templates and the test.
+
+- [ ] **Step 6: Review, look forward, close (Tier 1).**
+  1. **Mechanical:** the whole test command, and with `TZ=UTC`.
+  2. **Backward review:** `mattpocock-skills:code-review` from this task's base, spec = this task,
+     the spec's *Docs and the site* (deploy), *Security hooks* (CI) and local-ai's `ci.yml` at
+     `e32096c`; plus the security checklist (every action pinned by SHA to a version at least a
+     week old; no persisted job token; the deploy alone writes to Pages).
+  3. **Forward review:** Task 8's site test runs CI's wrapper-check step from this file; Task 9's
+     kickoff reference says to fill `__TEST_COMMAND__` and when to delete `site` and `pages`.
+  4. **Docs:** none yet.
+  5. **Close:** **Now** → `Task 8: the docs templates, open.` Commit
+     `plan-driven-development: close Task 7: the project templates`:
+
+  Write `.git/PDD_MSG`, filling each `<…>`:
+
+```text
+plan-driven-development: close Task 7: the project templates
+
+Drift: <how the build departed from this plan, and why; or "none">
+Rulings: <each ruling: what was decided, why, what it costs if wrong; or "none">
+Phase-end: <findings deferred to the phase-end list, with severity and file; or "none">
+Forward: <later tasks the forward review changed, and how; or "none">
+Tier: 1
+Rounds: <the reviews and re-reviews run>
+Findings: <Critical n, Important n, Minor n, and what became of each>
+
+Plan: docs/superpowers/plans/2026-10-15-plan-driven-development.md Task 7
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+```
+
+```bash
+git add docs/superpowers/plans/2026-10-15-plan-driven-development.md
+git commit -F .git/PDD_MSG
+git log -1 --format='%(trailers)'
+for h in Drift Rulings Phase-end Forward Tier Rounds Findings; do
+  git log -1 --format=%B | grep -q "^$h: ." || echo "missing $h"
+done
+```
+
+  Expected: the trailers print the `Plan:` line; no `missing` line.
+
+- [ ] **Step 7: Push (standing OK).**
+
+  This repo has no hooks, so the scan runs first:
+
+```bash
+git fetch -q origin
+f=$(mktemp)
+git log -p --cc --format='%H%n%B' origin/plan-driven-development..HEAD > "$f"
+uv run --quiet --script plan-driven-development/scripts/leakcheck.py --message "$f"; echo "outgoing: exit=$?"
+rm -f "$f"
+gitleaks git --log-opts=origin/plan-driven-development..HEAD --redact --no-banner .
+git push origin plan-driven-development
+```
+
+  Expected: `outgoing: exit=0` and gitleaks' `no leaks found` before the push runs. Any
+  finding stops the push, a stop that never relaxes: tell Dan the kind and `file:line`, never
+  the excerpt.
+
+***
+
+### Task 8: The docs templates: the Quarto site, the root files and the message templates
+
+**Tier:** 2 · **Scenarios:** the docs part of S02 (closing-commit template); the site checks.
+
+**Files:**
+- Create: `plan-driven-development/templates/quarto/_quarto.yml`, `index.qmd`, `_overview.qmd`,
+  `architecture.qmd`, `design.qmd`, `wrapper.md`, `changelog.md`, `how-we-work.md`,
+  `_diagram-zoom.html`
+- Create: `plan-driven-development/templates/CLAUDE.md`, `issue-tracker.md`, `close-task.txt`, `wip.txt`
+- Test: `plan-driven-development/tests/test_site.py`
+
+**Interfaces:**
+- Consumes: `templates/ci.yml`'s wrapper-check step (Task 7); `commitmsg.problems` (Task 3).
+- Produces: the files kickoff copies for a site project (placeholders `__PROJECT__`,
+  `__SITE_URL__`, `__REPO_URL__`, `__SPEC__`; a wrapper's `__TITLE__` and `__PATH__`), and the
+  message templates a project keeps in `docs/agents/`.
+
+- [ ] **Step 1: Write the failing test,** `plan-driven-development/tests/test_site.py`:
+
+```python
+"""The docs templates: a sample site rendered from them with real Quarto, CI's wrapper check run
+against it, and the commit-message templates checked once filled in. Rendering skips without
+Quarto; lychee runs only in CI."""
+
+import re
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
+import yaml
+
+from helpers import TEMPLATES, load_script
+
+commitmsg = load_script("commitmsg")
+needs_quarto = pytest.mark.skipif(shutil.which("quarto") is None, reason="needs Quarto on PATH")
+
+SPEC = "2026-01-01-demo-design"
+PLAN = "2026-01-01-demo"
+
+
+def fill(text: str) -> str:
+    return (text.replace("__PROJECT__", "demo").replace("__SITE_URL__", "https://example.invalid/demo/")
+            .replace("__REPO_URL__", "https://example.invalid/demo-repo").replace("__SPEC__", SPEC))
+
+
+def sample_project(tmp_path: Path) -> Path:
+    """A site project as kickoff leaves it: root files, a spec and a plan that link to each other,
+    and the website/ folder from the templates with a wrapper for each doc."""
+    repo = tmp_path / "demo"
+    (repo / "docs/superpowers/specs").mkdir(parents=True)
+    (repo / "docs/superpowers/plans").mkdir(parents=True)
+    (repo / "README.md").write_text("# demo\n\nA demo. The docs are at <https://example.invalid/demo/>.\n")
+    (repo / "AGENTS.md").write_text("# demo: how we work\n\nThe rules, in `docs/agents/`.\n")
+    (repo / "CHANGELOG.md").write_text("# Changelog\n\n## 2026-01-01\n\n- Kickoff.\n")
+    (repo / f"docs/superpowers/specs/{SPEC}.md").write_text(
+        f"# Demo: design spec\n\nThe plan is [Phase 1](../plans/{PLAN}.md).\n"
+    )
+    (repo / f"docs/superpowers/plans/{PLAN}.md").write_text(
+        f"# Demo plan\n\n**Spec:** [the spec](../specs/{SPEC}.md)\n\n***\n\n### Task 1: start\n"
+    )
+    site = repo / "website"
+    shutil.copytree(TEMPLATES / "quarto", site, ignore=shutil.ignore_patterns("wrapper.md"))
+    for path in site.iterdir():
+        if path.suffix in (".yml", ".qmd", ".md"):
+            path.write_text(fill(path.read_text()))
+    wrapper = (TEMPLATES / "quarto" / "wrapper.md").read_text()
+    for kind, name in (("specs", SPEC), ("plans", PLAN)):
+        (site / "superpowers" / kind).mkdir(parents=True, exist_ok=True)
+        (site / "superpowers" / kind / f"{name}.md").write_text(
+            wrapper.replace("__TITLE__", name).replace("__PATH__", f"{kind}/{name}.md")
+        )
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True)
+    return repo
+
+
+def wrapper_check(repo: Path) -> subprocess.CompletedProcess[str]:
+    """CI's wrapper check, run exactly as the template's step gives it."""
+    site = yaml.safe_load((TEMPLATES / "ci.yml").read_text())["jobs"]["site"]["steps"]
+    (step,) = [s for s in site if "no wrapper for" in s.get("run", "")]
+    return subprocess.run(["bash", "-c", step["run"]], cwd=repo, capture_output=True, text=True)
+
+
+def test_ci_finds_a_doc_without_its_wrapper(tmp_path):
+    repo = sample_project(tmp_path)
+    assert wrapper_check(repo).returncode == 0
+    (repo / f"website/superpowers/plans/{PLAN}.md").unlink()
+    result = wrapper_check(repo)
+    assert result.returncode == 1
+    assert f"no wrapper for docs/superpowers/plans/{PLAN}.md" in result.stdout
+
+
+@needs_quarto
+def test_the_sample_site_renders_with_working_cross_links(tmp_path):
+    repo = sample_project(tmp_path)
+    result = subprocess.run(["quarto", "render", "website"], cwd=repo, capture_output=True, text=True)
+    log = result.stdout + result.stderr
+    assert result.returncode == 0, log
+    assert "Unable to resolve link target" not in log, log
+    built = repo / "website/_site/superpowers"
+    spec_html = (built / f"specs/{SPEC}.html").read_text()
+    plan_html = (built / f"plans/{PLAN}.html").read_text()
+    assert f'href="../../superpowers/plans/{PLAN}.html"' in spec_html
+    assert f'href="../../superpowers/specs/{SPEC}.html"' in plan_html
+    home = (repo / "website/_site/index.html").read_text()
+    assert "A demo." in home and "mermaid" in home
+
+
+@needs_quarto
+def test_a_link_quarto_cant_resolve_fails_the_render_check(tmp_path):
+    repo = sample_project(tmp_path)
+    spec = repo / f"docs/superpowers/specs/{SPEC}.md"
+    spec.write_text(spec.read_text() + "\nSee [a missing page](../plans/missing.md).\n")
+    result = subprocess.run(["quarto", "render", "website"], cwd=repo, capture_output=True, text=True)
+    assert "Unable to resolve link target" in result.stdout + result.stderr
+
+
+def filled(template: str) -> str:
+    text = (TEMPLATES / template).read_text()
+    text = text.replace("Task N", "Task 3")
+    return re.sub(r"<[^>]*>", "x", text)
+
+
+@pytest.mark.parametrize("template", ["close-task.txt", "wip.txt"])
+def test_the_message_templates_pass_the_format_checks_once_filled(template):
+    assert commitmsg.problems(filled(template)) == []
+
+
+def test_claude_md_only_reads_agents_md():
+    assert (TEMPLATES / "CLAUDE.md").read_text() == "@AGENTS.md\n"
+```
+
+- [ ] **Step 2: Run it; watch it fail.** Expected: `6 failed` (`FileNotFoundError` for
+  `templates/quarto`, `CLAUDE.md`, `close-task.txt`, `wip.txt`).
+
+- [ ] **Step 3: Write the Quarto templates** in `plan-driven-development/templates/quarto/`.
+  `_quarto.yml`:
+
+```yaml
+# Made from plan-driven-development's template. Kickoff replaces __PROJECT__, __SITE_URL__ and
+# __REPO_URL__. The pages show the repo's own files through includes and wrappers (AGENTS.md, Docs).
+project:
+  type: website
+  output-dir: _site
+
+website:
+  title: "__PROJECT__"
+  site-url: "__SITE_URL__"
+  repo-url: "__REPO_URL__"
+  repo-subdir: website
+  navbar:
+    left:
+      - text: Architecture
+        href: architecture.qmd
+      - text: Design
+        href: design.qmd
+      - text: Changelog
+        href: changelog.md
+      - text: How we work
+        href: how-we-work.md
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    mermaid:
+      theme: neutral
+    include-after-body: _diagram-zoom.html
+```
+
+  `index.qmd`:
+
+```markdown
+---
+pagetitle: "__PROJECT__"
+---
+
+{{< include /../README.md >}}
+
+{{< include _overview.qmd >}}
+
+**Solid** parts are built; **dashed** parts are planned, labelled with the phase that brings them.
+[Architecture](architecture.qmd) has every diagram.
+```
+
+  `_overview.qmd`:
+
+````markdown
+```{mermaid}
+%%| column: page
+%% The overview: one file, included by index.qmd and architecture.qmd, never copied. It changes in
+%% the same commit as any part or path it shows (AGENTS.md, Docs).
+flowchart TB
+  classDef planned stroke-dasharray: 5 5
+  person["a person"] --> app["__PROJECT__"]
+  app --> data[("its data")]
+  app -.-> later["what a later phase adds · Phase 2"]:::planned
+```
+````
+
+  `architecture.qmd`:
+
+````markdown
+---
+title: "Architecture"
+---
+
+Every diagram of the project lives on this page; other pages link here and never draw their own
+copy. Built parts are solid; planned parts are dashed and labelled with the phase that brings them.
+
+## Overview
+
+{{< include _overview.qmd >}}
+
+## How a request flows
+
+```{mermaid}
+flowchart LR
+  classDef planned stroke-dasharray: 5 5
+  person["a person"] --> entry["the entry point"]
+  entry --> work["the work it does"]
+  work --> data[("its data")]
+  entry -.-> later["a later path · Phase 2"]:::planned
+```
+````
+
+  `design.qmd`:
+
+```markdown
+---
+title: "Design"
+---
+
+The spec, the plans, the Q&A pages and the retros, as written in `docs/superpowers/`. Each page here
+shows one of those files through a wrapper; the files themselves are the source. A new plan, Q&A
+page or retro gets its wrapper and its line here in the commit that adds it.
+
+- [The spec](superpowers/specs/__SPEC__.md)
+```
+
+  `wrapper.md`:
+
+```markdown
+---
+pagetitle: "__TITLE__"
+---
+
+{{< include /../docs/superpowers/__PATH__ >}}
+```
+
+  `changelog.md`:
+
+```markdown
+---
+pagetitle: "Changelog"
+---
+
+{{< include /../CHANGELOG.md >}}
+```
+
+  `how-we-work.md`:
+
+```markdown
+---
+pagetitle: "How we work"
+---
+
+{{< include /../AGENTS.md >}}
+```
+
+  `_diagram-zoom.html`, local-ai's `website/_diagram-zoom.html` at `e32096c`, byte for byte (its
+  SHA-256 is `a3ac9a7af682e68cd5cd43940b80f6ec85f67a986a8c093d3e3227e115827881`). Before copying it,
+  check whether Quarto 1.11.5's lightbox now opens wide Mermaid diagrams without cropping (the
+  reason local-ai wrote it); if it does, use the lightbox instead and record a Ruling:
+
+```html
+<!-- Click or tap any Mermaid diagram to open it full-screen, at its natural size, to zoom and pan.
+     Included after the body of every page by _quarto.yml. No library: a <dialog> and a copy of the SVG.
+     Quarto's own lightbox needs mermaid-format: png, whose renders cropped wide diagrams (2026-10-14). -->
+<style>
+  figure.diagram-zoomable { cursor: zoom-in; }
+  figure.diagram-zoomable:focus-visible { outline: 2px solid var(--bs-primary, #2780e3); outline-offset: 4px; }
+  .diagram-zoom-hint { margin: 0.25rem 0 0; font-size: 0.8rem; color: var(--bs-secondary-color, #6c757d); text-align: right; }
+  dialog.diagram-zoom { width: 100vw; height: 100vh; max-width: none; max-height: none; margin: 0; padding: 0;
+    border: 0; background: var(--bs-body-bg, #fff); }
+  dialog.diagram-zoom[open] { display: flex; flex-direction: column; }
+  .diagram-zoom-bar { display: flex; gap: 0.5rem; align-items: center; justify-content: flex-end; padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--bs-border-color, #dee2e6); }
+  .diagram-zoom-bar span { margin-right: auto; font-size: 0.9rem; color: var(--bs-secondary-color, #6c757d); }
+  .diagram-zoom-bar button { min-width: 2.5rem; padding: 0.25rem 0.75rem; border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.375rem; background: var(--bs-body-bg, #fff); color: var(--bs-body-color, #373a3c); }
+  .diagram-zoom-view { flex: 1; overflow: auto; cursor: grab; touch-action: pan-x pan-y pinch-zoom; }
+  .diagram-zoom-view.dragging { cursor: grabbing; user-select: none; }
+  .diagram-zoom-view svg { display: block; margin: 1rem auto; max-width: none !important; height: auto; }
+</style>
+<script>
+(function () {
+  "use strict";
+
+  var STEP = 1.25, MIN = 0.1, MAX = 4;
+  var dialog, view, label, svg, naturalW = 0, naturalH = 0, zoom = 1;
+
+  function build() {
+    dialog = document.createElement("dialog");
+    dialog.className = "diagram-zoom";
+    dialog.setAttribute("aria-label", "Enlarged diagram");
+    dialog.innerHTML =
+      '<div class="diagram-zoom-bar">' +
+      "<span>Drag or scroll to move around. Esc closes.</span>" +
+      '<button type="button" data-act="out" aria-label="Zoom out">−</button>' +
+      '<button type="button" data-act="actual" aria-label="Actual size">100%</button>' +
+      '<button type="button" data-act="in" aria-label="Zoom in">+</button>' +
+      '<button type="button" data-act="fit">Fit</button>' +
+      '<button type="button" data-act="close" aria-label="Close">✕</button>' +
+      "</div>" +
+      '<div class="diagram-zoom-view"></div>';
+    document.body.appendChild(dialog);
+    view = dialog.querySelector(".diagram-zoom-view");
+    label = dialog.querySelector('[data-act="actual"]');
+
+    dialog.querySelector(".diagram-zoom-bar").addEventListener("click", function (e) {
+      var button = e.target.closest("button");
+      var act = button && button.getAttribute("data-act");
+      if (act === "in") setZoom(zoom * STEP);
+      if (act === "out") setZoom(zoom / STEP);
+      if (act === "actual") setZoom(1);
+      if (act === "fit") setZoom(fitZoom());
+      if (act === "close") dialog.close();
+    });
+    dialog.addEventListener("keydown", function (e) {
+      if (e.key === "+" || e.key === "=") setZoom(zoom * STEP);
+      if (e.key === "-") setZoom(zoom / STEP);
+      if (e.key === "0") setZoom(1);
+    });
+    dialog.addEventListener("close", function () { view.innerHTML = ""; svg = null; });
+
+    // A trackpad pinch arrives as a wheel event with ctrlKey set.
+    view.addEventListener("wheel", function (e) {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setZoom(zoom * Math.pow(STEP, -e.deltaY / 100), e.clientX, e.clientY);
+    }, { passive: false });
+
+    // Drag to pan with a mouse; touch keeps the browser's own scrolling.
+    var drag = null;
+    view.addEventListener("pointerdown", function (e) {
+      if (e.pointerType !== "mouse" || e.button !== 0) return;
+      drag = { x: e.clientX, y: e.clientY, left: view.scrollLeft, top: view.scrollTop };
+      view.classList.add("dragging");
+      view.setPointerCapture(e.pointerId);
+    });
+    view.addEventListener("pointermove", function (e) {
+      if (!drag) return;
+      view.scrollLeft = drag.left - (e.clientX - drag.x);
+      view.scrollTop = drag.top - (e.clientY - drag.y);
+    });
+    function endDrag() { drag = null; view.classList.remove("dragging"); }
+    view.addEventListener("pointerup", endDrag);
+    view.addEventListener("pointercancel", endDrag);
+  }
+
+  function fitZoom() {
+    return Math.min((view.clientWidth - 32) / naturalW, (view.clientHeight - 32) / naturalH, 1);
+  }
+
+  // Zoom about a point on screen (the view's centre by default), so what is under it stays put.
+  function setZoom(z, cx, cy) {
+    if (!svg) return;
+    z = Math.max(MIN, Math.min(MAX, z));
+    var rect = view.getBoundingClientRect();
+    var px = (cx === undefined ? rect.width / 2 : cx - rect.left);
+    var py = (cy === undefined ? rect.height / 2 : cy - rect.top);
+    var fx = (view.scrollLeft + px) / view.scrollWidth;
+    var fy = (view.scrollTop + py) / view.scrollHeight;
+    zoom = z;
+    svg.style.width = naturalW * zoom + "px";
+    view.scrollLeft = fx * view.scrollWidth - px;
+    view.scrollTop = fy * view.scrollHeight - py;
+    label.textContent = Math.round(zoom * 100) + "%";
+  }
+
+  function open(figure) {
+    var original = figure.querySelector("svg");
+    if (!original) return;
+    var box = original.viewBox && original.viewBox.baseVal;
+    if (!box || !box.width) return;
+    if (!dialog) build();
+    naturalW = box.width;
+    naturalH = box.height;
+    // The copy keeps the original's id: Mermaid scopes the diagram's styles to it.
+    svg = original.cloneNode(true);
+    svg.removeAttribute("width");
+    svg.removeAttribute("height");
+    view.innerHTML = "";
+    view.appendChild(svg);
+    dialog.showModal();
+    // Natural size, where the text reads as body text; Fit shows the whole diagram.
+    setZoom(1);
+    view.scrollLeft = 0;
+    view.scrollTop = 0;
+  }
+
+  function mark(figure) {
+    if (figure.classList.contains("diagram-zoomable")) return;
+    figure.classList.add("diagram-zoomable");
+    figure.setAttribute("tabindex", "0");
+    figure.setAttribute("role", "button");
+    figure.setAttribute("aria-label", "Enlarge diagram");
+    var hint = document.createElement("p");
+    hint.className = "diagram-zoom-hint";
+    hint.textContent = "Click or tap the diagram to enlarge it.";
+    figure.appendChild(hint);
+  }
+
+  document.querySelectorAll("figure pre.mermaid-js, figure svg.mermaid-js").forEach(function (el) {
+    mark(el.closest("figure"));
+  });
+  document.addEventListener("click", function (e) {
+    var figure = e.target.closest("figure.diagram-zoomable");
+    if (figure && !e.target.closest("a")) open(figure);
+  });
+  document.addEventListener("keydown", function (e) {
+    var figure = e.target.closest && e.target.closest("figure.diagram-zoomable");
+    if (figure && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); open(figure); }
+  });
+})();
+</script>
+```
+
+- [ ] **Step 4: Write the root and message templates.** `plan-driven-development/templates/CLAUDE.md`
+  is the single line `@AGENTS.md`. `plan-driven-development/templates/issue-tracker.md`:
+
+```markdown
+# Issue tracker
+
+Work in this repo is tracked in its plans, not in an issue tracker: `docs/superpowers/plans/`, each
+task with checkbox steps, plus the spec's scenario table and its Later list. A task's state is its
+box, the plan's **Now** line and its closing commit (`docs(plan): 🤖 close Task N: …`).
+
+Anything with a date or someone waiting on it is proposed to Dan as a ticket in his own tracker,
+never filed silently. Dependabot's PRs are the only GitHub PRs besides each phase's own.
+```
+
+  `plan-driven-development/templates/close-task.txt`:
+
+```text
+docs(plan): 🤖 close Task N: <the task's title>
+
+Drift: <how the build departed from the plan, and why; or "none">
+Rulings: <each ruling: what was decided, why, what it costs if wrong; or "none">
+Phase-end: <findings deferred to the phase-end list, each with its severity and file; or "none">
+Forward: <later tasks or phases the forward review changed, and how; or "none">
+Tier: <1, 2 or 3>
+Rounds: <the reviews and re-reviews run; "self-review (no subagent tool)" when so>
+Findings: <Critical n, Important n, Minor n, and what became of each>
+
+Plan: <plan file> Task N
+Co-Authored-By: <the model's own line>
+```
+
+  `plan-driven-development/templates/wip.txt`:
+
+```text
+chore(plan): 🤖 wip Task N: <where it stopped, in a few words>
+
+Done so far: <what this task has built so far, by commit>
+Stopped at: <the step, and what was in progress>
+Tests: <the suite's state: green, or which tests fail and why>
+
+Plan: <plan file> Task N
+Co-Authored-By: <the model's own line>
+```
+
+- [ ] **Step 5: Run it; it passes.** Expected: `6 passed` (the two render tests need Quarto on
+  `PATH`).
+
+- [ ] **Step 6: Commit** `plan-driven-development: add the docs and message templates` (body: the
+  site's pages and wrappers, the render and wrapper checks, the message templates; trailer
+  paragraph for Task 8), staging every file listed above.
+
+- [ ] **Step 7: Review, look forward, close (Tier 2).**
+  1. **Mechanical:** the whole test command, and with `TZ=UTC`.
+  2. **Backward review:** `mattpocock-skills:code-review` from this task's base, spec = this task
+     and the spec's *Docs and the site*; at most one re-review.
+  3. **Forward review:** Task 9's `docs-site.md` names these files and their placeholders; the
+     kickoff reference copies `close-task.txt` and `wip.txt` to `docs/agents/`.
+  4. **Docs:** none yet.
+  5. **Close:** **Now** → `Task 9: the skill text, open.` Commit
+     `plan-driven-development: close Task 8: the docs templates`:
+
+  Write `.git/PDD_MSG`, filling each `<…>`:
+
+```text
+plan-driven-development: close Task 8: the docs templates
+
+Drift: <how the build departed from this plan, and why; or "none">
+Rulings: <each ruling: what was decided, why, what it costs if wrong; or "none">
+Phase-end: <findings deferred to the phase-end list, with severity and file; or "none">
+Forward: <later tasks the forward review changed, and how; or "none">
+Tier: 2
+Rounds: <the reviews and re-reviews run>
+Findings: <Critical n, Important n, Minor n, and what became of each>
+
+Plan: docs/superpowers/plans/2026-10-15-plan-driven-development.md Task 8
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+```
+
+```bash
+git add docs/superpowers/plans/2026-10-15-plan-driven-development.md
+git commit -F .git/PDD_MSG
+git log -1 --format='%(trailers)'
+for h in Drift Rulings Phase-end Forward Tier Rounds Findings; do
+  git log -1 --format=%B | grep -q "^$h: ." || echo "missing $h"
+done
+```
+
+  Expected: the trailers print the `Plan:` line; no `missing` line.
+
+- [ ] **Step 8: Push (standing OK).**
+
+  This repo has no hooks, so the scan runs first:
+
+```bash
+git fetch -q origin
+f=$(mktemp)
+git log -p --cc --format='%H%n%B' origin/plan-driven-development..HEAD > "$f"
+uv run --quiet --script plan-driven-development/scripts/leakcheck.py --message "$f"; echo "outgoing: exit=$?"
+rm -f "$f"
+gitleaks git --log-opts=origin/plan-driven-development..HEAD --redact --no-banner .
+git push origin plan-driven-development
+```
+
+  Expected: `outgoing: exit=0` and gitleaks' `no leaks found` before the push runs. Any
+  finding stops the push, a stop that never relaxes: tell Dan the kind and `file:line`, never
+  the excerpt.
+
+***
+
+### Task 9: The skill text: `templates/AGENTS.md`, `SKILL.md` and the four references
+
+**Tier:** 2 · **Scenarios:** every behavioural scenario (S01–S05, S09–S16, S18–S20), proven in
+Tasks 10 and 11.
+
+**Files:**
+- Create: `plan-driven-development/templates/AGENTS.md`
+- Create: `plan-driven-development/SKILL.md`
+- Create: `plan-driven-development/references/kickoff.md`, `plans.md`, `phase-end.md`, `docs-site.md`
+
+**Interfaces:**
+- Consumes: `tests/red-results.md` (Task 4); every template and script path above; the seven
+  placeholders Task 3's recipes fill.
+- Produces: the skill.
+
+The iron law: this text is written now, after RED, against the failures and rationalizations in
+`tests/red-results.md`. The plan gives each file's contract, not its words: every rule it must
+state (citing the spec section that holds the exact wording), its length budget, and the scenarios
+that check it. Write each rule as a recipe of what the output IS where RED showed wrong-shaped
+output, as a required slot where RED showed a missing element, and as a prohibition with its
+rationalization only where RED showed a rule skipped under pressure (writing-skills, *Match the
+Form to the Failure*).
+
+- [ ] **Step 1: Write `templates/AGENTS.md`, the one copy of every rule that runs each session.**
+  Budget: 100–120 lines. It must contain, as self-contained text a harness without the skill can
+  follow:
+  - a header filled from the placeholders `__PROJECT__`, `__SIZE__`, `__VISIBILITY__`, `__DEMO__`,
+    `__MODE__`, `__CHECK_COMMAND__` and a last line `Made from plan-driven-development __SKILL_VERSION__.`;
+  - **Resume** at every session start, on "where are we?", and after a compaction, a usage-limit
+    stop or a restart: the hooks check, then the read order and the briefing (spec, *Resume*);
+    commits win; the go (S04, S09–S14, S16);
+  - **Each task's loop**, the seven steps (spec, *Each task's loop*), the review tiers and the cap
+    (*Review tiers*), the security checklist and a short scoped re-review brief for harnesses
+    without superpowers or subagents, and a short credited version of Matt's two-axis brief
+    (S02, S03, S18, S19);
+  - **the fifth stop** and the **stops that never relax** (spec, *Pushing, PRs and modes*), with
+    the mode the header names (S03, S12, S13, S20);
+  - **commits**: the subjects table, the trailer paragraph, `-F`, staging by path, never
+    `--no-verify`, no secret on a command line, merges with `git merge --no-ff -F` (spec,
+    *Commits*) (S02, S08);
+  - **pushing**: the standing OK, the pre-push hook, one session per branch, text that leaves without
+    git scanned first (spec, *Pushing, PRs and modes*);
+  - **the overrides table** and the **steering list** (spec, *Overrides and steering*), including
+    "work in place" (S05, S09, S10);
+  - **the asking rules**, a short copy (spec, *The asking rules*) (S01, S03);
+  - **docs true**: wrong docs fixed in the task, missing docs to the phase-end list, diagrams never
+    wait, and a sync table to extend (spec, *Keeping docs true*) (S02);
+  - **security**: the denylist is never read; a leak finding recorded by kind and `file:line` only.
+  It must not restate kickoff, planning, phase end or the docs site: those are in the references.
+
+- [ ] **Step 2: Write `references/kickoff.md`.** Budget: 150–220 lines. The setup questions,
+  safety before the first commit (the drill unstages with `git rm --cached` and deletes the file;
+  an accepted drill commit is a stop), grilling by the asking rules (the full rules here), the design
+  in sections, the spec with its one-line `AGENTS.md` pointer, the root files (`AGENTS.md` from the
+  template with its placeholders filled, `CLAUDE.md`, `README.md`, `docs/agents/issue-tracker.md`,
+  `docs/agents/close-task.txt` and `docs/agents/wip.txt`, the hooks and scripts copied in and
+  `chmod 755` on the hooks, `ci.yml` with `__TEST_COMMAND__` filled and `site`/`pages` deleted for a
+  project read on GitHub), moving an existing `CLAUDE.md` into `AGENTS.md`, the GitHub description
+  and website (text scanned), the council and approval, the GitHub settings checklist (flagged),
+  the docs site and CI as the plan's first tasks (spec, *Kickoff*) (S01).
+
+- [ ] **Step 3: Write `references/plans.md`.** Budget: 100–150 lines. The spec's additions (status
+  lines, outline, the scenario table with Later and dropped rows, Revisions, open items, diagrams
+  by link), the plan's additions (Now after `**Spec:**`, Tier and Scenarios, commit steps written
+  exactly, the Phase end task, Built differently, Ruling lines, the phase-end list), `***` rules,
+  running a phase's listings, a small project that grows (spec, *Planning*).
+
+- [ ] **Step 4: Write `references/phase-end.md`.** Budget: 100–150 lines. The phase-end steps, the
+  small project's subset, the councils (four read-only reviewers; reports committed first; claims
+  checked), the retro and its retuning rules, the PR (title, body, `--match-head-commit`, never
+  `--admin` or `--delete-branch`), and the phase start (spec, *Phase end*, *Phase start*) (S14).
+
+- [ ] **Step 5: Write `references/docs-site.md`.** Budget: 80–130 lines. The three cases, the Quarto
+  site from `templates/quarto/` with its placeholders, wrappers, the pages, links leaving the site,
+  the checks, the deploy, the site task's closing rule, the posit-dev Quarto skills (spec, *Docs and
+  the site*).
+
+- [ ] **Step 6: Write `SKILL.md`.** Budget: 200–300 lines. Frontmatter `name: plan-driven-development`
+  and the spec's description (single-quoted if it contains `: ` or `#`). The six moments, and for
+  each: what triggers it and which file to read before acting (the template for each task and
+  resume; a reference for the rest), named in the imperative ("before kickoff's questions, read
+  `references/kickoff.md`"); that every path is relative to this skill's own base directory (it may
+  be installed as a plugin); and a red-flags table built from `tests/red-results.md`, each row the
+  model's own rationalization against the rule that answers it. It links to the template and never
+  restates its rules.
+
+- [ ] **Step 7: Check the shape:**
+
+```bash
+f=plan-driven-development/SKILL.md; uv run -q --with pyyaml python -c "import yaml,re,sys; p=sys.argv[1]; t=open(p).read(); fm=yaml.safe_load(re.match(r'^---\n(.*?)\n---\n',t,re.S).group(1)); assert fm['name']==p.split('/')[0], p+': name != folder'; assert len(fm['description'])<=1024, p+': description too long'; print(fm['name'], len(fm['description']), t.count(chr(10)), 'lines')" "$f"
+wc -l plan-driven-development/templates/AGENTS.md plan-driven-development/references/*.md
+grep -c '^---' plan-driven-development/references/*.md plan-driven-development/templates/AGENTS.md
+```
+
+  Expected: `plan-driven-development <≤1024> <200–300> lines`; each file within its budget; the
+  `grep -c` counts are all `0` (horizontal rules are `***`).
+
+- [ ] **Step 8: Commit** `plan-driven-development: write the skill text from the RED results`
+  (body: which RED failures each file answers; trailer paragraph for Task 9), staging the six files.
+
+- [ ] **Step 9: Review, look forward, close (Tier 2).**
+  1. **Mechanical:** Step 7's checks; the whole test command still passes.
+  2. **Backward review:** `mattpocock-skills:code-review` from this task's base, spec = this task's
+     contracts and the spec sections they cite; the Spec axis checks every rule listed above is
+     stated, and nothing contradicts the spec.
+  3. **Forward review:** Task 10 runs GREEN against exactly these files.
+  4. **Docs:** none yet.
+  5. **Close:** **Now** → `Task 10: GREEN and REFACTOR, open.` Commit
+     `plan-driven-development: close Task 9: the skill text`:
+
+  Write `.git/PDD_MSG`, filling each `<…>`:
+
+```text
+plan-driven-development: close Task 9: the skill text
+
+Drift: <how the build departed from this plan, and why; or "none">
+Rulings: <each ruling: what was decided, why, what it costs if wrong; or "none">
+Phase-end: <findings deferred to the phase-end list, with severity and file; or "none">
+Forward: <later tasks the forward review changed, and how; or "none">
+Tier: 2
+Rounds: <the reviews and re-reviews run>
+Findings: <Critical n, Important n, Minor n, and what became of each>
+
+Plan: docs/superpowers/plans/2026-10-15-plan-driven-development.md Task 9
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+```
+
+```bash
+git add docs/superpowers/plans/2026-10-15-plan-driven-development.md
+git commit -F .git/PDD_MSG
+git log -1 --format='%(trailers)'
+for h in Drift Rulings Phase-end Forward Tier Rounds Findings; do
+  git log -1 --format=%B | grep -q "^$h: ." || echo "missing $h"
+done
+```
+
+  Expected: the trailers print the `Plan:` line; no `missing` line.
+
+- [ ] **Step 10: Push (standing OK).**
+
+  This repo has no hooks, so the scan runs first:
+
+```bash
+git fetch -q origin
+f=$(mktemp)
+git log -p --cc --format='%H%n%B' origin/plan-driven-development..HEAD > "$f"
+uv run --quiet --script plan-driven-development/scripts/leakcheck.py --message "$f"; echo "outgoing: exit=$?"
+rm -f "$f"
+gitleaks git --log-opts=origin/plan-driven-development..HEAD --redact --no-banner .
+git push origin plan-driven-development
+```
+
+  Expected: `outgoing: exit=0` and gitleaks' `no leaks found` before the push runs. Any
+  finding stops the push, a stop that never relaxes: tell Dan the kind and `file:line`, never
+  the excerpt.
+
+***
+
+### Task 10: GREEN and REFACTOR in Claude Code
+
+**Tier:** 2 · **Scenarios:** S01–S14 and S17–S20 (S06–S08 and S17 through the pytest suite).
+
+**Files:**
+- Create: `plan-driven-development/tests/green-results.md`
+- Modify (REFACTOR only): `SKILL.md`, `templates/AGENTS.md`, the references
+
+**Interfaces:**
+- Consumes: the skill (Task 9), the harness (Task 3).
+- Produces: a skill every scenario passes with.
+
+- [ ] **Step 1: The deterministic scenarios:** the whole test command, and with `TZ=UTC`.
+  Expected: every test passes (S06–S08, S17).
+
+- [ ] **Step 2: Run every behavioural scenario with the skill** (the same model as RED):
+
+```bash
+for s in s01 s02 s03 s04 s05 s09 s10 s11 s12 s13 s14 s18 s19 s20; do
+  uv run --quiet --script plan-driven-development/tests/harness/run.py "$s" --stage green | tee -a .git/PDD_GREEN.txt
+done
+```
+
+  Expected: every check PASS. A failed check is re-run once before it counts (a single run is not
+  proof).
+
+- [ ] **Step 3: REFACTOR each failure that repeats.** Read that session's final answer for the
+  rationalization; add its row to `SKILL.md`'s red-flags table, or tighten the rule in the file
+  that states it (the template for every-session rules); re-run that scenario until it passes; then
+  re-run every scenario whose rule lives in the same file. Each change is its own commit
+  (`plan-driven-development: <what the rule now says>`, trailer paragraph for Task 10), its body
+  quoting the rationalization it closes.
+
+- [ ] **Step 4: Record** in `plan-driven-development/tests/green-results.md`: per scenario, the run
+  that passed (date, model), and each REFACTOR with its commit.
+
+- [ ] **Step 5: Commit** `plan-driven-development: record the GREEN results` (trailer paragraph for
+  Task 10).
+
+- [ ] **Step 6: Review, look forward, close (Tier 2).**
+  1. **Mechanical:** the whole test command; Task 9's shape checks still pass after REFACTOR.
+  2. **Backward review:** `mattpocock-skills:code-review` over the REFACTOR commits, spec = the spec
+     sections whose rules changed: no REFACTOR may contradict the spec; a needed change to the spec
+     is the fifth stop.
+  3. **Forward review:** Task 11 runs S02 and S04 with only `AGENTS.md`; any rule REFACTOR moved
+     into `SKILL.md` that a harness without the skill needs must be in the template instead.
+  4. **Docs:** none yet.
+  5. **Close:** **Now** → `Task 11: portability, open.` Commit
+     `plan-driven-development: close Task 10: GREEN and REFACTOR`:
+
+  Write `.git/PDD_MSG`, filling each `<…>`:
+
+```text
+plan-driven-development: close Task 10: GREEN and REFACTOR
+
+Drift: <how the build departed from this plan, and why; or "none">
+Rulings: <each ruling: what was decided, why, what it costs if wrong; or "none">
+Phase-end: <findings deferred to the phase-end list, with severity and file; or "none">
+Forward: <later tasks the forward review changed, and how; or "none">
+Tier: 2
+Rounds: <the reviews and re-reviews run>
+Findings: <Critical n, Important n, Minor n, and what became of each>
+
+Plan: docs/superpowers/plans/2026-10-15-plan-driven-development.md Task 10
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+```
+
+```bash
+git add docs/superpowers/plans/2026-10-15-plan-driven-development.md
+git commit -F .git/PDD_MSG
+git log -1 --format='%(trailers)'
+for h in Drift Rulings Phase-end Forward Tier Rounds Findings; do
+  git log -1 --format=%B | grep -q "^$h: ." || echo "missing $h"
+done
+```
+
+  Expected: the trailers print the `Plan:` line; no `missing` line.
+
+- [ ] **Step 7: Push (standing OK).**
+
+  This repo has no hooks, so the scan runs first:
+
+```bash
+git fetch -q origin
+f=$(mktemp)
+git log -p --cc --format='%H%n%B' origin/plan-driven-development..HEAD > "$f"
+uv run --quiet --script plan-driven-development/scripts/leakcheck.py --message "$f"; echo "outgoing: exit=$?"
+rm -f "$f"
+gitleaks git --log-opts=origin/plan-driven-development..HEAD --redact --no-banner .
+git push origin plan-driven-development
+```
+
+  Expected: `outgoing: exit=0` and gitleaks' `no leaks found` before the push runs. Any
+  finding stops the push, a stop that never relaxes: tell Dan the kind and `file:line`, never
+  the excerpt.
+
+***
+
+### Task 11: Portability in OpenCode and pi
+
+**Tier:** 3 · **Scenarios:** S15, S16.
+
+**Files:**
+- Modify: `plan-driven-development/tests/green-results.md` (a portability section)
+
+**Interfaces:**
+- Consumes: `portability.py` (Task 3), the template (Task 9).
+- Produces: evidence that "How we work" carries the workflow without the skill.
+
+- [ ] **Step 1: [Dan] Name the model and check the Spark's model is up** (or a cloud model he picks
+  for OpenCode). If it is down, set **Now** to `waiting on Dan: the Spark's model for S15/S16` and
+  stop here; Task 12 may proceed meanwhile, and this task is done before the phase end.
+
+- [ ] **Step 2: S15, S02 in OpenCode:**
+  `uv run --quiet --script plan-driven-development/tests/harness/portability.py s02 --harness opencode --model <model>`.
+  The first run also checks the fixture's `opencode.jsonc` took effect (the run's stderr shows no
+  permission prompts hanging; a denied command shows as denied). Expected: every check PASS or SKIP.
+
+- [ ] **Step 3: S16, S04 in OpenCode, then in pi [Dan's OK for pi, which has no per-command
+  allow-list]:** the same command with `s04`, then `--harness pi`. Expected: PASS or SKIP.
+
+- [ ] **Step 4: Record** the runs in `green-results.md`'s portability section, noting each
+  harness also read Dan's own global instructions; a failure goes back to the template
+  (REFACTOR, as in Task 10 Step 3) and both harnesses re-run.
+
+- [ ] **Step 5: Close (Tier 3).** Commit the results (trailer paragraph for Task 11), then
+  **Now** → `Task 12: release, open.` and commit
+  `plan-driven-development: close Task 11: portability in OpenCode and pi`:
+
+  Write `.git/PDD_MSG`, filling each `<…>`:
+
+```text
+plan-driven-development: close Task 11: portability in OpenCode and pi
+
+Drift: <how the build departed from this plan, and why; or "none">
+Rulings: <each ruling: what was decided, why, what it costs if wrong; or "none">
+Phase-end: <findings deferred to the phase-end list, with severity and file; or "none">
+Forward: <later tasks the forward review changed, and how; or "none">
+Tier: 3
+Rounds: <the reviews and re-reviews run>
+Findings: <Critical n, Important n, Minor n, and what became of each>
+
+Plan: docs/superpowers/plans/2026-10-15-plan-driven-development.md Task 11
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+```
+
+```bash
+git add docs/superpowers/plans/2026-10-15-plan-driven-development.md
+git commit -F .git/PDD_MSG
+git log -1 --format='%(trailers)'
+for h in Drift Rulings Phase-end Forward Tier Rounds Findings; do
+  git log -1 --format=%B | grep -q "^$h: ." || echo "missing $h"
+done
+```
+
+  Expected: the trailers print the `Plan:` line; no `missing` line.
+
+- [ ] **Step 6: Push (standing OK).**
+
+  This repo has no hooks, so the scan runs first:
+
+```bash
+git fetch -q origin
+f=$(mktemp)
+git log -p --cc --format='%H%n%B' origin/plan-driven-development..HEAD > "$f"
+uv run --quiet --script plan-driven-development/scripts/leakcheck.py --message "$f"; echo "outgoing: exit=$?"
+rm -f "$f"
+gitleaks git --log-opts=origin/plan-driven-development..HEAD --redact --no-banner .
+git push origin plan-driven-development
+```
+
+  Expected: `outgoing: exit=0` and gitleaks' `no leaks found` before the push runs. Any
+  finding stops the push, a stop that never relaxes: tell Dan the kind and `file:line`, never
+  the excerpt.
+
+***
+
+### Task 12: Release: the marketplace, the README, this repo's `CLAUDE.md`, `install.sh`
+
+**Tier:** 2 · **Scenarios:** none new; the release makes the skill installable.
+
+**Files:**
+- Modify: `.claude-plugin/marketplace.json` (the `coding` plugin)
+- Modify: `README.md` (a row in the skills table)
+- Modify: `CLAUDE.md` ("How the skills fit together" and the Tests section; Dan's yes on the diff)
+
+**Interfaces:**
+- Consumes: the finished skill.
+- Produces: the skill listed, documented and linked.
+
+- [ ] **Step 1: The marketplace.** In `.claude-plugin/marketplace.json`, the `coding` plugin's
+  `skills` becomes `["./external-app-review", "./plan-driven-development"]` and its `description`
+  becomes `"Coding-agent workflows: plan, build and commit a project in phases so the repo and its
+  history always hold the full story; and an honest outside review of an application another model
+  or agent built, after you have fixed it"`. Check it parses:
+  `python3 -c "import json; json.load(open('.claude-plugin/marketplace.json'))"`.
+
+- [ ] **Step 2: The README row,** after `external-app-review`'s:
+
+```markdown
+| [plan-driven-development](plan-driven-development/) | Coding | Plans a new project with you one question at a time, then builds it task by task with small commits, a backward and a forward review at every step, and docs kept true, so the repo and its history always say where things stand. |
+```
+
+  And a line under the table: `` `preferences.md`, at this repo's root, holds Dan's standing rules
+  for every coding agent (#9 tracks moving it). ``
+
+- [ ] **Step 3: This repo's `CLAUDE.md` [Dan's yes on the diff].** Under "How the skills fit
+  together", **Standalone** gains: `` `plan-driven-development` writes into each new project (its
+  templates and scripts are copied at kickoff) and is read every session through that project's
+  `AGENTS.md`; `preferences.md` (this repo's root) is wired into each harness's global instructions,
+  and moving it means updating those wirings (TODO.md, #9). `` Under **Tests**, replace "Other skills
+  have no tests." with: `` `plan-driven-development` has pytest for its scripts, hooks and templates
+  (`uv run --with pytest --with pyyaml pytest plan-driven-development/tests -q`) and a harness of
+  headless sessions graded per scenario (`tests/harness/`; RED and GREEN results in `tests/`).
+  Other skills have no tests. ``
+
+- [ ] **Step 4: Validate every skill and link it:**
+
+```bash
+for f in */SKILL.md; do uv run -q --with pyyaml python -c "import yaml,re,sys; p=sys.argv[1]; t=open(p).read(); fm=yaml.safe_load(re.match(r'^---\n(.*?)\n---\n',t,re.S).group(1)); assert fm['name']==p.split('/')[0], p+': name != folder'; assert len(fm['description'])<=1024, p+': description too long'; print(fm['name'], len(fm['description']), t.count(chr(10)), 'lines')" "$f"; done
+CLAUDE_SKILLS_DIR="$(mktemp -d)" ./install.sh | grep plan-driven-development
+```
+
+  Expected: every skill prints its line; the scratch install prints `linked   plan-driven-development`.
+  The real `./install.sh` runs at the phase end, after the merge.
+
+- [ ] **Step 5: Commit** `plan-driven-development: list it in the marketplace, the README and CLAUDE.md`
+  (trailer paragraph for Task 12), staging the three files.
+
+- [ ] **Step 6: Review, look forward, close (Tier 2).**
+  1. **Mechanical:** Step 4; the whole test command.
+  2. **Backward review:** `mattpocock-skills:code-review` from this task's base, spec = this task
+     and the spec's *Work outline* step 7.
+  3. **Forward review:** the phase end merges this branch; nothing later consumes these files.
+  4. **Docs:** grep the repo for `preferences.md` and `plan-driven-development`: every mention is
+     true.
+  5. **Close:** **Now** → `Phase end, open.` Commit
+     `plan-driven-development: close Task 12: release`:
+
+  Write `.git/PDD_MSG`, filling each `<…>`:
+
+```text
+plan-driven-development: close Task 12: release
+
+Drift: <how the build departed from this plan, and why; or "none">
+Rulings: <each ruling: what was decided, why, what it costs if wrong; or "none">
+Phase-end: <findings deferred to the phase-end list, with severity and file; or "none">
+Forward: <later tasks the forward review changed, and how; or "none">
+Tier: 2
+Rounds: <the reviews and re-reviews run>
+Findings: <Critical n, Important n, Minor n, and what became of each>
+
+Plan: docs/superpowers/plans/2026-10-15-plan-driven-development.md Task 12
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+```
+
+```bash
+git add docs/superpowers/plans/2026-10-15-plan-driven-development.md
+git commit -F .git/PDD_MSG
+git log -1 --format='%(trailers)'
+for h in Drift Rulings Phase-end Forward Tier Rounds Findings; do
+  git log -1 --format=%B | grep -q "^$h: ." || echo "missing $h"
+done
+```
+
+  Expected: the trailers print the `Plan:` line; no `missing` line.
+
+- [ ] **Step 7: Push (standing OK).**
+
+  This repo has no hooks, so the scan runs first:
+
+```bash
+git fetch -q origin
+f=$(mktemp)
+git log -p --cc --format='%H%n%B' origin/plan-driven-development..HEAD > "$f"
+uv run --quiet --script plan-driven-development/scripts/leakcheck.py --message "$f"; echo "outgoing: exit=$?"
+rm -f "$f"
+gitleaks git --log-opts=origin/plan-driven-development..HEAD --redact --no-banner .
+git push origin plan-driven-development
+```
+
+  Expected: `outgoing: exit=0` and gitleaks' `no leaks found` before the push runs. Any
+  finding stops the push, a stop that never relaxes: tell Dan the kind and `file:line`, never
+  the excerpt.
+
+***
+
+### Phase end (a small project)
+
+**Tier:** — · **Scenarios:** all, re-checked.
+
+- [ ] **1. The final whole-branch review:** `mattpocock-skills:code-review` from
+  `git merge-base main HEAD`, spec = the spec; then one fix dispatch, one scoped re-review
+  (superpowers' `re-review-prompt.md`), and a Ruling on whatever is left. Each fix is its own commit
+  at the tier of what it touches.
+- [ ] **2. The ledger copied:** anything left in `.superpowers/sdd/2026-10-15-plan-driven-development/progress.md`
+  that no closing commit carries goes into this plan, under the task it belongs to, before
+  superpowers deletes the workspace.
+- [ ] **3. The docs check:** every doc this branch touched is true (`README.md`, `CLAUDE.md`,
+  `TODO.md`, the spec's status line set to `PR open (#N)`, this plan's Now); the spec's scenario
+  table's statuses set to `verified` for every scenario that passed GREEN, `built` for any whose
+  run waits (S15/S16 if the Spark was down).
+- [ ] **4. The PR [Dan merges].** The title and body are written to `.git/PDD_PR.md` and scanned
+  first (`uv run --quiet --script plan-driven-development/scripts/leakcheck.py --message .git/PDD_PR.md`
+  and `gitleaks stdin --redact --no-banner < .git/PDD_PR.md`), then:
+
+```bash
+gh pr create -R chendaniely/skills --base main --head plan-driven-development \
+  --title "plan-driven-development: a new skill for planning and building projects in phases" \
+  --body-file .git/PDD_PR.md
+```
+
+  The body summarizes the branch: the spec, the plan, what each task built, the RED and GREEN
+  results, and anything waiting (the portability runs, if so). Dan merges it with a merge commit.
+- [ ] **5. After the merge [Dan's yes]:** on `main`, `./install.sh` (expected:
+  `linked   plan-driven-development`), and `ls -l ~/.claude/skills/plan-driven-development` shows a
+  link into this repo; a new session's skill list shows the skill. Then the spec's status line:
+  `merged <commit> <date>`, in its own commit on `main` with Dan's OK to push it.
