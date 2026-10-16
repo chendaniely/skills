@@ -571,7 +571,8 @@ touched); the Q&A pages, including vibed "decided without Dan" rulings. Commits 
 disagreements. A ~15-line briefing ("since your last OK" means Dan's last Q&A answer or the last
 PR he merged), then the next steps one at a time, waiting for a go; a session started with
 "continue the plan" counts as the go. "Stop for today" makes
-`chore(plan): 🤖 wip Task N: <where it stopped>` with the `Plan:` trailer and pushes it.
+`chore(plan): 🤖 wip Task N: <where it stopped>` with the `Plan:` trailer and pushes it under the
+standing OK, otherwise it asks first.
 
 **Dan:** "usually [offline] means i won't have model access anymore and i won't be vibe coding
 anymore. [usually] offline means the model stops in the middle and i [typically] need to resume
@@ -718,6 +719,257 @@ triggered; scenario 4 tests the recovery.
 or not". So the OpenCode run is in; whether the Spark's model is up gets checked when that run is
 due, and if it's down the run waits rather than being dropped.
 
-## Open for the design council
+## The design council (2026-10-15)
 
-- Question 7's fill for the brief's cut-off parts.
+Four read-only reviewers (goal fit and scenarios, reliability, security, simplicity) reviewed this
+record. The session checked each cited claim before Dan saw it; all held except one: Tier 2 *is*
+defined in Dan's brief ("one review; fix Critical and Important; re-review only if a fix changed
+behaviour beyond what the finding asked"); this record's Question 7 entry had left it out.
+
+### Fixes applied without a decision (consequences of facts, or gaps in approved designs)
+
+- **Leak drill:** a documentation-range address is not private (local-ai's tests list
+  `192.0.2.7` as harmless), so the drill uses a private address joined from parts at run time,
+  as local-ai's `leak-guards.md` does.
+- **The port keeps everything:** CI's two address scans (`--tracked --ci`, and every commit's
+  patches and messages), `test_hooks.py` and `test_workflows.py`, the `.gitignore` hardening and
+  `dependabot.yml`. gitleaks can't take the address patterns: they use lookarounds, which its
+  regex engine lacks.
+- **Trailers:** one final block, `Plan:` with `Co-Authored-By:` and no blank line between
+  (tested, git 2.54: a blank line between them, or prose in the same paragraph, silently drops
+  `Plan:`). The commit-msg hook refuses a Conventional Commits subject that's malformed, a `Plan:`
+  without 🤖, or a 🤖 commit whose `Plan:` didn't parse (with `--no-divider`). Five local-ai commits
+  from other harnesses lack the 🤖.
+- **Closing commit template:** `templates/close-task.txt` with required headings (Drift, Rulings,
+  Phase-end, Forward, Tier, Rounds, Findings) fills the `-F` file; the commit-msg hook refuses a
+  `close Task` message missing one. The same for `wip`. Red flags stay for the stops.
+- **Hooks on before any commit:** kickoff and every resume check `core.hooksPath` and validate the
+  denylist with `leakcheck.py --message /dev/null` (local-ai's `make hooks` does this; it prints
+  nothing). Phase 0 of local-ai committed Tasks 1–8 with the hooks off.
+- **Text that leaves without git** (PR titles and bodies, merge messages, the repo description,
+  issue and PR comments) is written to a file, scanned with `leakcheck.py --message` and
+  `gitleaks stdin`, and passed with `--body-file`.
+- **Merges:** `gh pr merge --merge --match-head-commit <scanned sha>` with a Conventional
+  Commits subject (`chore(repo): 🤖 merge Phase N: … (#N)`) and a body with `Plan:`; never
+  `--admin`, never `--delete-branch`. A phase branch takes in `main` by merge, never rebase.
+- **Tiers:** the spec carries all three from the brief, with Tier 1's examples (permissions,
+  secrets, network exposure, deploy and restart, bootstrap, cutovers). Each finding names file and
+  line, why it matters, and how to fix it. A Critical never goes on the phase-end list: it goes to
+  Dan, vibed or not.
+- **Re-reviews** use superpowers' `re-review-prompt.md` (it checks each finding and the fix diff
+  only), not a fresh run of Matt's review: Question 7 and the brief say "scoped to the fix … not a
+  fresh full review", which Section 9's "reruns it from the fix's parent" contradicted.
+- **Closed only when CI is green:** a red run gets `docs(plan): 🤖 reopen Task N: CI red`,
+  unticking the box and resetting Now; resume checks CI for every close since the last green run.
+- **The phase end is a task:** each plan ends with a "Phase end" task whose boxes are Section 5's
+  steps; council reports are committed to a file before anyone acts on them; status values
+  include `PR open (#N)` and `merged`.
+- **The site task** closes on CI's render and link check; the live-URL check goes on the
+  phase-end list for right after the merge (Pages publishes only from `main`).
+- **Resume:** after a compaction or a usage-limit stop inside a run Dan started, his go stands;
+  the wait for a go applies to a fresh session. It finds the active branch from the newest `Plan:`
+  trailer across all branches. With no ledger mid-review, one fresh review runs from the task's
+  base. Untracked files are listed by name only.
+- **Proof that a test failed first** goes in the build commit body (the failing output line), so
+  it survives a crash.
+- **`Plan:` values:** `<file> Task N` and `<file> Phase end`. Fix-round dispatches carry the
+  commit format and trailer, since no plan step covers them.
+- **Now** goes right after writing-plans' required header, after `**Spec:**`.
+- **Section 9's table** also overrides: "A running plan does not wait on a human";
+  executing-plans' copy of the four stops and its "no reviewer per task"; finishing's "Present
+  the menu and wait" (vibed merges); the plan runner's fix-round resume rule; the worktree consent
+  question. finishing has no default local merge: the override is choosing its PR option.
+- **Asking rules** (list first, one at a time, "N of M" and saying when M changes, A/B/C with a
+  recommendation and self-review) go in both `preferences.md` and `asking.md`, for every question
+  and every [Dan] step.
+- **Later rows come back:** the last phase's forward look offers each `end` or `optional` row:
+  plan it, keep it optional, or drop it.
+- **[Dan] steps:** labelled, saying where they run; Now reads "waiting on Dan: …"; presented on
+  their own.
+- **Growth and change:** a small project that grows keeps its plan as Phase 1 and adds phase files
+  (a Revisions line); a phase with no Tier 1 task still gets four reviewers, and the security one
+  re-checks the tiers; a bug a review missed is fixed with "escaped from Task N (Tier X), found by
+  …" in the commit body.
+- **`AGENTS.md` template** carries local-ai's rules: stage by explicit path; never `--no-verify`;
+  no secret on a command line; one check command.
+- **One check command** named in `AGENTS.md` (a `make check` where the project uses make): the
+  suite, the suite under `TZ=UTC`, lint, the leak scan, the render and link check.
+- **Description:** one short clause on what it is, then the triggers, which meets both this
+  repo's rule and writing-skills' (no workflow in the description).
+- **Kept, with reasons:** the leakcheck port (above); the metrics, since the closing commits
+  already carry them and `git log --grep` tallies them.
+- **Tests added:** resume on another machine with no ledger; a ledger saying complete with no
+  closing commit; a stale summary contradicting the repo (stands in for compaction); a diverged
+  branch; a merge stopped halfway; the trailer-hook drill; a crash during the phase end. The
+  portability run covers resume (scenario 4) as well as scenario 2, in OpenCode and pi.
+- **Test harness:** the skill is copied into the throwaway repo, not linked (a link would carry
+  write access into this public repo); allow-lists name exact `git` subcommands, the leak check,
+  the recipe's test command and gitleaks, with no remote, no `gh`, no network, no MCP
+  (`--strict-mcp-config`), no `env`, no bypass or `acceptEdits` mode; `LEAKCHECK_DENYLIST` points
+  at a fixture of invented terms; session logs stay in scratch; OpenCode gets its own
+  deny-by-default `opencode.json`, and Dan names the model.
+- **This repo's hygiene:** fixtures build look-alike values from joined strings; this branch's
+  first push is scanned first; leak findings are recorded by kind and `file:line`, never the
+  excerpt.
+
+### Decisions for Dan
+
+Recorded below as he answers them. Eleven, asked one at a time.
+
+**1 of 11. When a task counts as "complete".** superpowers' plan runner writes
+`Task <N>: complete` to its git-ignored ledger as soon as the review is clean, before this skill's
+forward review, docs and closing commit, and trusts that line on resume ("do not re-dispatch
+them"). A crash in the gap skips the closing commit; on another machine there is no ledger, and
+the runner restarts at Task 1, which superpowers calls "the single most expensive failure
+observed".
+- **A:** the runner writes "complete" only after the closing commit, naming its SHA; the resume
+  step rebuilds the ledger from the closing commits, in superpowers' exact line format, before
+  handing over. Both go in the override table and `AGENTS.md`.
+- **B:** leave the ledger alone; resume checks each "complete" against a closing commit.
+- **C:** stop using superpowers' runner.
+
+Recommended A: B works only on the machine that crashed; C loses superpowers' prompts. The test
+"resume on another machine with no ledger" catches a future change to the ledger's format.
+**Dan:** "A seems fine".
+
+**2 of 11. Pushing.** As designed, nothing was pushed before the closing commit, so a machine
+switch mid-task left the second machine blind and the branch later diverged.
+- **A:** push every commit under the phase's standing OK, each scanned first (Decision 5's hook);
+  the briefing reports ahead, behind or diverged, and diverged means stop and ask; one session per
+  branch at a time; CI cancels a branch's older runs. Without the standing OK, push at the closing
+  commit after asking.
+- **B:** push at the closing commit only. **C:** A on vibed projects only.
+
+Recommended A. **Dan: A.**
+
+**3 of 11. Phase start.** Question 12 chose a phase-end council and a phase-start forward-and-back
+council, but no section gave the phase start a step. Dan's brief: "Two councils per phase:
+forward-and-back, on the plan before implementation, [and] phase-end".
+- **A:** the phase start is its own step after the merge: branch from a fresh `main`, run the
+  phase's listings, a four-reviewer council on the phase's plan against the code as built, fixes
+  before Task 1.
+- **B:** one council at the boundary does both jobs, before the PR, with the next phase's listings
+  run on the finishing phase's branch; plus one standing push OK at kickoff for all phase
+  branches.
+- **C:** no forward council.
+
+Recommended B. **Dan:** "i like A a bit more. makes it much more clean between steps. you have the
+actual step finish, merge into main, review, then next step."
+
+So the moments are six: kickoff, planning, each task, phase end, **phase start**, resume. Phase
+start: switch to a fresh `main`; branch `phase-N`; run the phase's listings; the council (its
+report committed to a file before anyone acts on it); plan fixes committed as
+`docs(plan): 🤖 phase N start: …`; then Task 1. The standing push OK follows Question 9: it's
+asked when the phase's plan is approved, which on attended projects is this step (vibed projects
+run straight on). The B-only idea of one standing OK at kickoff is not adopted.
+
+**4 of 11. Stops that never relax.** Section 5's list let a vibed agent clear its own leak hit with
+an allow marker.
+- **A:** add seven, in every mode: weakening a guard (loosening or removing a check in the hooks,
+  the gitleaks config, `leakcheck.py`, or CI's leak or publish jobs, or adding any allow marker or
+  ignore entry; adding checks is fine); changing the repo's visibility; tags and releases; repo
+  settings (rulesets, Pages settings, `gh api` writes, `gh` login scopes); merging a PR the agent
+  didn't open, such as Dependabot's (Dan merges those between phases after reading their
+  messages); an open Critical finding; a file the leak check couldn't scan in what's going out
+  (the merge waits and the PR body lists it).
+- **B:** only the GitHub-side four. **C:** no change.
+
+Recommended A. **Dan:** "A is right".
+
+**5 of 11. Two more hooks.** Pushes (now after every commit) and merges git completes itself
+bypass the commit hooks; the documented before-push range also fails on a brand-new branch.
+- **A:** both, in every project, with tests: `pre-push` scans what's going out (for a new branch,
+  everything the remote lacks), the tracked files and gitleaks, refuses pushes to `main`, force
+  pushes and tags, and fails closed when it can't tell what's going out; `pre-merge-commit` runs
+  the commit checks on merges git completes itself.
+- **B:** `pre-push` only. **C:** neither.
+
+Recommended A. Dan's own direct pushes to `main` in such a project would need `--no-verify`, which
+is his to use and never the agent's. **Dan: A.**
+
+**6 of 11. How the site reaches Pages.** local-ai's `gh-pages` branch keeps every rendered version
+in its history, so a leaked page stays public after the fix, and its publish doesn't wait for the
+leak scan.
+- **A:** "GitHub Actions" as the Pages source: one workflow on pushes to `main` runs the leak-scan
+  job, then Quarto's `render` action, `upload-pages-artifact` and `deploy-pages`; the deploy runs
+  only if the scan passed; no `gh-pages` branch, and no write permission on the repo for the
+  publish job.
+- **B:** keep `gh-pages`, gated on the scan. **C:** keep local-ai's way exactly.
+
+Recommended A, proven by the first project's site task and its live-URL check; actions pinned by
+SHA to versions at least a week old (`deploy-pages` v5.0.1, 2026-09-01). Whether local-ai switches
+is a separate, later decision. **Dan: A.**
+
+Mid-way through Decision 7, Dan switched local-ai's Pages source to "GitHub Actions" himself. GitHub
+then reported `build_type=workflow`, and the site still served its last build, but local-ai's
+publish workflow still pushes to `gh-pages`, which Pages no longer reads, so the next push to
+`main` won't update the site. Fixing `publish-website.yml` (and its setup comment, the plan's
+publishing paragraph with a Revisions line, and possibly `test_workflows.py`) joins the local-ai
+fixes, after these decisions.
+
+**7 of 11. GitHub settings at kickoff.** A fresh clone without hooks, or a confused agent, could
+push to `main`; a click could squash-merge a PR.
+- **A:** at kickoff, for every public project, a checklist Dan applies (settings are on
+  Decision 4's list): a ruleset on `main` requiring a PR and CI's checks (leak jobs included),
+  blocking force pushes and deletion, with bypass "For pull requests only" so admins (and so the
+  agent, which pushes with Dan's login) go through a PR; merge commits only, the message defaulting
+  to the PR title and description; Pages source "GitHub Actions"; the description and website.
+  Classic branch protection if rulesets aren't on Dan's plan (unverified).
+- **B:** vibed projects only. **C:** hooks only.
+
+Recommended A. **Dan:** "let's go with A for now. and flag it. there's a chance we only do this for
+vibe'ed projects only". Flagged as an open item in the spec: every public project for now, maybe
+vibed only later.
+
+**8 of 11. Work in place, or in worktrees.** With a worktree, the project's usual folder sits on
+`main` with a stale spec and plan, and superpowers' ledger lives elsewhere, so a resume there
+reads the wrong picture.
+- **A:** in place: the project's folder checks out `phase-N`; `AGENTS.md` declares it, which
+  superpowers' worktree skill honours ("Honor any existing declared preference without asking");
+  resume still lists worktrees. **B:** a worktree per phase. **C:** ask each time.
+
+Recommended A. **Dan:** "let's keep in place as default. and we can always say worktree or use orca
+to force the worktree flow". So when Dan asks for a worktree (or Orca opens one), the spec's status
+line names its path, and resume reads from there.
+
+**9 of 11. One copy of the rules.** The task-closing rule (and others) appeared in `SKILL.md`,
+`references/tasks.md` and the `AGENTS.md` template; only the `AGENTS.md` copy outranks superpowers
+(Section 9), and the others could drift.
+- **A:** the `AGENTS.md` template is the one copy of every rule that runs each session (the task
+  loop, stops, overrides, commit format, check command, resume); `SKILL.md` and the references
+  keep only what particular moments need and link to the template; references go from 7 to 4
+  (`kickoff.md` absorbing `asking.md`, `plans.md`, `phase-end.md` with phase start,
+  `docs-site.md`); the description drops its session-start trigger. "How we work" grows from 60–80
+  lines to about 100–120.
+- **B:** keep the layout, with a test that fails when copies disagree. **C:** keep `AGENTS.md`
+  short, pointing at the skill (fails Question 16's scenario).
+
+Recommended A, which changes Section 1's file list and Question 16's length. **Dan: A.**
+
+**10 of 11. Tier 2 reviews.** Matt's `code-review` runs Standards and Spec as two separate
+subagents, which doubles the reviewers on most tasks.
+- **A:** keep Section 9's choice: Tiers 1 and 2 run Matt's two separate reviewers; the phase
+  retro's metrics decide whether the next phase drops Tier 2 to one.
+- **B:** Tier 2 gets one reviewer under both headings, with Matt's smell list.
+- **C:** one reviewer at every tier.
+
+Recommended A: Matt separates the axes on purpose, and the brief's cost came from fix loops, which
+the tier caps now bound. **Dan: A.**
+
+**11 of 11. A guard on the denylist.** Only prose kept an agent from reading it; Dan's secrets
+guard (35 `Read` deny rules in `~/.claude/settings.json`, and the `block-secret-access.sh` hook,
+since deny rules "only cover the Read tool") doesn't mention it.
+- **A:** both layers: `Read` deny rules for `~/.config/local-ai/denylist` and
+  `~/.config/leakcheck/denylist`, and both paths in the hook's patterns with new test cases;
+  diffs shown first, applied at step 5 with the other config changes; then a scratch-repo commit
+  proves the leak check still runs.
+- **B:** deny rules only. **C:** prose only.
+
+Recommended A. It guards Claude Code only; OpenCode and pi keep the prose rule in `AGENTS.md`.
+**Dan: A.**
+
+## Checked by the design council
+
+- Question 7's fill for the brief's cut-off parts: it matches the surviving text (goal-fit
+  reviewer). Tiers 2 and 3 and the finding format come from the brief itself, and a Critical never
+  goes on the phase-end list.
