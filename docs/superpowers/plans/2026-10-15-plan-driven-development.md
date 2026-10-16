@@ -22,8 +22,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
 
-**Now:** Task 1: preferences.md, the issue, the wiring and the denylist guard; waiting on Dan's
-approval of this plan.
+**Now:** Task 2: restart and check the wiring, open.
 
 ## Global Constraints
 
@@ -49,7 +48,7 @@ approval of this plan.
   `LEAKCHECK_DENYLIST`; a check on the real one only runs the leak check, which prints nothing.
 - **`$LOCAL_AI`:** local-ai's checkout, whose leak check (with Dan's denylist) scans this repo's
   pushes until Task 7 adds the skill's own. Before the first push of a session, in that shell:
-  `export LOCAL_AI=~/git/hub/local-ai`, or the path of Dan's local-ai checkout if it is elsewhere.
+  `export LOCAL_AI=<the path of Dan's local-ai checkout>`.
   Every push block that needs it refuses to run without it.
 - **Commits** use this repo's style, `plan-driven-development: <description>`. Each message is
   written to `.git/PDD_MSG` and committed with `git commit -F .git/PDD_MSG`; it ends with one
@@ -129,6 +128,24 @@ that owns the code:
 
 ### Task 1: `preferences.md`, its issue, the wiring and the denylist guard
 
+> **Built differently** (closed 2026-10-16; commits 877faf9, a82575f; see the closing commit):
+> - The wiring went as planned: issue #9; Claude Code's import; OpenCode's entry (Dan's edit); pi's
+>   link; the denylist link. The deny rules went in as four, not two: Dan also asked for the
+>   `//Users/...` twins his settings file uses, recorded too in his private config repo's reference
+>   settings.
+> - Dan's secrets guard lives in his private config repo (its hooks are linked into
+>   `~/.claude/hooks/`), so the hook change was made and committed there. A background security
+>   review then found the spelled-out pattern missed globs, `cd`, variables and `find`; with Dan's
+>   OK the guard now refuses any mention of either config folder, and `denylist` together with
+>   `.config` (88/88 tests). Shell commands that would carry such text write it to a file first.
+> - Added at Dan's request: `setup.sh`, the root `Makefile` (help, install, setup, setup-check,
+>   sync-guards), `docs/setup.md`, `plan-driven-development/tests/test_setup.py` (28 tests), and a
+>   git-ignored `guards/` holding copies of the guard for his review (Task 1b in the ledger). Its
+>   Tier 1 review found 3 Important items, fixed in one round; the script and its fix were combined
+>   into one commit with Dan's OK, so wording about the guard's blind spots never reached the public
+>   history.
+> - 877faf9 is signed by the model that wrote it (Haiku), not the plan's Opus line.
+
 **Tier:** 1 (it changes Dan's global instructions and his secrets guard) · **Scenarios:** none
 directly; the test sessions are isolated from this wiring (Task 5), so it can come before RED.
 
@@ -147,9 +164,9 @@ directly; the test sessions are isolated from this wiring (Task 5), so it can co
 - Produces: `preferences.md` at the repo root, read by every harness; issue #9; the denylist at
   `~/.config/leakcheck/denylist`, which `scripts/leakcheck.py` (Task 7) reads by default.
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: Write `preferences.md`** with exactly this text:
+- [x] **Step 1: Write `preferences.md`** with exactly this text:
 
 ```markdown
 # Dan's standing preferences for coding agents
@@ -203,7 +220,7 @@ on its list. Diagrams never wait.
 For a new project, use plan-driven-development.
 ```
 
-- [ ] **Step 2: Show Dan the issue text, then create it [Dan's OK].** Write the body to
+- [x] **Step 2: Show Dan the issue text, then create it [Dan's OK].** Write the body to
   `.git/PDD_ISSUE.md`:
 
 ````markdown
@@ -241,7 +258,7 @@ gh issue create -R chendaniely/skills --label enhancement \
   Expected: a URL ending in `/issues/9`. If the number differs, use the printed one in Step 3 and in
   `preferences.md`.
 
-- [ ] **Step 3: Add the TODO item.** In `TODO.md`, change the intro's range
+- [x] **Step 3: Add the TODO item.** In `TODO.md`, change the intro's range
   `([#1](https://github.com/chendaniely/skills/issues/1)–[#8](https://github.com/chendaniely/skills/issues/8))`
   to end at `[#9](https://github.com/chendaniely/skills/issues/9)`, and add under `## Later`:
 
@@ -254,7 +271,7 @@ gh issue create -R chendaniely/skills --label enhancement \
   repo's `CLAUDE.md` and `README.md`, and `plan-driven-development`'s mentions of it.
 ```
 
-- [ ] **Step 4: Commit.** Write `.git/PDD_MSG`:
+- [x] **Step 4: Commit.** Write `.git/PDD_MSG`:
 
 ```text
 plan-driven-development: add preferences.md, Dan's standing rules for every harness
@@ -279,7 +296,7 @@ git log -1 --format='%(trailers)'
 
   Expected: the trailers print `Plan: … Task 1` and the `Co-Authored-By:` line.
 
-- [ ] **Step 5: Wire Claude Code [Dan's yes on the diff].** Compute the line, show Dan the diff it
+- [x] **Step 5: Wire Claude Code [Dan's yes on the diff].** Compute the line, show Dan the diff it
   makes to `~/.claude/CLAUDE.md`, and append it only on his yes:
 
 ```bash
@@ -289,7 +306,7 @@ printf '\n# Shared preferences (all harnesses)\n\n%s\n' "$line"
 
   On yes, append exactly what was printed to the end of `~/.claude/CLAUDE.md` with the Edit tool.
 
-- [ ] **Step 6: Wire OpenCode [Dan, on the Mac].** The agent never reads OpenCode's global config
+- [x] **Step 6: Wire OpenCode [Dan, on the Mac].** The agent never reads OpenCode's global config
   (it can hold provider settings). Dan adds this entry to it, merging with any existing
   `instructions` array, where `<checkout>` is the path the Step 5 command printed after the `@`:
 
@@ -297,7 +314,7 @@ printf '\n# Shared preferences (all harnesses)\n\n%s\n' "$line"
 "instructions": ["<checkout>/preferences.md"]
 ```
 
-- [ ] **Step 7: Wire pi [Dan's yes].** pi has no includes, so its global `AGENTS.md` becomes a
+- [x] **Step 7: Wire pi [Dan's yes].** pi has no includes, so its global `AGENTS.md` becomes a
   link. First check nothing is there:
 
 ```bash
@@ -311,7 +328,7 @@ ln -s "$(git rev-parse --show-toplevel)/preferences.md" ~/.pi/agent/AGENTS.md
 ls -l ~/.pi/agent/AGENTS.md
 ```
 
-- [ ] **Step 8: The denylist link [Dan, on the Mac, and on the Spark for its own].** One denylist
+- [x] **Step 8: The denylist link [Dan, on the Mac, and on the Spark for its own].** One denylist
   per machine serves every project. Dan runs, on the Mac:
 
 ```bash
@@ -322,7 +339,7 @@ mkdir -p ~/.config/leakcheck && ln -s ~/.config/local-ai/denylist ~/.config/leak
   Expected: `present`. (Task 7's leak check validates it without printing anything, and Task 8
   proves the hooks read it.)
 
-- [ ] **Step 9: Guard the denylist [Dan's yes on each diff].** Show Dan, then apply on his yes:
+- [x] **Step 9: Guard the denylist [Dan's yes on each diff].** Show Dan, then apply on his yes:
   1. In `~/.claude/settings.json`, `permissions.deny` gains
      `"Read(~/.config/local-ai/denylist)"` and `"Read(~/.config/leakcheck/denylist)"` (use the
      `update-config` skill, which shows the diff).
@@ -332,7 +349,7 @@ mkdir -p ~/.config/leakcheck && ln -s ~/.config/local-ai/denylist ~/.config/leak
      allowed case for `uv run --script scripts/leakcheck.py --message /dev/null`. Run the guard's
      tests the way its test file says; all pass.
 
-- [ ] **Step 10: Review, look forward, close (Tier 1).**
+- [x] **Step 10: Review, look forward, close (Tier 1).**
   1. **Mechanical:** `git diff --stat "$(cat .git/PDD_BASE)"..HEAD` shows only `preferences.md`
      and `TODO.md`; the wiring shows in `tail -3 ~/.claude/CLAUDE.md`, `ls -l ~/.pi/agent/AGENTS.md`,
      and Dan's word for OpenCode.
@@ -377,7 +394,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 11: Push (standing OK).**
+- [x] **Step 11: Push (standing OK).**
 
   Until Task 7 the scan uses local-ai's leak check, which reads Dan's denylist without printing
   it; `$LOCAL_AI` is local-ai's checkout (Global Constraints). Push only through this block:
@@ -462,6 +479,11 @@ done
 ***
 
 ### Task 3: The commit-message checker, the test helpers and this repo's `Makefile`
+
+> **Forward review, Task 1 (2026-10-16):** the root `Makefile` already exists (Task 1 added `help`,
+> `install`, `setup`, `setup-check` and `sync-guards`). This task **modifies** it instead of creating
+> it: add `test`, `test-utc` and `check-skills`, keep the existing targets and `help`'s format, and
+> extend this task's `make help` test to expect all eight targets. `install` is already there.
 
 **Tier:** 2 · **Scenarios:** S08's format checks; the front door every later task's tests run
 through.
