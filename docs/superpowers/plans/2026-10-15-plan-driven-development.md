@@ -24,6 +24,13 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Now:** Task 5: the session runners, open.
 
+> **Order changed (Dan, 2026-10-16: "is this skill written up yet? i want to test it out"):**
+> after Task 5, run Task 6 (RED), then Tasks 11 and 12 (the skill text), then Dan tries the skill
+> on a real project, then Tasks 7–10 (the leak check, the hooks, the templates), then Task 13
+> (GREEN) onward. writing-skills' rule still holds: no skill text before RED. Until Tasks 7–10
+> land, kickoff's steps that copy templates and scripts have nothing to copy; the skill text says
+> so where it matters.
+
 ## Global Constraints
 
 - **Public repo:** invented or generic values only; look-alike addresses and tokens are built from
