@@ -58,7 +58,9 @@ def write_with_backup(real, new_text):
         if exists:
             shutil.copymode(real, tmp)
         else:
-            os.chmod(tmp, 0o644)
+            mask = os.umask(0)
+            os.umask(mask)
+            os.chmod(tmp, 0o666 & ~mask)
         os.replace(tmp, real)
     except BaseException:
         if os.path.exists(tmp):

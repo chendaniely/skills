@@ -380,6 +380,17 @@ def test_new_agents_file_is_world_readable_mode(home, repo):
     assert agents(home).stat().st_mode & 0o777 == 0o644
 
 
+@pytest.mark.parametrize("umask,mode", [("077", 0o600), ("022", 0o644)])
+def test_new_agents_file_honours_the_umask(home, repo, umask, mode):
+    full = {**os.environ, **UV_ENV, "HOME": str(home)}
+    p = subprocess.run(
+        ["bash", "-c", f'umask {umask}; bash "$1"', "x", str(repo.setup)],
+        env=full, capture_output=True, text=True, cwd=home,
+    )
+    assert p.returncode == 0, p.stdout + p.stderr
+    assert agents(home).stat().st_mode & 0o777 == mode
+
+
 def test_existing_agents_mode_is_kept(home, repo):
     agents(home).parent.mkdir(parents=True)
     agents(home).write_text(OWN_TEXT)
