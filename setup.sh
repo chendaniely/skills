@@ -33,6 +33,40 @@ localai_dir="$config_dir/local""-ai"
 
 say() { printf '%s: %s\n' "$1" "$2"; }
 
+# Shared by the Python in steps 3 and 5: copy the file aside (never over an
+# earlier backup, even one made in the same second), then replace it atomically.
+py_common=$(cat <<'PY'
+import os, shutil, tempfile, time
+
+
+def write_with_backup(real, new_text):
+    folder = os.path.dirname(real)
+    os.makedirs(folder, exist_ok=True)
+    exists = os.path.exists(real)
+    if exists:
+        stamp = time.strftime("%Y%m%d%H%M%S")
+        bak = real + ".bak-" + stamp
+        n = 0
+        while os.path.exists(bak):
+            n += 1
+            bak = "%s.bak-%s-%d" % (real, stamp, n)
+        shutil.copy2(real, bak)
+    fd, tmp = tempfile.mkstemp(dir=folder, prefix=".setup-", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as fh:
+            fh.write(new_text)
+        if exists:
+            shutil.copymode(real, tmp)
+        else:
+            os.chmod(tmp, 0o644)
+        os.replace(tmp, real)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
+PY
+)
+
 # 1. The import block in Claude Code's global CLAUDE.md.
 claude_md="$HOME/.claude/CLAUDE.md"
 import_line="@$prefs"
@@ -75,11 +109,9 @@ fi
 # 3. OpenCode ignores `instructions` entries (measured 2026-10-16) but reads
 # its global AGENTS.md, so keep a marked copy of preferences.md there. Only
 # the text between the markers is ever replaced; its JSON config is never read.
-# SETUP_PREFERENCES points at a stand-in file; it exists for the tests.
-oc_prefs="${SETUP_PREFERENCES:-$prefs}"
 oc_agents="$config_dir/opencode/AGENTS.md"
 py_opencode=$(cat <<'PY'
-import difflib, os, shutil, sys, tempfile, time
+import difflib, os, sys
 
 mode, path, prefs_path = sys.argv[1:4]
 BEGIN = ("<!-- preferences.md: begin (managed by make setup in the skills repo; "
@@ -87,75 +119,71 @@ BEGIN = ("<!-- preferences.md: begin (managed by make setup in the skills repo; 
 END = "<!-- preferences.md: end -->"
 real = os.path.realpath(path)
 
-with open(prefs_path, encoding="utf-8", newline="") as fh:
-    want = fh.read()
-if want and not want.endswith("\n"):
-    want += "\n"
 
-text = ""
-exists = os.path.exists(real)
-if exists:
-    with open(real, encoding="utf-8", newline="") as fh:
-        text = fh.read()
-lines = text.splitlines(True)
-begins = [i for i, x in enumerate(lines) if x.rstrip("\r\n") == BEGIN]
-ends = [i for i, x in enumerate(lines) if x.rstrip("\r\n") == END]
-if (len(begins), len(ends)) not in ((0, 0), (1, 1)) or (begins and ends[0] < begins[0]):
-    print("opencode: warn: the preferences block in AGENTS.md is malformed (a marker is "
-          "missing, doubled or out of order); fix it by hand and re-run, nothing changed")
+def warn(msg):
+    print("opencode: warn: " + msg)
     sys.exit(0)
 
+
+def read(p):
+    try:
+        with open(p, encoding="utf-8", newline="") as fh:
+            return fh.read()
+    except UnicodeDecodeError:
+        warn("%s is not UTF-8 text; left unchanged" % p)
+    except OSError as e:
+        warn("can't read %s (%s); left unchanged" % (p, e.strerror))
+
+
+want = read(prefs_path)
+if want and not want.endswith("\n"):
+    want += "\n"
+if any(x.rstrip("\r") in (BEGIN, END) for x in want.split("\n")):
+    warn("preferences.md itself contains a marker line; left unchanged")
+
+exists = os.path.exists(real)
+text = read(real) if exists else ""
+lines = text.split("\n")
+begins = [i for i, x in enumerate(lines) if x.rstrip("\r") == BEGIN]
+ends = [i for i, x in enumerate(lines) if x.rstrip("\r") == END]
+if (len(begins), len(ends)) not in ((0, 0), (1, 1)) or (begins and ends[0] < begins[0]):
+    warn("the preferences block in AGENTS.md is malformed (a marker is missing, doubled "
+         "or out of order); fix it by hand and re-run, nothing changed")
+
 if begins:
-    have = "".join(lines[begins[0] + 1:ends[0]])
+    b, e = begins[0], ends[0]
+    have = "".join(x + "\n" for x in lines[b + 1:e])
     if have == want:
         print("opencode: ok")
         sys.exit(0)
     if mode == "check":
-        print("opencode: warn: the preferences block in AGENTS.md is stale; run make setup")
-        sys.exit(0)
+        warn("the preferences block in AGENTS.md is stale; run make setup")
     old_block = have
-    new_text = "".join(lines[:begins[0] + 1]) + want + "".join(lines[ends[0]:])
+    new_text = "\n".join(lines[:b + 1]) + "\n" + want + "\n".join(lines[e:])
     verb = "updated"
 else:
     if mode == "check":
-        print("opencode: warn: the preferences block is missing from AGENTS.md; run make setup")
-        sys.exit(0)
+        warn("the preferences block is missing from AGENTS.md; run make setup")
     old_block = ""
     block = BEGIN + "\n" + want + END + "\n"
     if text.strip():
-        sep = ("" if text.endswith("\n") else "\n") + "\n"
-        new_text = text + sep + block
+        new_text = text + ("" if text.endswith("\n") else "\n") + "\n" + block
     else:
         new_text = text + block
     verb = "added"
 
-folder = os.path.dirname(real)
-os.makedirs(folder, exist_ok=True)
-if exists:
-    bak = real + ".bak-" + time.strftime("%Y%m%d%H%M%S")
-    n = 0
-    while os.path.exists(bak):  # never overwrite an earlier backup made in the same second
-        n += 1
-        bak = "%s.bak-%s-%d" % (real, time.strftime("%Y%m%d%H%M%S"), n)
-    shutil.copy2(real, bak)
-fd, tmp = tempfile.mkstemp(dir=folder, prefix=".AGENTS-", suffix=".tmp")
 try:
-    with os.fdopen(fd, "w", encoding="utf-8", newline="") as fh:
-        fh.write(new_text)
-    if exists:
-        shutil.copymode(real, tmp)
-    os.replace(tmp, real)
-except BaseException:
-    if os.path.exists(tmp):
-        os.unlink(tmp)
-    raise
+    write_with_backup(real, new_text)
+except OSError as e:
+    warn("can't write %s (%s); left unchanged" % (path, e.strerror))
 print("opencode: " + verb)
-diff = difflib.unified_diff(old_block.splitlines(True), want.splitlines(True),
-                            "AGENTS.md block (before)", "AGENTS.md block (after)")
-sys.stdout.write("".join(diff))
+sys.stdout.write("".join(difflib.unified_diff(
+    old_block.splitlines(True), want.splitlines(True),
+    "AGENTS.md block (before)", "AGENTS.md block (after)")))
 PY
 )
-uv run --no-project --quiet python -c "$py_opencode" "$([ "$check" = 1 ] && echo check || echo apply)" "$oc_agents" "$oc_prefs"
+uv run --no-project --quiet python -I -c "$py_common
+$py_opencode" "$([ "$check" = 1 ] && echo check || echo apply)" "$oc_agents" "$prefs"
 
 # 4. The leak-check denylist link (existence only; never read).
 if [ -e "$leakcheck_dir/$denylist_name" ]; then
@@ -183,7 +211,7 @@ deny_rules=$(printf 'Read(%s/%s/%s/%s)\nRead(%s/%s/%s/%s)\nRead(~/%s/%s/%s)\nRea
   ".con""fig" "leak""check" "$denylist_name" \
   ".con""fig" "local""-ai" "$denylist_name")
 py_deny=$(cat <<'PY'
-import json, os, shutil, sys, tempfile, time
+import json, os, sys
 
 mode, path, rules_arg = sys.argv[1:4]
 rules = sorted(rules_arg.split("\n"))
@@ -223,28 +251,14 @@ for r in missing:
             pos = i
             break
     deny.insert(pos, r)
-folder = os.path.dirname(real)
-os.makedirs(folder, exist_ok=True)
-if os.path.exists(real):
-    shutil.copy2(real, real + ".bak-" + time.strftime("%Y%m%d%H%M%S"))
-fd, tmp = tempfile.mkstemp(dir=folder, prefix=".settings-", suffix=".tmp")
-try:
-    with os.fdopen(fd, "w", encoding="utf-8") as fh:
-        json.dump(data, fh, indent=2, ensure_ascii=False)
-        fh.write("\n")
-    if os.path.exists(real):
-        shutil.copymode(real, tmp)
-    os.replace(tmp, real)
-except BaseException:
-    if os.path.exists(tmp):
-        os.unlink(tmp)
-    raise
+write_with_backup(real, json.dumps(data, indent=2, ensure_ascii=False) + "\n")
 print("deny-rules: added %d" % len(missing))
 PY
 )
 mode=apply
 [ "$check" = 1 ] && mode=check
-uv run --no-project --quiet python -c "$py_deny" "$mode" "$settings" "$deny_rules"
+uv run --no-project --quiet python -I -c "$py_common
+$py_deny" "$mode" "$settings" "$deny_rules"
 
 # 6. Is there a Bash hook that refuses a command naming the denylist and
 # allows a harmless one? Only hooks whose matcher lists Bash are run, each
@@ -314,4 +328,4 @@ else:
           "while allowing a harmless one; the guard's copy is in guards/ (make sync-guards)")
 PY
 )
-uv run --no-project --quiet python -c "$py_guard" "$settings" "$localai_dir/$denylist_name"
+uv run --no-project --quiet python -I -c "$py_guard" "$settings" "$localai_dir/$denylist_name"

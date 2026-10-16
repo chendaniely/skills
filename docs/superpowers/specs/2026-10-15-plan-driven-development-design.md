@@ -685,7 +685,9 @@ now (Dan's 17b). It holds the standing rules for every project and harness: the
 asking rules (with the count, Dan's rule at Question 17), the self-review before each
 recommendation (his rule at Question 8), wrong docs fixed now, the steering list, "for a new
 project, use plan-driven-development", and "the repo's own rules win". Wiring, each edit shown to
-Dan first: an `@` import in `~/.claude/CLAUDE.md`; a marked block in OpenCode's global `AGENTS.md`, kept by `make setup` (OpenCode ignores `instructions` entries: measured 2026-10-16, a canary file listed there never reached the model, while the global and project `AGENTS.md` did);
+Dan first: an `@` import in `~/.claude/CLAUDE.md`; a marked block in OpenCode's global
+`AGENTS.md`, kept by `make setup` (OpenCode ignores `instructions` entries: measured 2026-10-16,
+a canary file listed there never reached the model, while the global and project `AGENTS.md` did);
 a symlink at `~/.pi/agent/AGENTS.md`; Hermes left out (its only global file is `SOUL.md`, its
 identity, and its docs say "leave preferences and profile facts to memory"). A `TODO.md` item and
 its GitHub issue record the move to a separate repo of agent global instructions with a setup

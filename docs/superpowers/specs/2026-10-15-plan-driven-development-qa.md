@@ -400,6 +400,7 @@ Recommended A. **Dan: A.**
   an `@` import for Claude Code, an `instructions` entry for OpenCode, a symlink for pi. Hermes is
   left out: its only global file, `SOUL.md`, is its identity, and its docs say "leave preferences
   and profile facts to memory".
+  *(Corrected 2026-10-16: OpenCode 2.0.25 ignores `instructions` entries (measured); preferences.md reaches it through a block `make setup` keeps in its global `AGENTS.md`, Dan's choice.)*
 - **B:** a private file outside git. **C:** a copy in each harness's file.
 
 Recommended A. **Dan:** "A -- but why is it [preferences].md not in a separate subfolder in

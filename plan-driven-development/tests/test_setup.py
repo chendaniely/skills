@@ -189,7 +189,7 @@ BEGIN = (
     "edit preferences.md there, not here) -->"
 )
 END = "<!-- preferences.md: end -->"
-PONYTAIL = "# Ponytail\n\nstand-in for Dan's own text, kept exactly.\n"
+OWN_TEXT = "# Ponytail\n\nstand-in for Dan's own text, kept exactly.\n"
 
 
 def agents(home):
@@ -200,75 +200,83 @@ def oc_backups(home):
     return sorted(agents(home).parent.glob("AGENTS.md.bak-*"))
 
 
+class Throwaway:
+    """A copy of setup.sh next to a stand-in preferences.md, so the script reads its own sibling."""
+
+    def __init__(self, folder):
+        folder.mkdir()
+        self.prefs = folder / "preferences.md"
+        self.prefs.write_text("# Prefs\n\nrule one\nrule two\n")
+        self.setup = folder / "setup.sh"
+        self.setup.write_text(SETUP.read_text())
+
+    def run(self, home, *args, **kw):
+        return run(home, *args, setup=self.setup, **kw)
+
+
 @pytest.fixture
-def prefs_file(tmp_path):
-    p = tmp_path / "prefs-standin.md"
-    p.write_text("# Prefs\n\nrule one\nrule two\n")
-    return p
+def repo(tmp_path):
+    return Throwaway(tmp_path / "repo")
 
 
-def oc_env(prefs_file):
-    return {"SETUP_PREFERENCES": str(prefs_file)}
-
-
-def test_opencode_block_created_in_new_file(home, prefs_file):
-    out = run(home, env=oc_env(prefs_file))
+def test_opencode_block_created_in_new_file(home, repo):
+    out = repo.run(home)
     assert line(out, "opencode").startswith("added")
-    assert agents(home).read_text() == f"{BEGIN}\n{prefs_file.read_text()}{END}\n"
+    assert agents(home).read_text() == f"{BEGIN}\n{repo.prefs.read_text()}{END}\n"
     assert oc_backups(home) == []
     assert "+rule one" in out
 
 
-def test_opencode_block_appended_once_and_ponytail_kept(home, prefs_file):
+def test_opencode_block_appended_once_and_own_text_kept(home, repo):
     agents(home).parent.mkdir(parents=True)
-    agents(home).write_text(PONYTAIL)
-    out = run(home, env=oc_env(prefs_file))
+    agents(home).write_text(OWN_TEXT)
+    out = repo.run(home)
     assert line(out, "opencode").startswith("added")
     text = agents(home).read_text()
-    assert text == f"{PONYTAIL}\n{BEGIN}\n{prefs_file.read_text()}{END}\n"
+    assert text == f"{OWN_TEXT}\n{BEGIN}\n{repo.prefs.read_text()}{END}\n"
     assert len(oc_backups(home)) == 1
-    assert oc_backups(home)[0].read_text() == PONYTAIL
-    out2 = run(home, env=oc_env(prefs_file))
+    assert oc_backups(home)[0].read_text() == OWN_TEXT
+    out2 = repo.run(home)
     assert line(out2, "opencode").startswith("ok")
     assert agents(home).read_text() == text
     assert len(oc_backups(home)) == 1
 
 
-def test_opencode_block_updated_only_inside_markers(home, prefs_file):
+def test_opencode_block_updated_only_inside_markers(home, repo):
     agents(home).parent.mkdir(parents=True)
     tail = "\nafter the block\n"
-    agents(home).write_text(PONYTAIL)
-    run(home, env=oc_env(prefs_file))
+    agents(home).write_text(OWN_TEXT)
+    repo.run(home)
     with agents(home).open("a") as fh:
         fh.write(tail)
     before = agents(home).read_text()
-    prefs_file.write_text("# Prefs\n\nrule one\nrule CHANGED\n")
-    out = run(home, env=oc_env(prefs_file))
+    repo.prefs.write_text("# Prefs\n\nrule one\nrule CHANGED\n")
+    out = repo.run(home)
     assert line(out, "opencode").startswith("updated")
     assert "+rule CHANGED" in out and "-rule two" in out
     assert agents(home).read_text() == (
-        f"{PONYTAIL}\n{BEGIN}\n{prefs_file.read_text()}{END}\n{tail}"
+        f"{OWN_TEXT}\n{BEGIN}\n{repo.prefs.read_text()}{END}\n{tail}"
     )
-    assert agents(home).read_text().startswith(PONYTAIL)
+    assert agents(home).read_text().startswith(OWN_TEXT)
     assert agents(home).read_text().endswith(tail)
     assert len(oc_backups(home)) == 2
     assert any(b.read_text() == before for b in oc_backups(home))
-    assert line(run(home, env=oc_env(prefs_file)), "opencode").startswith("ok")
+    assert line(repo.run(home), "opencode").startswith("ok")
     assert len(oc_backups(home)) == 2
 
 
-def test_opencode_check_reports_missing_and_stale_and_changes_nothing(home, prefs_file):
+def test_opencode_check_reports_missing_and_stale_and_changes_nothing(home, repo):
     before = snapshot(home)
-    out = run(home, "--check", env=oc_env(prefs_file))
+    out = repo.run(home, "--check")
     assert line(out, "opencode").startswith("warn")
     assert "missing" in line(out, "opencode")
     assert "make setup" in line(out, "opencode")
     assert snapshot(home) == before
-    run(home, env=oc_env(prefs_file))
-    assert line(run(home, "--check", env=oc_env(prefs_file)), "opencode") == "ok"
-    prefs_file.write_text("changed\n")
+    repo.run(home)
+    assert line(repo.run(home, "--check"), "opencode") == "ok"
+    repo.prefs.write_text("changed\n")
     before = snapshot(home)
-    out = run(home, "--check", env=oc_env(prefs_file))
+    out = repo.run(home, "--check")
     assert line(out, "opencode").startswith("warn")
     assert "stale" in line(out, "opencode")
     assert snapshot(home) == before
@@ -277,33 +285,130 @@ def test_opencode_check_reports_missing_and_stale_and_changes_nothing(home, pref
 @pytest.mark.parametrize(
     "body",
     [
-        f"{PONYTAIL}\n{BEGIN}\nno end\n",
+        f"{OWN_TEXT}\n{BEGIN}\nno end\n",
         f"{BEGIN}\na\n{BEGIN}\nb\n{END}\n",
         f"{END}\nonly an end\n",
     ],
 )
-def test_opencode_malformed_block_warns_and_changes_nothing(home, prefs_file, body):
+def test_opencode_malformed_block_warns_and_changes_nothing(home, repo, body):
     agents(home).parent.mkdir(parents=True)
     agents(home).write_text(body)
     before = agents(home).parent.joinpath("AGENTS.md").read_bytes()
     for args in ((), ("--check",)):
-        out = run(home, *args, env=oc_env(prefs_file))
+        out = run(home, *args)
         assert line(out, "opencode").startswith("warn")
         assert agents(home).read_bytes() == before
         assert oc_backups(home) == []
 
 
-def test_opencode_never_touches_its_json_config(home, prefs_file):
+def test_opencode_never_touches_its_json_config(home, repo):
     cfg = home / CFG / "opencode" / "opencode.json"
     cfg.parent.mkdir(parents=True)
     cfg.write_text('{"instructions": []}')
     cfg.chmod(0)
     try:
-        out = run(home, env=oc_env(prefs_file))
+        out = run(home)
     finally:
         cfg.chmod(0o644)
     assert line(out, "opencode").startswith("added")
     assert cfg.read_text() == '{"instructions": []}'
+
+
+def test_no_override_can_point_the_script_at_another_file(home, repo, tmp_path):
+    secret = tmp_path / "other.md"
+    secret.write_text("SECRET-STAND-IN\n")
+    out = repo.run(home, env={"SETUP_PREFERENCES": str(secret)})
+    assert "SECRET-STAND-IN" not in out
+    assert "SECRET-STAND-IN" not in agents(home).read_text()
+    assert "SETUP_PREFERENCES" not in SETUP.read_text()
+
+
+def test_opencode_non_utf8_agents_is_left_alone_and_later_steps_run(home, repo):
+    agents(home).parent.mkdir(parents=True)
+    agents(home).write_bytes(b"caf\xe9 \xff\xfe\n")
+    for args in ((), ("--check",)):
+        out = repo.run(home, *args)
+        assert line(out, "opencode").startswith("warn: ")
+        assert "not UTF-8" in line(out, "opencode")
+        assert agents(home).read_bytes() == b"caf\xe9 \xff\xfe\n"
+        assert oc_backups(home) == []
+        assert line(out, "guard")  # the script went on
+
+
+def test_opencode_unreadable_agents_warns_and_later_steps_run(home, repo):
+    agents(home).parent.mkdir(parents=True)
+    agents(home).write_text("x")
+    agents(home).chmod(0)
+    try:
+        out = repo.run(home)
+    finally:
+        agents(home).chmod(0o644)
+    assert line(out, "opencode").startswith("warn: ")
+    assert oc_backups(home) == []
+    assert line(out, "guard")
+
+
+@pytest.mark.parametrize("which", [BEGIN, END])
+def test_opencode_marker_inside_preferences_is_refused(home, repo, which):
+    repo.prefs.write_text(f"rule\n{which}\nmore\n")
+    out = repo.run(home)
+    assert line(out, "opencode").startswith("warn: ")
+    assert not agents(home).exists()
+
+
+def test_opencode_marker_must_be_a_whole_line(home, repo):
+    agents(home).parent.mkdir(parents=True)
+    text = f"see {BEGIN} and {END} in prose\n"
+    agents(home).write_text(text)
+    out = repo.run(home)
+    assert line(out, "opencode").startswith("added")
+    assert agents(home).read_text().startswith(text)
+
+
+def test_opencode_form_feed_and_carriage_returns_are_not_line_breaks(home, repo):
+    agents(home).parent.mkdir(parents=True)
+    own = "a\x0cb\x1dc\u2028d\r\ne\n"
+    agents(home).write_bytes(own.encode())
+    repo.run(home)
+    repo.prefs.write_text("new\n")
+    repo.run(home)
+    assert agents(home).read_bytes().startswith(own.encode())
+
+
+def test_new_agents_file_is_world_readable_mode(home, repo):
+    repo.run(home)
+    assert agents(home).stat().st_mode & 0o777 == 0o644
+
+
+def test_existing_agents_mode_is_kept(home, repo):
+    agents(home).parent.mkdir(parents=True)
+    agents(home).write_text(OWN_TEXT)
+    agents(home).chmod(0o600)
+    repo.run(home)
+    assert agents(home).stat().st_mode & 0o777 == 0o600
+
+
+def test_same_second_backups_do_not_overwrite_each_other(home, repo):
+    agents(home).parent.mkdir(parents=True)
+    agents(home).write_text(OWN_TEXT)
+    repo.run(home)
+    first = agents(home).read_text()
+    repo.prefs.write_text("v2\n")
+    repo.run(home)
+    repo.prefs.write_text("v3\n")
+    repo.run(home)
+    contents = [b.read_text() for b in oc_backups(home)]
+    assert OWN_TEXT in contents and first in contents and len(contents) == 3
+
+
+def test_python_runs_isolated_so_a_planted_module_is_not_imported(home, repo):
+    # cwd is the home dir (see run()); a json.py there must not be picked up.
+    (home / "json.py").write_text("raise SystemExit('planted module imported')\n")
+    (home / "difflib.py").write_text("raise SystemExit('planted module imported')\n")
+    out = repo.run(home)
+    assert "planted" not in out
+    assert line(out, "opencode").startswith("added")
+    assert line(out, "deny-rules").startswith("added")
 
 
 # ---- fix round 1 ----

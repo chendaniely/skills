@@ -158,6 +158,7 @@ directly; the test sessions are isolated from this wiring (Task 5), so it can co
   OpenCode's global config (one `instructions` entry, Dan's edit); `~/.pi/agent/AGENTS.md` (a
   symlink); `~/.claude/settings.json` (two deny rules); Dan's own secrets guard and its test file
   (two protected paths); `~/.config/leakcheck/denylist` (a link, Dan's step)
+  *(Corrected 2026-10-16: OpenCode 2.0.25 ignores `instructions` entries (measured); preferences.md reaches it through a block `make setup` keeps in its global `AGENTS.md`, Dan's choice.)*
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks.
@@ -238,6 +239,8 @@ that name `preferences.md` (`plan-driven-development`). Decided on 2026-10-15; s
 `docs/superpowers/specs/2026-10-15-plan-driven-development-qa.md`, Question 17b.
 ````
 
+*(Corrected 2026-10-16: OpenCode 2.0.25 ignores `instructions` entries (measured); preferences.md reaches it through a block `make setup` keeps in its global `AGENTS.md`, Dan's choice.)*
+
   Scan it first, with `$LOCAL_AI` set (Global Constraints):
 
 ```bash
@@ -270,6 +273,8 @@ gh issue create -R chendaniely/skills --label enhancement \
   steipete/agent-scripts does with `sync-skills`. When it moves, update the three wirings, this
   repo's `CLAUDE.md` and `README.md`, and `plan-driven-development`'s mentions of it.
 ```
+
+*(Corrected 2026-10-16: OpenCode 2.0.25 ignores `instructions` entries (measured); preferences.md reaches it through a block `make setup` keeps in its global `AGENTS.md`, Dan's choice.)*
 
 - [x] **Step 4: Commit.** Write `.git/PDD_MSG`:
 
@@ -313,6 +318,8 @@ printf '\n# Shared preferences (all harnesses)\n\n%s\n' "$line"
 ```json
 "instructions": ["<checkout>/preferences.md"]
 ```
+
+*(Corrected 2026-10-16: OpenCode 2.0.25 ignores `instructions` entries (measured); preferences.md reaches it through a block `make setup` keeps in its global `AGENTS.md`, Dan's choice.)*
 
 - [x] **Step 7: Wire pi [Dan's yes].** pi has no includes, so its global `AGENTS.md` becomes a
   link. First check nothing is there:
