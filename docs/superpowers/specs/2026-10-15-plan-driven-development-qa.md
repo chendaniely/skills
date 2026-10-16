@@ -973,3 +973,9 @@ Recommended A. It guards Claude Code only; OpenCode and pi keep the prose rule i
 - Question 7's fill for the brief's cut-off parts: it matches the surviving text (goal-fit
   reviewer). Tiers 2 and 3 and the finding format come from the brief itself, and a Critical never
   goes on the phase-end list.
+
+## The spec
+
+An independent reviewer checked the spec against this record; its fixes went in as `d454acd`.
+Asked to keep the ruleset's "For pull requests only" bypass (A) or use an empty list (B), and to
+approve the spec: **Dan:** "yes go for A approved" (2026-10-15).

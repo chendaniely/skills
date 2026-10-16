@@ -1,7 +1,7 @@
 # plan-driven-development: design spec
 
-**Status:** spec in review by Dan · plan not written · branch `plan-driven-development`, pushed on
-its branch, not merged.
+**Status:** spec approved by Dan, 2026-10-15 · plan being written · branch
+`plan-driven-development`, pushed on its branch, not merged.
 
 This is the binding document for the `plan-driven-development` skill. Every decision in it was
 made with Dan, one question at a time; the questions, the options turned down and his answers in
@@ -738,9 +738,10 @@ The plan (written next, after Dan approves this spec) covers, in order:
 
 - **Decision 7 is flagged:** the GitHub settings checklist applies to every public project for now;
   it may become vibed projects only.
-- **The ruleset's bypass, pending Dan:** "For pull requests only" (decided at Decision 7) still lets
-  Dan's login, which the agent uses, merge a PR with red checks; only "never `--admin`" stops that.
-  The independent review suggests an empty bypass list instead.
+- **The ruleset's bypass, settled 2026-10-15 (Dan: "go for A"):** "For pull requests only" stays,
+  so Dan keeps an emergency force-merge. It still lets his login, which the agent uses, merge a PR
+  with red checks, so "never `--admin`" carries that alone; S20 tests that the agent stops. An
+  empty bypass list, the independent review's suggestion, can be set per project.
 - **Done, as a note:** local-ai switched to the deploy-pages shape on 2026-10-15 (`e32096c`), the
   first proof of the deploy job's design.
 - **Unverified:** whether plugins load in `claude -p` (checked before any grading); whether rulesets
@@ -765,3 +766,6 @@ The plan (written next, after Dan approves this spec) covers, in order:
   definitions, hygiene). One change to a decision's wording: Question 2 committed the Q&A page
   "when the list is done or when he stops"; it is now committed after each answer, following Dan's
   Section 6 answer that nothing relies on a tidy stop.
+- 2026-10-15: Dan approved the spec ("yes go for A approved"), keeping the ruleset's "For pull
+  requests only" bypass (Decision 7's detail; the review's empty bypass list stays a per-project
+  option).
