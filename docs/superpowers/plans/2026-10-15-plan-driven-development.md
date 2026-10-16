@@ -22,7 +22,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
 
-**Now:** Task 3: the commit-message checker, open.
+**Now:** Task 4: the fixture recipes, the graders and the prompts, open.
 
 ## Global Constraints
 
@@ -485,6 +485,12 @@ done
 
 ### Task 3: The commit-message checker, the test helpers and this repo's `Makefile`
 
+> **Built differently** (closed 2026-10-16; commits 3323829, 4990016): the root `Makefile` was
+> modified, not created (Task 1's forward note); `make test` counts 46, with Task 1's 28 setup
+> tests; one placeholder-free f-string became a plain string. The review's one Important finding,
+> `CLAUDE.md` still saying `ootd` had the only tests, was fixed in this task (4990016), which also
+> points `CLAUDE.md` at `make check-skills` instead of its own copy of the loop.
+
 > **Forward review, Task 1 (2026-10-16):** the root `Makefile` already exists (Task 1 added `help`,
 > `install`, `setup`, `setup-check` and `sync-guards`). This task **modifies** it instead of creating
 > it: add `test`, `test-utc` and `check-skills`, keep the existing targets and `help`'s format, and
@@ -511,9 +517,9 @@ through.
     `gitleaks_has_git()`, and the paths `SKILL`, `TEMPLATES`, `SCRIPTS`;
   - the `Makefile` targets `help` (the default), `test`, `test-utc`, `check-skills`, `install`.
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: Write the failing tests.** `plan-driven-development/tests/test_commitmsg.py`:
+- [x] **Step 1: Write the failing tests.** `plan-driven-development/tests/test_commitmsg.py`:
 
 ```python
 """scripts/commitmsg.py: the commit-message format checks the commit-msg hook runs (S08)."""
@@ -719,7 +725,7 @@ def gitleaks_has_git() -> bool:
     return found is not None and subprocess.run([found, "git", "--help"], capture_output=True).returncode == 0
 ```
 
-- [ ] **Step 2: Run them; watch them fail.**
+- [x] **Step 2: Run them; watch them fail.**
 
 ```bash
 uv run --quiet --with pytest --with pyyaml pytest plan-driven-development/tests/test_commitmsg.py plan-driven-development/tests/test_repo_makefile.py -q
@@ -727,7 +733,7 @@ uv run --quiet --with pytest --with pyyaml pytest plan-driven-development/tests/
 
   Expected: `1 error` at collection: `FileNotFoundError: … scripts/commitmsg.py`.
 
-- [ ] **Step 3: Write the commit-message checker,** `plan-driven-development/scripts/commitmsg.py`:
+- [x] **Step 3: Write the commit-message checker,** `plan-driven-development/scripts/commitmsg.py`:
 
 ```python
 #!/usr/bin/env -S uv run --script
@@ -816,7 +822,7 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
-- [ ] **Step 4: Write this repo's `Makefile`** at the repo root (Dan's preference: a Makefile as the
+- [x] **Step 4: Write this repo's `Makefile`** at the repo root (Dan's preference: a Makefile as the
   front door for every command, for agents and people alike; GNU make 3.81 features only):
 
 ```make
@@ -843,7 +849,7 @@ install: ## Link every skill into ~/.claude/skills (CLAUDE_SKILLS_DIR installs e
 	./install.sh
 ```
 
-- [ ] **Step 5: Run the tests through it; they pass.**
+- [x] **Step 5: Run the tests through it; they pass.**
 
 ```bash
 make test
@@ -852,10 +858,10 @@ make test-utc
 
   Expected: `18 passed` both times (14 + 4).
 
-- [ ] **Step 6: Check the frontmatter target against this repo's skills:** `make check-skills`.
+- [x] **Step 6: Check the frontmatter target against this repo's skills:** `make check-skills`.
   Expected: one line per existing skill (`capture-conversation … lines` and so on), exit 0.
 
-- [ ] **Step 7: Commit.** Write `.git/PDD_MSG`:
+- [x] **Step 7: Commit.** Write `.git/PDD_MSG`:
 
 ```text
 plan-driven-development: add the commit-message checker, the test helpers and a Makefile
@@ -877,7 +883,7 @@ git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
 
-- [ ] **Step 8: Review, look forward, close (Tier 2).**
+- [x] **Step 8: Review, look forward, close (Tier 2).**
   1. **Mechanical:** `make test` and `make test-utc`; both pass.
   2. **Backward review:** `mattpocock-skills:code-review` from `$(cat .git/PDD_BASE)`, the spec
      being this task and the spec's *Commits*; each finding gets a severity and a decision; at most
@@ -917,7 +923,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 9: Push (standing OK).**
+- [x] **Step 9: Push (standing OK).**
 
   Until Task 7 the scan uses local-ai's leak check, which reads Dan's denylist without printing
   it; `$LOCAL_AI` is local-ai's checkout (Global Constraints). Push only through this block:
