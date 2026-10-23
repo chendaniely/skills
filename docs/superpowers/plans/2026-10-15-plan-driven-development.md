@@ -22,7 +22,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
 
-**Now:** Task 11: the every-session rules (`templates/AGENTS.md` and `SKILL.md`), open.
+**Now:** Task 12: the four references, open.
 
 > **Order changed (Dan, 2026-10-16: "is this skill written up yet? i want to test it out"):**
 > after Task 5, run Task 6 (RED), then Tasks 11 and 12 (the skill text), then Dan tries the skill
@@ -980,6 +980,10 @@ fi
 ***
 
 ### Task 4: The fixture recipes, the graders and the prompts
+
+> **Changed later (Task 11, 2026-10-22):** S01's prompt gained a purpose ("I want it for checking
+> my own drafts against word limits."), following Dan's ruling on kickoff's open question (Q&A,
+> f388d8c). The prompt table below shows it as first planned.
 
 > **Built differently** (closed 2026-10-16; commits c08a38b, ae0bf75): the pre-flight rulings K3,
 > K4, K13, D9 and D1/D8 went in as the ledger says (the fixture Makefile gained help, hooks, test,
@@ -5773,6 +5777,19 @@ fi
 
 ### Task 11: The every-session rules: `templates/AGENTS.md` and `SKILL.md`
 
+> **Built differently** (closed 2026-10-22; commits dc45193, 1f8a06c, 33bbdb7; Dan's rulings in
+> f388d8c):
+>
+> - **The template's length:** about 220 lines, not 100–120. Every line carries a required rule,
+>   so Dan accepted about 200–220 lines, and the spec records the new budget.
+> - **Kickoff's open question:** asked only when the request doesn't say what the project is for
+>   or who uses it. Dan's ruling; `preferences.md` rule 3 and S01's prompt changed with it.
+> - **The not-built note:** `SKILL.md` sets out how a trial project runs before Tasks 7–10 exist:
+>   a hand-written `Makefile`, and an interim line in its `AGENTS.md` (every push waits for Dan's
+>   OK, with no standing push OK).
+> - **Step 6's push** uses local-ai's leak check, as the earlier tasks did, because
+>   `scripts/leakcheck.py` lands in Task 7.
+
 **Tier:** 2 · **Scenarios:** every behavioural scenario (S01–S05, S09–S16, S18–S20), proven in
 Tasks 13 and 14.
 
@@ -5793,9 +5810,9 @@ output, as a required slot where RED showed a missing element, and as a prohibit
 rationalization only where RED showed a rule skipped under pressure (writing-skills, *Match the
 Form to the Failure*).
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: Write `templates/AGENTS.md`, the one copy of every rule that runs each session.**
+- [x] **Step 1: Write `templates/AGENTS.md`, the one copy of every rule that runs each session.**
   Budget: 100–120 lines. It must contain, as self-contained text a harness without the skill can
   follow:
   - a header filled from the placeholders `__PROJECT__`, `__SIZE__`, `__VISIBILITY__`, `__DEMO__`,
@@ -5833,7 +5850,7 @@ Form to the Failure*).
   - **security**: the denylist is never read; a leak finding recorded by kind and `file:line` only.
   It must not restate kickoff, planning, phase end or the docs site: those are in the references.
 
-- [ ] **Step 2: Write `SKILL.md`.** Budget: 200–300 lines. Frontmatter `name: plan-driven-development`
+- [x] **Step 2: Write `SKILL.md`.** Budget: 200–300 lines. Frontmatter `name: plan-driven-development`
   and the spec's description (single-quoted if it contains `: ` or `#`). The six moments, and for
   each: what triggers it and which file to read before acting (the template for each task and
   resume; a reference for the rest), named in the imperative ("before kickoff's questions, read
@@ -5842,7 +5859,7 @@ Form to the Failure*).
   model's own rationalization against the rule that answers it. It links to the template and never
   restates its rules.
 
-- [ ] **Step 3: Check the shape:**
+- [x] **Step 3: Check the shape:**
 
 ```bash
 f=plan-driven-development/SKILL.md; uv run -q --with pyyaml python -c "import yaml,re,sys; p=sys.argv[1]; t=open(p).read(); fm=yaml.safe_load(re.match(r'^---\n(.*?)\n---\n',t,re.S).group(1)); assert fm['name']==p.split('/')[0], p+': name != folder'; assert len(fm['description'])<=1024, p+': description too long'; print(fm['name'], len(fm['description']), t.count(chr(10)), 'lines')" "$f"
@@ -5853,7 +5870,7 @@ grep -c '^---' plan-driven-development/templates/AGENTS.md
   Expected: `plan-driven-development <≤1024> <200–300> lines`; the template within 100–120 lines;
   the `grep -c` count is `0` (horizontal rules are `***`).
 
-- [ ] **Step 4: Commit.** Write `.git/PDD_MSG`, filling the `<…>` from `tests/red-results.md`:
+- [x] **Step 4: Commit.** Write `.git/PDD_MSG`, filling the `<…>` from `tests/red-results.md`:
 
 ```text
 plan-driven-development: write the every-session rules and SKILL.md from the RED results
@@ -5873,7 +5890,7 @@ git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
 
-- [ ] **Step 5: Review, look forward, close (Tier 2).**
+- [x] **Step 5: Review, look forward, close (Tier 2).**
   1. **Mechanical:** Step 3's checks; `make test` still passes.
   2. **Backward review:** `mattpocock-skills:code-review` from `$(cat .git/PDD_BASE)`, the spec
      being this task's contracts and the spec sections they cite; the Spec axis checks every rule
@@ -5912,7 +5929,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 6: Push (standing OK).**
+- [x] **Step 6: Push (standing OK).**
 
   The skill's own leak check scans the range, with Dan's denylist. Push only through this block:
 
@@ -5935,6 +5952,19 @@ fi
 ***
 
 ### Task 12: The four references: kickoff, plans, phase end and the docs site
+
+> **From Task 11's forward review (2026-10-22):**
+>
+> - **`kickoff.md`** holds the list of what kickoff copies and where each file goes. `SKILL.md`
+>   no longer does. Kickoff shows Dan each file it writes (in an existing repo, its diff) before
+>   writing it.
+> - **`plans.md`** gives the stopped Now line exactly as the template does:
+>   `Task N stopped: waiting on Dan (Q&A, item K): <question>?`.
+> - **`phase-end.md`:** the PR body lists any file the leak check couldn't scan, for Dan to check
+>   by eye.
+> - **`plans.md`:** a worktree's path goes on the spec's status line.
+> - **Kickoff's open question** follows Dan's ruling: only when the request doesn't say what the
+>   project is for or who uses it.
 
 **Tier:** 2 · **Scenarios:** S01 (kickoff), S14 (phase end), and the docs and plan shapes S02 checks;
 proven in Task 13.
@@ -6084,6 +6114,14 @@ fi
 > (see the order note at the top). GREEN compares against that clean baseline, not Task 6's
 > subagent runs. S04, S11, S13 and S14 failed nothing in Task 6; any of them that still fails
 > nothing headless is rewritten before GREEN (Dan's ruling at Task 6's close).
+>
+> **From Task 11's forward review (2026-10-22):**
+>
+> - **`run.py`'s allow-lists** must let every scenario run `make hooks` (and the
+>   `core.hooksPath` write it makes) and a bare `git fetch`. The template's *Resume* runs both,
+>   and a denial would be a HARNESS FAIL.
+> - **S19's grader or fixture** must cope with a miss the builder fixed itself (the template
+>   records that as drift), so the Findings check doesn't fail a correct run.
 
 **Tier:** 2 · **Scenarios:** S01–S14 and S17–S20 (S06–S08 and S17 through the pytest suite).
 
