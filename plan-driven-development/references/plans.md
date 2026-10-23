@@ -14,8 +14,7 @@ everything theirs stays. How a task runs, commits, stops and closes is the proje
 | a phase's plan | `docs/superpowers/plans/<date>-<topic>-phase-N.md` (a small project: one `<date>-<topic>.md`) |
 | a phase's Q&A page and retro | `…-phase-N-qa.md` and `…-phase-N-retro.md`, beside the plan |
 
-Files never move. A horizontal rule in any of them is `***`, never writing-plans' `---`: Pandoc can
-read a `---` line as the start of a YAML block, and the site includes these files.
+Files never move. Their horizontal rules follow the template's *Overrides* (writing-plans' row).
 
 ## The spec
 
@@ -107,16 +106,16 @@ Co-Authored-By: <the model's own line>
   `docs/agents/close-task.txt`, written out with this task's Plan: line>
 ````
 
-- **Now** goes right after the header's `**Spec:**` line, on one line, in one of four forms: a task
-  open; stopped at the fifth stop (*Stops*), in exactly the template's form; waiting on a [Dan]
-  step; and during the phase end ([`phase-end.md`](phase-end.md)):
+- **Now** goes right after the header's `**Spec:**` line, on one line: a task open, waiting on a
+  [Dan] step, or the phase end's next step ([`phase-end.md`](phase-end.md)):
 
   ```text
   **Now:** Task N: <title>, open.
-  **Now:** Task N stopped: waiting on Dan (Q&A, item K): <what conflicts with which scenario or decision>?
   **Now:** waiting on Dan: <[Dan] step>
-  **Now:** Phase end, step K: <title>.
+  **Now:** Phase end, step K: <the next step's title>.
   ```
+
+  At the fifth stop, Now is the stopped line the template's *Stops* gives, word for word.
 - **Tier and Scenarios** on every task: the tier as *Reviews* defines it, the plan's review
   checking each; the scenario IDs from the spec's table. A [Dan] task is labelled **[Dan]** and
   says where it runs; so does each of its steps that runs somewhere else.
@@ -124,9 +123,7 @@ Co-Authored-By: <the model's own line>
 - **Every commit written out:** each commit step gives its message in full, exactly as *Commits*
   gives the formats, and the close step its `close-task.txt` message. Implementers copy plans
   faithfully, mistakes included, and a subagent sees only what the plan and the dispatch send it.
-- **Full code in every step:** tests, code and commands in full. It overrides writing-plans 7.0.0's
-  "a code block only for an algorithm they do not determine": Dan wants the plan "reviewable and
-  searchable … this also helps when i use local models".
+- **Full code in every step,** as the template's *Overrides* gives it (writing-plans' row).
 - **A Phase end task last,** named `### Task N: Phase end`, each phase-end step one numbered box
   (`- [ ] **1. The final whole-branch review**`), from [`phase-end.md`](phase-end.md).
 - **As the build goes:**
@@ -139,9 +136,10 @@ Co-Authored-By: <the model's own line>
 
 ## Listings are run
 
-A listing is run before it goes in, wherever it can be. A later phase's listings are run at its
-phase start: each listing's tests against the code as built, with the phase-start commit recording
-which pass and which need rewriting ([`phase-end.md`](phase-end.md), *Phase start*).
+A listing is run before it goes in when everything it consumes exists already. A later phase's
+listings are run at its phase start: each listing's tests against the code as built, with the
+phase-start commit recording which pass and which need rewriting ([`phase-end.md`](phase-end.md),
+*Phase start*).
 
 ## A small project that grows
 

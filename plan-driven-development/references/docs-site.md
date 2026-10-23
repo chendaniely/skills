@@ -1,9 +1,9 @@
 # The docs and the site
 
-Read this at kickoff before the root files of a public project, before the plan's site task, and
-before the live-URL check after a phase merges. Site work uses the posit-dev Quarto skills
-(`quarto:quarto-authoring`), alongside Quarto's own website docs. Keeping the docs true is the
-project's `AGENTS.md`, *Docs and security* ([`templates/AGENTS.md`](../templates/AGENTS.md)).
+Read this at kickoff before the safety steps, before the plan's docs task, and before the live-URL
+check after a phase merges. Which skills site work uses, and how the docs are kept true, are the
+project's `AGENTS.md` ([`templates/AGENTS.md`](../templates/AGENTS.md)): *Overrides*, *Steering*,
+and *Docs and security*.
 
 ## Which docs, by case
 
@@ -18,7 +18,8 @@ Setup answers 2 and 3 ([`kickoff.md`](kickoff.md)) pick the case:
 
 Every public project has a deployed site, and the repo's website field points at it. Docs read on
 GitHub cut the `site` and `pages` jobs from `ci.yml` and the `docs` target from the `Makefile`
-(kickoff's copy table); their diagrams follow the Architecture page's rules below.
+(kickoff's copy table), and the plan's docs task writes `docs/architecture.md`, its diagrams in
+GitHub's mermaid fences, following the Architecture page's rules below.
 
 ## The Quarto site
 
@@ -41,8 +42,8 @@ them, never moves them (Dan: "this way we don't worry about things going into th
 
 **A wrapper** is a `.md` at the same relative path under `website/` as its source under `docs/`,
 holding only a `pagetitle:` and `{{< include /../docs/superpowers/<path> >}}`: a copy of
-[`templates/quarto/wrapper.md`](../templates/quarto/wrapper.md) with `__TITLE__` and `__PATH__`
-filled. For `docs/superpowers/plans/<date>-<topic>-phase-1.md`, the wrapper is
+`templates/quarto/wrapper.md` with `__TITLE__` and `__PATH__` filled. For
+`docs/superpowers/plans/<date>-<topic>-phase-1.md`, the wrapper is
 `website/superpowers/plans/<date>-<topic>-phase-1.md`, and `__PATH__` is
 `plans/<date>-<topic>-phase-1.md`.
 
@@ -61,12 +62,11 @@ filled. For `docs/superpowers/plans/<date>-<topic>-phase-1.md`, the wrapper is
   and never copied, plus a few process diagrams. Built parts solid; planned parts dashed, labelled
   with the phase that brings them. Other pages link here and never draw their own copy.
 - **Design:** the wrappers.
-- **Changelog** and **How we work:** includes of the root files, so `CHANGELOG.md` must exist before
-  the site first renders.
+- **Changelog** and **How we work:** includes of the root `CHANGELOG.md` and `AGENTS.md`.
 - **How-to:** only when a person has steps to do.
 
 **Links leaving the site,** from the root files and the included docs, are full site URLs or
-code-span paths: a `../` link out of the site breaks with no warning. Horizontal rules are `***`.
+code-span paths: a `../` link out of the site breaks with no warning.
 
 ## The checks
 

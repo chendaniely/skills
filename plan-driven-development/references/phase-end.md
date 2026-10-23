@@ -6,14 +6,15 @@ phase start. Every commit, push, stop and question below runs by the project's `
 
 ## The Phase end task
 
-Each step is one numbered box in the plan. A step ends with a commit that ticks its box, carries
-`Plan: <plan file> Phase end`, and sets **Now** to `Phase end, step K: <the next step's title>.` So
-after a crash the first unticked box is where the phase end resumes, and a ticked box never runs
-again.
+Each step is one numbered box in the plan. A step ends with its commit (*Commits*, the phase end
+step), which ticks its box and sets **Now** to the phase end's next step
+([`plans.md`](plans.md)). So after a crash the first unticked box is where the phase end resumes,
+and a ticked box never runs again.
 
 1. **The final whole-branch review:** superpowers' final-review step, run as Matt Pocock's two-axis
-   `code-review` from `git merge-base main HEAD`; then superpowers' one fix dispatch and one scoped
-   re-review (*Reviews*), with a ruling on whatever is left. Each fix is its own commit.
+   review, `mattpocock-skills:code-review`, from `git merge-base main HEAD`; then superpowers' one
+   fix dispatch and one scoped re-review (*Reviews*), with a ruling on whatever is left. Each fix
+   is its own commit.
 2. **The rest of the ledger copied into the plan:** whatever
    `.superpowers/sdd/<plan file name without .md>/progress.md` holds that no closing commit
    carries, under the task it belongs to, before superpowers deletes its workspace.
@@ -27,10 +28,9 @@ again.
 6. **The retro** (*The retro*, below).
 7. **A dated `CHANGELOG.md` entry,** and the spec's status line set to `PR open (#N)`, its number
    filled in once step 8 opens the PR.
-8. **The PR** (*The PR*, below). Attended, it waits for Dan; vibed, it merges, unless a stop
-   applies.
-9. **After the merge,** on a site project: the live URL serves the new site. The next phase's first
-   commit sets the spec's status line to `merged <commit> <date>`.
+8. **The PR** (*The PR*, below); whether it waits for Dan or merges is the mode's (*Stops*).
+9. **After the merge,** on a site project: the live URL serves the new site. The status line's
+   `merged` entry comes with the next phase's start (*Phase start*, step 3).
 
 **A small project** has no council, metrics or retro. Its Phase end task holds steps 1 and 2, then
 **3. The docs check** (step 4's docs part: every doc the branch touched is true, built parts
@@ -45,13 +45,13 @@ phase end on the branch, the phase start on the phase's plan against the code as
 - **Each reviewer** gets the spec, the plan, and the range or files under review, and changes
   nothing. The security reviewer runs the security checklist (*Reviews*), one line per item, and
   re-checks every task's tier; a phase with no Tier 1 task still gets all four.
-- **The reports are committed first,** in one file beside the plan
-  (`…-phase-N-end-council.md`, `…-phase-N-start-council.md`; kickoff's beside the spec), before
-  anyone acts on them.
+- **The reports are committed first,** before anyone acts on them, in one file:
+  `…-kickoff-council.md` beside the spec; `…-phase-N-end-council.md` or
+  `…-phase-N-start-council.md` beside the plan.
 - **Their claims are checked** by the session, each against the code or the docs it cites, before
   Dan sees anything.
 - **Each finding gets a severity and a decision** (*Reviews*): fixed in its own commit, the
-  phase-end list, Later with a reason, or Dan. A Critical always goes to Dan.
+  phase-end list, Later with a reason, or Dan.
 
 ## The retro
 
@@ -63,8 +63,8 @@ phase end on the branch, the phase start on the phase's plan against the code as
    later by CI or by use, tallied from the closing commits.
 4. **Starting over:** what this phase would do differently from the start.
 
-**On the phase branch,** the closing commits (their `Tier:`, `Rounds:` and `Findings:` lines), the
-reopens, and the bugs a review missed:
+**In the project's root folder,** on the phase branch: the closing commits (their `Tier:`,
+`Rounds:` and `Findings:` lines), the reopens, and the bugs a review missed:
 
 ```bash
 base=$(git merge-base main HEAD)
@@ -86,7 +86,7 @@ Each change goes into the next phase's plan, its tasks' tiers included, and into
 
 superpowers:finishing-a-development-branch, its PR option, always.
 
-- **The title** is the phase-merge subject: `chore(repo): 🤖 merge Phase N: <title>`.
+- **The title** is *Commits*' phase-merge subject without its ` (#N)`.
 - **The body** summarizes the phase: what each task built, the council's findings and what became
   of them, and the retro's link on a large project. It lists every file the leak check couldn't
   scan (a binary, an image) for Dan to check by eye; any such file is a stop (*Stops*), so the
@@ -114,13 +114,17 @@ else
 fi
 ```
 
-**The merge.** Attended, Dan merges it. Fully vibed, the agent merges once CI is green and steps 1
-to 7 are done, with the subject `chore(repo): 🤖 merge Phase N: <title> (#N)` in
-`.git/MERGE_SUBJECT`, scanned like the title. **In the project's root folder:**
+**The merge,** when the mode has the agent merge it (*Stops*), with *Commits*' phase-merge subject
+in `.git/MERGE_SUBJECT`. **In the project's root folder,** the subject's scan, then the merge:
 
 ```bash
-gh pr merge <N> --merge --match-head-commit <the scanned SHA> \
-  --subject "$(cat .git/MERGE_SUBJECT)" --body-file .git/PR_BODY.md
+if uv run --quiet --script scripts/leakcheck.py --message .git/MERGE_SUBJECT &&
+   gitleaks stdin --redact --no-banner --config .githooks/gitleaks.toml < .git/MERGE_SUBJECT; then
+  gh pr merge <N> --merge --match-head-commit <the scanned SHA> \
+    --subject "$(cat .git/MERGE_SUBJECT)" --body-file .git/PR_BODY.md
+else
+  echo "STOP: the merge subject has a finding; tell Dan its kind, never the matched text"
+fi
 ```
 
 Never `--admin`, never `--delete-branch`, never squash or rebase: plans and closing commits cite
@@ -138,8 +142,7 @@ the actual step finish, merge into main, review, then next step."
 3. **The forward-and-back council** (*Councils*) on the phase's plan against the code as built,
    its report committed first. That first commit on `phase-N` also sets the finished phase's
    status line to `merged <commit> <date>`.
-4. **The plan's fixes,** committed as `docs(plan): 🤖 phase N start: <what the council changed>`,
-   with the listings' results in its body.
+4. **The plan's fixes,** in *Commits*' phase start commit, with the listings' results in its body.
 5. **Attended:** Dan approves the revised plan, and gives or withholds the phase's standing push OK
    (*Asking Dan*, *Pushing*). **Vibed:** straight on.
 6. **Now** → `Task 1: <title>, open.`

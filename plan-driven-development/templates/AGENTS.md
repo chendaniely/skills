@@ -142,6 +142,7 @@ more, push nothing, no `--no-verify`, amend or reset; tell Dan its kind and `fil
 | reopen | `docs(plan): 🤖 reopen Task N: CI red` |
 | wip | `chore(plan): 🤖 wip Task N: <where it stopped>`; `Done so far:`, `Stopped at:`, `Tests:` (`docs/agents/wip.txt`) |
 | phase start | `docs(plan): 🤖 phase N start: <what the council changed>` |
+| phase end step | `docs(plan): 🤖 phase end step K: <what it did>` |
 | main into a phase branch | `chore(repo): 🤖 merge main into phase-N` |
 | phase merge (the PR) | `chore(repo): 🤖 merge Phase N: <title> (#N)` |
 

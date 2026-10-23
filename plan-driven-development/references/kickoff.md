@@ -4,47 +4,46 @@ Read this, and *Asking Dan* in [`templates/AGENTS.md`](../templates/AGENTS.md), 
 first question. Kickoff runs the sections below in order. Where a step commits, pushes, stops or
 asks, the template's section of that name is the rule; this file says only what kickoff adds.
 
-**Kickoff shows Dan each file before writing it** (in an existing repo, its diff), the safety files
-included. Where a file a step copies doesn't exist in this skill yet, follow *Not built yet* in
-[`SKILL.md`](../SKILL.md) in place of that step.
+Every file below is written only as [`SKILL.md`](../SKILL.md)'s *Kickoff*, step 5, says. Where a
+file a step copies doesn't exist in this skill yet, follow *Not built yet* in `SKILL.md` in place
+of that step.
 
 ## The asking rules, in full
 
-They hold for every question and every [Dan] step, at kickoff and after it. The template's
-*Asking Dan* is the short copy a project keeps.
+They hold for every question and every [Dan] step, at kickoff and after it. Each rule opens with
+the template's own words (*Asking Dan*, its short copy); what follows them is what the short copy
+leaves out.
 
 1. **List first:** every question or step in the batch, one line each, with the count.
-2. **Then one at a time,** showing "Question N of M" and how many remain; say so when M changes.
-3. **Each question is a situation:** "Scenario: …. What do you expect?", with outcomes **A.**,
-   **B.** and **C.**, one recommended. One exception, at kickoff only: a single "describe it in your
-   own words" question about intent, asked only when the request doesn't say what the project is
-   for or who uses it; naming what to build is not enough. In every other case the first question
-   is a scenario too, and so is every decision after it.
-4. **A self-review of the recommendation,** in a line just before the question: what it was
-   checked against (the evidence, Dan's stated goals, the answers already settled, what could go
-   wrong), and what that changed.
-5. **Selectable options where the harness has them:** in Claude Code, the AskUserQuestion tool,
-   the recommended option first and labelled "(Recommended)", the self-review in the message just
-   before. Text when the options need long explanation or the harness has no such tool. (Dan:
-   "unless it has a lot of text you should opt for that view over the wall of text".)
-6. **After each answer, the list again** with progress, answered items ticked ✓, then the next.
-7. **Record each answer on the Q&A page** as given, with Dan's reason in his words, and commit the
-   page after each answer: nothing relies on a tidy stop, so an answer never waits in the working
-   tree. Kickoff's Q&A page sits beside the spec, a phase's beside its plan
-   ([`plans.md`](plans.md)).
+2. **One at a time:** "Question N of M" and how many remain; say so when M changes.
+3. **A scenario:** "Scenario: …. What do you expect?", outcomes **A.**, **B.**, **C.**, one
+   recommended. Kickoff may open with one "describe it in your own words" question only when the
+   request doesn't say what the project is for or who uses it; naming what to build is not enough.
+   In every other case the first question is a scenario too.
+4. **Self-review:** a line just before it: what the recommendation was checked against (the
+   evidence, Dan's goals, the answers settled, what could go wrong), and what changed.
+5. **Selectable options** where the harness has them (Claude Code's AskUserQuestion, the
+   recommended first, labelled "(Recommended)"); text when they need long explanation. The
+   self-review goes in the message just before the options, and a harness with no such tool gets
+   text. Dan: "unless it has a lot of text you should opt for that view over the wall of text".
+6. **After each answer, the list again**, answered items ticked ✓, then "Question N+1 of M".
+7. **Record each answer** on the Q&A page, with Dan's reason in his words, and commit it then. The
+   answer goes in as given, and once the hooks are on it never waits in the working tree: nothing
+   relies on a tidy stop. The setup answers come before the root commit, so they go in the first
+   commit on the work branch (`phase-1`, or `build` for a small project). Kickoff's Q&A page sits
+   beside the spec, a phase's beside its plan ([`plans.md`](plans.md)).
 
 ## The first message
 
 It has these parts, in this order:
 
-1. **The announcement:** superpowers:brainstorming, "a new project, so architectural".
+1. **The announcement** (`SKILL.md`, *Kickoff*, step 1).
 2. **The list:** the five setup questions below, numbered, one line each, and the count.
 3. **"Question 1 of 5"**, with how many remain.
 4. **"Self-review: …"**, one line naming what this recommendation was checked against and what
    that changed (rule 4).
 5. **"Scenario: …. What do you expect?"**
-6. **A.**, **B.** and **C.**, one of them "(Recommended)", as selectable options where the harness
-   has them.
+6. **A.**, **B.** and **C.**, one of them "(Recommended)", selectable where the harness allows.
 
 **The open question is keyed to the request.** "Build a budgeting app" names only what to build:
 the list gains a first line, the open question ("Describe it in your own words: what is it for,
@@ -63,12 +62,13 @@ and go on.
 | 1 | small (one sitting, one plan, nothing touching secrets, the network or hardware) or large (phases) | `__SIZE__` in `AGENTS.md` |
 | 2 | public or private | `__VISIBILITY__` |
 | 3 | a live demo site or not | `__DEMO__` |
-| 4 | where the repo lives: creating a GitHub repo is outward-facing, so Dan's call or Dan's step | the [Dan] steps below |
+| 4 | where the repo lives: a GitHub repo, or local only for now | the Q&A page only |
 | 5 | the mode: **attended** (the default) or **fully vibed** | `__MODE__` |
 
-Answers 2 and 3 pick the docs case: read [`docs-site.md`](docs-site.md) before the root files.
-Nothing is committed before the hooks are on, so the setup answers go on the Q&A page in the first
-commit on `phase-1`, and rule 7 runs as written from there.
+Answers 2 and 3 pick the docs case: read [`docs-site.md`](docs-site.md) before the safety steps,
+since the case decides the `Makefile`'s `docs` target. A local-only answer to 4 skips every [Dan]
+step that needs GitHub: creating the repo, the first push, the description and website, and the
+settings checklist; with no remote there is no CI either (*Each task's loop*, step 7).
 
 ## What kickoff copies, and where
 
@@ -81,75 +81,79 @@ Paths on the left are this skill's; on the right, the project's.
 | `templates/gitignore` | `.gitignore` (appended, in an existing repo) | | the root commit |
 | `scripts/leakcheck.py`, `scripts/commitmsg.py` | `scripts/` | | the root commit |
 | `templates/Makefile` | `Makefile` | `__PROJECT__`, `__TEST_COMMAND__`, `__LINT_COMMAND__`; the `docs` target and its `.PHONY` entry cut when the docs are read on GitHub | the root commit |
-| `templates/issue-tracker.md`, `close-task.txt`, `wip.txt` | `docs/agents/` | | the root commit |
+| `templates/issue-tracker.md`, `close-task.txt`, `wip.txt` | `docs/agents/` (`issue-tracker.md` is the tracker doc Matt Pocock's `code-review` reads) | | the root commit |
 | `templates/AGENTS.md` | `AGENTS.md` | the placeholders, below | the root files |
 | `templates/CLAUDE.md` | `CLAUDE.md` | plus only truly Claude-specific lines | the root files |
 | `templates/ci.yml` | `.github/workflows/ci.yml` | `__TEST_COMMAND__` (the suite and lint, plus the tests job's setup steps); the `site` and `pages` jobs cut when the docs are read on GitHub | the plan's CI task |
 | `templates/dependabot.yml` | `.github/dependabot.yml` | | the plan's CI task |
-| `templates/quarto/` | `website/` | as [`docs-site.md`](docs-site.md) gives it | the plan's site task |
+| `templates/quarto/` | `website/` | as [`docs-site.md`](docs-site.md) gives it | the plan's docs task |
 
-`docs/agents/issue-tracker.md` is the tracker doc Matt Pocock's `code-review` reads, whether a
-review step runs it or Dan types `/code-review`.
+**When the stack isn't settled yet** (the request names none), the `Makefile`'s
+`__TEST_COMMAND__` is `echo "no test command yet: the plan's CI task sets it"; exit 1`, and
+`__LINT_COMMAND__` the same with "lint": both fail until the plan's CI task replaces them.
 
 ## Safety before the first commit
 
 1. **A new repo:** `git init -b main`.
 2. **Copy in the root commit's files** from the table, filled, and `chmod 755` the four hooks.
-3. **`make hooks`.** It checks gitleaks 8.19+ and uv, validates the denylist (it exists, has terms
-   and parses; it prints nothing), and only then sets `core.hooksPath`. If it fails, stop and tell
-   Dan. Never create the denylist, and never read it.
-4. **The leak drill.** It proves the hooks refuse what they should, before anything is committed.
+3. **`make hooks`,** run and handled as the template's *Resume*, step 1, says; the denylist as its
+   *Docs and security* says.
+4. **The leak drill,** which proves the hooks refuse what they should, before anything is
+   committed. **If `.githooks/pre-commit` is not in the project,** skip it, and tell Dan the drill
+   was skipped because the hooks aren't built yet: an accepted drill commit would become the root
+   commit, and removing it would take a history rewrite. **If it is,** in the project's root
+   folder, on the machine kickoff runs on:
 
-**In the project's root folder,** on the machine kickoff runs on:
-
-```bash
-printf 'drill %s_%s\n' ghp aB3dE6gH9jK2mN5pQ8sT1vW4yZ7bC0eF3hJ6 > drill-token.md
-printf 'drill %s.%s.%s.%s\n' 192 168 50 7 > drill-address.md
-printf 'test(repo): 🤖 leak drill\n' > .git/DRILL_MSG
-for f in drill-token.md drill-address.md; do
-  git add -- "$f"
-  if git commit -F .git/DRILL_MSG; then echo "STOP: the drill commit of $f was accepted"; break; fi
-  git rm -q --cached -- "$f"
-done
-rm drill-token.md drill-address.md
-```
+   ```bash
+   printf 'drill %s_%s\n' ghp aB3dE6gH9jK2mN5pQ8sT1vW4yZ7bC0eF3hJ6 > drill-token.md
+   printf 'drill %s.%s.%s.%s\n' 192 168 50 7 > drill-address.md
+   printf 'test(repo): 🤖 leak drill\n' > .git/DRILL_MSG
+   for f in drill-token.md drill-address.md; do
+     git add -- "$f"
+     if git commit -F .git/DRILL_MSG; then echo "STOP: the drill commit of $f was accepted"; break; fi
+     git rm -q --cached -- "$f"
+   done
+   rm drill-token.md drill-address.md
+   ```
 
    Each value is joined from parts as the file is written, so no file of this skill holds it. Each
    commit exits 1 with its finding named: gitleaks' `leaks found: 1` for the token, the leak
    check's `drill-address.md:1: private IPv4 address` for the address. `git rm --cached` unstages,
    because before the root commit there is no `HEAD` for `git restore --staged`. Afterwards
    `git status` shows no drill file and no commit was added. **A `STOP` line, or a refusal that
-   names no finding, is a stop:** exit 1 alone is also what a missing gitleaks or uv gives. Tell Dan
-   (*Stops*, in the template).
-5. **An existing repo:** the whole history, once. **In the project's root folder:**
+   names no finding, is a stop:** exit 1 alone is also what a missing gitleaks or uv gives. Tell
+   Dan (*Stops*).
+5. **An existing repo:** the whole history, once. **If `scripts/leakcheck.py` is in the project,**
+   in the project's root folder:
 
-```bash
-gitleaks git --redact --no-banner .
-uv run --quiet --script scripts/leakcheck.py --range=--all
-```
+   ```bash
+   gitleaks git --redact --no-banner .
+   uv run --quiet --script scripts/leakcheck.py --range=--all
+   ```
 
-   Expected: `no leaks found`, then nothing. Any hit is a stop: its kind and `file:line` to Dan.
+   **If it is not,** run only the first line, and tell Dan the denylist scan didn't run. Expected:
+   `no leaks found`, then nothing. Any hit is a stop: its kind and `file:line` to Dan.
 6. **The root commit on `main`** holds the root commit's files from the table and nothing else,
-   staged by path and committed with `-F` (*Commits*), subject
+   committed as *Commits* gives it, subject
    `chore(repo): 🤖 add the leak guards, the Makefile and the agent templates`. Kickoff's commits
    come before any plan, so their trailer paragraph has no `Plan:` line.
-7. **[Dan] The first push of `main`:** the pre-push hook refuses `main`, so Dan pushes it himself,
-   once the GitHub repo exists (setup answer 4).
-8. **`git switch -c phase-1`.** Every commit from here goes on it (a small project: one named
-   branch, `build`).
+7. **[Dan] The GitHub repo** (setup answer 4): Dan creates it, or says the agent may; creating a
+   repo is a stop that never relaxes (*Stops*). Then `origin` points at it:
+   `git remote add origin <its URL>`.
+8. **[Dan] The first push of `main`:** the pre-push hook refuses `main`, so Dan pushes it himself.
+9. **`git switch -c` the work branch.** Every commit from here goes on it.
 
 ## Grilling
 
-Matt Pocock's `grilling` (`mattpocock-skills:grilling` in Claude Code), run by the asking rules,
-never in its own rounds: its questions listed with the count, then one scenario at a time. Each
-answer goes on the Q&A page (rule 7). Each scenario Dan settles becomes a row of the spec's
-scenario table ([`plans.md`](plans.md)). If grilling isn't installed, brainstorming's questions
-run in the same format, and their list says so in one line.
+Matt Pocock's `grilling` (`mattpocock-skills:grilling` in Claude Code), asked by the asking rules
+(*Overrides*). Each answer goes on the Q&A page (rule 7). Each scenario Dan settles becomes a row of
+the spec's scenario table ([`plans.md`](plans.md)). If grilling isn't installed, brainstorming's
+questions run in the same format, and their list says so in one line.
 
 ## The design in sections, then the spec
 
 brainstorming's design, one section at a time, Dan's OK after each (recorded like an answer). Then
-the spec, laid out as [`plans.md`](plans.md) gives it, committed on `phase-1` with a one-line
+the spec, laid out as [`plans.md`](plans.md) gives it, committed on the work branch with a one-line
 `AGENTS.md` pointer, so the resume step triggers even if the session dies here:
 
 ```text
@@ -161,7 +165,7 @@ it.
 
 ## The root files
 
-One commit on `phase-1`, each file shown first:
+One commit on the work branch, each file shown first:
 
 - **`AGENTS.md`** from `templates/AGENTS.md`, in place of the pointer, filled:
 
@@ -176,18 +180,18 @@ One commit on `phase-1`, each file shown first:
   commit, since pi, OpenCode and Hermes read `AGENTS.md` first.
 - **`CLAUDE.md`:** `@AGENTS.md`, plus only truly Claude-specific lines.
 - **`README.md`:** what it is, how to start, where the docs are.
+- **`CHANGELOG.md`:** one dated first entry, the kickoff.
 - **The GitHub description and website field,** drafted with these files: the website is the
   deployed site (the docs site or the demo; none for a private repo). They are set with
-  `gh repo edit` after Dan's OK, the text scanned first, as *Pushing* in the template says for text
-  that leaves without git.
+  `gh repo edit` after Dan's OK, once `origin` exists, the text scanned first, as *Pushing* in the
+  template says for text that leaves without git.
 
 ## The plans
 
-superpowers:writing-plans, once per phase, every phase in full with full code, before Dan approves
-anything. Read [`plans.md`](plans.md) first. The plan's first tasks are the docs site and CI, as in
-local-ai's Phase 0, and they get tiers, reviews and closing commits like any task: the CI task
-copies `ci.yml` and `dependabot.yml`, the site task the Quarto site
-([`docs-site.md`](docs-site.md)).
+superpowers:writing-plans, as [`plans.md`](plans.md) gives it. The plan's first tasks are the docs
+and CI, with tiers, reviews and closing commits like any task: the CI task copies `ci.yml` and
+`dependabot.yml` and sets the real test and lint commands; the docs task (the site task, for a
+Quarto site) builds the docs as [`docs-site.md`](docs-site.md) gives them.
 
 ## The review before approval, and approval
 
@@ -202,15 +206,14 @@ copies `ci.yml` and `dependabot.yml`, the site task the Quarto site
 
 ## [Dan] The GitHub settings checklist
 
-Public projects; **flagged** (the spec's open items: it may become fully vibed projects only).
-Repo settings never relax (*Stops*), so Dan applies them, one step at a time:
+Public projects. **Flagged:** for now it applies to every public project; it may become fully
+vibed projects only. Repo settings never relax (*Stops*), so Dan applies them, one step at a time:
 
-- a ruleset on `main`: a PR required, CI's checks required (the leak jobs included), force pushes
-  and deletion blocked, bypass "For pull requests only" (the agent pushes with Dan's login, so an
-  admin exemption would exempt it too);
+- a ruleset on `main`, after which GitHub itself refuses a direct push to `main`: a PR required,
+  CI's checks required (the leak jobs included), force pushes and deletion blocked, bypass "For
+  pull requests only" (the agent pushes with Dan's login, so an admin exemption would exempt it
+  too);
 - merge commits only (squash and rebase off), the message defaulting to the PR title and
   description;
 - Pages source "GitHub Actions" (site projects);
 - classic branch protection instead, if rulesets aren't available on Dan's plan.
-
-Once the ruleset is on, GitHub itself refuses a direct push to `main`.

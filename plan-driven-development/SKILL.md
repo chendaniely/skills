@@ -64,11 +64,10 @@ in phases, or to adopt this workflow in a repo that has none of it yet.
    already in that format, including the one case where an open question may come first.
 3. **Follow `references/kickoff.md`** through the setup questions, safety before the first commit,
    grilling, the design in sections, the spec, the root files, the plans, the review before approval
-   and Dan's approval. Read [`references/docs-site.md`](references/docs-site.md) before the root
-   files of a public project: which docs a project gets depends on its answers.
-4. **Fill `templates/AGENTS.md`'s placeholders** from the answers: `__PROJECT__`, `__SIZE__`,
-   `__VISIBILITY__`, `__DEMO__`, `__MODE__`, `__CHECK_COMMAND__`, and `__SKILL_VERSION__`, which is
-   the short SHA of this skill's own checkout,
+   and Dan's approval. Read [`references/docs-site.md`](references/docs-site.md) before the safety
+   steps: the docs case the answers pick changes what kickoff copies.
+4. **Fill `templates/AGENTS.md`'s placeholders** as `references/kickoff.md`'s *The root files*
+   gives them. `__SKILL_VERSION__` is the short SHA of this skill's own checkout,
    `git -C <this skill's base directory> rev-parse --short HEAD`, or, for a plugin install with no
    git, the name of the plugin's cache folder.
 5. **Show Dan each file kickoff writes** (in an existing repo, its diff) before writing it.
@@ -94,10 +93,8 @@ where a later phase's plan is revised against the code as built.
 
 - **Before writing the spec or any plan, read [`references/plans.md`](references/plans.md).** It
   holds what this workflow adds to brainstorming's spec and to writing-plans' plans.
-- superpowers:writing-plans runs once per phase, every phase in full and with full code, before
-  Dan approves anything. The template's *Overrides* table says where its defaults give way.
-- Every task's commit steps are written exactly as `AGENTS.md`'s *Commits* gives them, since
-  implementers copy plans faithfully, mistakes included.
+- superpowers:writing-plans runs as `references/plans.md`'s *A plan* says, every commit step
+  included. The template's *Overrides* table says where its defaults give way.
 
 ## Each task
 
@@ -141,13 +138,13 @@ a usage-limit stop or a restart.
 
 ## The docs site
 
-**Trigger:** kickoff of a public project (every public project has a deployed site), the plan's
-site task, and the live-URL check after a phase merges.
+**Trigger:** kickoff, before the safety steps (the docs case changes what kickoff copies), the
+plan's docs task, and the live-URL check after a phase merges.
 
 - **Read [`references/docs-site.md`](references/docs-site.md) first.** It holds the three docs
   cases, the Quarto site and its wrappers, the checks and the deploy.
-- Site work uses the posit-dev Quarto skills (`quarto:quarto-authoring`), alongside Quarto's own
-  website docs.
+- Site work uses the skill the template's *Overrides*, *Steering*, names for the docs site,
+  alongside Quarto's own website docs.
 
 ## When it doesn't apply
 
