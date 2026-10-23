@@ -1064,3 +1064,12 @@ explanation. Both are in the spec, `preferences.md` and the template's contract.
 Asked with selectable options: approve the plan (16 tasks, `5991d9b`) and push the branch, and how
 it should run. **Dan:** "Approve and push" and "Subagent-driven" (2026-10-16), the recommended
 options both times.
+
+## The test harness's isolation (2026-10-22)
+
+Task 5's last review reproduced a Critical hole: the grader's own `git` calls run as Dan,
+unsandboxed, and git can be made to run code a test agent planted. Each review round had found a
+new class of escape, because the harness runs untrusted agent code under Dan's own account. Asked,
+with selectable options: subagents now and a separate macOS user later; a separate user first; or
+one more fix round. **Dan:** "Subagents now, separate user later" (the recommended option).
+

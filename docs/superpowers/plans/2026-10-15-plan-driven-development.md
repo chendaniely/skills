@@ -22,7 +22,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
 
-**Now:** Task 5: the session runners, open.
+**Now:** Task 6: RED, as subagents (Dan, 2026-10-22), open.
 
 > **Order changed (Dan, 2026-10-16: "is this skill written up yet? i want to test it out"):**
 > after Task 5, run Task 6 (RED), then Tasks 11 and 12 (the skill text), then Dan tries the skill
@@ -2407,6 +2407,20 @@ fi
 
 ### Task 5: The session runners
 
+> **Built differently** (closed 2026-10-22; commits baf9d7f, 9990c30, b2a348a, cbaa674): the
+> runners grew far past the plan's listing. Three security reviews and two fix rounds (the second
+> beyond the Tier 1 cap, with Dan's OK, on a fresh implementer) added: denies and read-blocking that
+> keep a test agent inside its repo, Claude Code's Bash sandbox with network off, an allow-listed
+> environment, exact allow rules, turn and time limits, a canary that must pass first, and a grader
+> that runs agent code only under `sandbox-exec`. **Still open (Critical):** the grader's own `git`
+> calls run as Dan, unsandboxed, and git can be made to run agent-planted code (reproduced with a
+> nested gitfile's fsmonitor and with `.git/commondir` plus a clean filter). So the automated
+> headless runs wait for real isolation: Dan's decision (2026-10-22) runs RED as subagents of the
+> session under his normal protections, and builds a separate unprivileged macOS user for the test
+> sessions before GREEN (Task 13). Also open: Claude Code's temp folder is shared with Dan's other
+> sessions; S01's `git init` may be refused by the sandbox (don't exempt it); writing `.git/MSG` is
+> refused under `--permission-prompts none`.
+
 **Tier:** 1 (its allow-lists set what headless sessions on Dan's login may run) · **Scenarios:** the
 runs for S01–S05, S09–S16 and S18–S20.
 
@@ -2421,9 +2435,9 @@ runs for S01–S05, S09–S16 and S18–S20.
   `installed_plugins(path)`, `allowed_tools(scenario, plugins)`, `isolation_problems(log, stage, user_skills)`,
   `canary_ok(answer)`, `harness_denials(denials)`.
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: Write the failing test,** `plan-driven-development/tests/test_runners.py`:
+- [x] **Step 1: Write the failing test,** `plan-driven-development/tests/test_runners.py`:
 
 ```python
 """The session runners: every run is isolated from the user's own setup, allowed only what its
@@ -2572,11 +2586,11 @@ def test_checks_that_need_a_tool_log_are_skipped_in_a_portability_run(tmp_path):
     assert checks["Task 2 found open"] is True and checks["no commit made"] is True
 ```
 
-- [ ] **Step 2: Run it; watch it fail.**
+- [x] **Step 2: Run it; watch it fail.**
   `uv run --quiet --with pytest --with pyyaml pytest plan-driven-development/tests/test_runners.py -q`.
   Expected: `1 error` at collection: `ModuleNotFoundError: No module named 'portability'`.
 
-- [ ] **Step 3: Write the runner,** `plan-driven-development/tests/harness/run.py`. The plugins
+- [x] **Step 3: Write the runner,** `plan-driven-development/tests/harness/run.py`. The plugins
   come from where Claude Code installed them, never a hard-coded version; each scenario gets only
   the commands it needs; deny rules win over every allow rule:
 
@@ -2844,7 +2858,7 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
-- [ ] **Step 4: Write the portability runner,** `plan-driven-development/tests/harness/portability.py`:
+- [x] **Step 4: Write the portability runner,** `plan-driven-development/tests/harness/portability.py`:
 
 ```python
 #!/usr/bin/env -S uv run --script
@@ -2946,10 +2960,10 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
-- [ ] **Step 5: Run the tests; they pass.** `make test` and `make test-utc`. Expected: `63 passed`
+- [x] **Step 5: Run the tests; they pass.** `make test` and `make test-utc`. Expected: `63 passed`
   both times (49 + 14).
 
-- [ ] **Step 6: Dry-run the runner:**
+- [x] **Step 6: Dry-run the runner:**
 
 ```bash
 uv run --quiet --script plan-driven-development/tests/harness/run.py s04 --stage red --dry-run
@@ -2961,7 +2975,7 @@ uv run --quiet --script plan-driven-development/tests/harness/run.py s04 --stage
   `acceptEdits`, and no `git commit` among the allowed (S04 must wait); then a work folder under
   the system temp folder.
 
-- [ ] **Step 7: Commit.** Write `.git/PDD_MSG`:
+- [x] **Step 7: Commit.** Write `.git/PDD_MSG`:
 
 ```text
 plan-driven-development: add the session runners
@@ -2985,7 +2999,7 @@ git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
 
-- [ ] **Step 8: Review, look forward, close (Tier 1).**
+- [x] **Step 8: Review, look forward, close (Tier 1).**
   1. **Mechanical:** `make test` and `make test-utc`; Step 6's dry run.
   2. **Backward review:** `mattpocock-skills:code-review` from `$(cat .git/PDD_BASE)`, the spec
      being this task and the spec's *Testing the skill* (the allow-list rules); plus the security
@@ -3025,7 +3039,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 9: Push (standing OK).**
+- [x] **Step 9: Push (standing OK).**
 
   Until Task 7 the scan uses local-ai's leak check, which reads Dan's denylist without printing
   it; `$LOCAL_AI` is local-ai's checkout (Global Constraints). Push only through this block:
@@ -3052,6 +3066,14 @@ fi
 ***
 
 ### Task 6: RED: the baselines without the skill
+
+> **Run differently (Dan, 2026-10-22):** RED runs as subagents of the controlling session, one per
+> scenario, each in its own fixture repo built by `recipes.build`, under Dan's normal Claude Code
+> protections (his deny rules and secrets guard), not through `run.py`. The skill isn't installed, so
+> no subagent can load it. Repo-state checks use `grade.grade`; checks that read the session log
+> (which skills loaded, subagent calls, the reply's wording) are judged from each subagent's
+> transcript. Dan's global preferences are loaded, so S01's asking-rules baseline isn't pure; that
+> is recorded with its result.
 
 **Tier:** 3 · **Scenarios:** S01–S05, S09–S14, S18–S20 (S06–S08 and S17 go RED as failing unit tests
 in Tasks 7–9).

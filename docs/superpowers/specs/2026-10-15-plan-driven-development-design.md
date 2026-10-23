@@ -1,7 +1,7 @@
 # plan-driven-development: design spec
 
 **Status:** spec approved by Dan, 2026-10-15 · plan approved 2026-10-16, run subagent-driven ·
-Now: Task 5 · branch `plan-driven-development`, pushed on its branch, not merged.
+Now: Task 6 · branch `plan-driven-development`, pushed on its branch, not merged.
 
 This is the binding document for the `plan-driven-development` skill. Every decision in it was
 made with Dan, one question at a time; the questions, the options turned down and his answers in
@@ -837,3 +837,7 @@ The plan breaks these into 16 tasks, the last its small-project phase end.
 - 2026-10-16: Dan approved the plan (`5991d9b`) and chose subagent-driven execution.
 - 2026-10-16: OpenCode ignores `instructions` (measured); preferences.md reaches it through a block
   `make setup` keeps in its global `AGENTS.md` (Dan's choice).
+- 2026-10-22: Dan's decision after Task 5's reviews: RED runs as subagents of the session under his
+  normal protections; the automated headless runs (GREEN, portability) wait for a separate
+  unprivileged macOS user, because the grader's own git calls can still run agent-planted code as
+  him.
