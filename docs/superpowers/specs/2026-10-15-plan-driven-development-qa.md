@@ -1073,3 +1073,15 @@ new class of escape, because the harness runs untrusted agent code under Dan's o
 with selectable options: subagents now and a separate macOS user later; a separate user first; or
 one more fix round. **Dan:** "Subagents now, separate user later" (the recommended option).
 
+## RED's four clean passes (2026-10-22)
+
+S04, S11, S13 and S14 failed no check in Task 6's subagent runs. Those runs had Dan's global
+instructions loaded. The plan says such a scenario isn't testing the skill and gets rewritten.
+Asked with selectable options (1 of 1):
+- re-check them headless under the separate-user isolation before GREEN, and rewrite any that still
+  pass then;
+- rewrite them now and re-run them as subagents;
+- drop them.
+
+**Dan:** "Re-check under isolation" (the recommended option). He gave no further reason.
+

@@ -22,7 +22,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
 
-**Now:** Task 6: RED, as subagents (Dan, 2026-10-22), open.
+**Now:** Task 11: the every-session rules (`templates/AGENTS.md` and `SKILL.md`), open.
 
 > **Order changed (Dan, 2026-10-16: "is this skill written up yet? i want to test it out"):**
 > after Task 5, run Task 6 (RED), then Tasks 11 and 12 (the skill text), then Dan tries the skill
@@ -30,6 +30,11 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 > (GREEN) onward. writing-skills' rule still holds: no skill text before RED. Until Tasks 7–10
 > land, kickoff's steps that copy templates and scripts have nothing to copy; the skill text says
 > so where it matters.
+>
+> **Isolation before GREEN (Dan, 2026-10-22):** a task still to be written goes before Task 13. It
+> builds a separate unprivileged macOS user for the test sessions and the grading, then runs RED
+> again headless under it for all fourteen scenarios (Task 6's Steps 2–4). That gives GREEN a clean
+> baseline: Task 6's subagent runs had Dan's global instructions loaded.
 
 ## Global Constraints
 
@@ -3074,6 +3079,16 @@ fi
 > (which skills loaded, subagent calls, the reply's wording) are judged from each subagent's
 > transcript. Dan's global preferences are loaded, so S01's asking-rules baseline isn't pure; that
 > is recorded with its result.
+>
+> **Closed 2026-10-22** (commits 14751ab, dc7972e, 35a31cd). The fourteen runs, on
+> `claude-sonnet-5-5` with Dan's OK on cost ("Yes, on Sonnet"), failed 24 of 57 checks; the
+> results and the quoted rationalizations are in `tests/red-results.md`. Grading found three
+> harness faults, fixed in dc7972e: the adapter now reads a subagent's hand-back as its final
+> reply, and warms the uv cache; S04's test check now takes `make test`. **S04, S11, S13 and S14
+> failed nothing.** Dan's ruling: keep them as they are, and re-check them headless under the
+> separate-user isolation before GREEN, rewriting any that still pass then. Steps 2 and 3 (the
+> canary and the isolation check) belong to headless runs, so they move to that isolation work and
+> stay unticked here.
 
 **Tier:** 3 · **Scenarios:** S01–S05, S09–S14, S18–S20 (S06–S08 and S17 go RED as failing unit tests
 in Tasks 7–9).
@@ -3085,9 +3100,9 @@ in Tasks 7–9).
 - Consumes: `run.py` and the graders (Tasks 4–5).
 - Produces: `tests/red-results.md`, the failures and the rationalizations Tasks 11–12 write against.
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: [Dan's OK on cost.]** Fifteen headless sessions on Claude Code's default model (14
+- [x] **Step 1: [Dan's OK on cost.]** Fifteen headless sessions on Claude Code's default model (14
   scenarios; S01 takes two turns), plus Step 2's canary and Step 3's check on a cheap model; S02
   runs a three-task plan with subagents and may take 20–40 minutes. Each session also
   leaves its transcript under `~/.claude/projects/` (named after its temp folder); removing those
@@ -3110,7 +3125,7 @@ uv run --quiet --script plan-driven-development/tests/harness/run.py s04 --stage
 
   Expected: no `HARNESS FAIL`; a set of PASS and FAIL lines; a work folder path.
 
-- [ ] **Step 4: Run each baseline** on the default model, one at a time:
+- [x] **Step 4: Run each baseline** on the default model, one at a time:
 
 ```bash
 for s in s01 s02 s03 s04 s05 s09 s10 s11 s12 s13 s14 s18 s19 s20; do
@@ -3124,7 +3139,7 @@ done
   permission the scenario needed was refused, or the session wasn't isolated) is the harness's
   fault, not the skill's: fix `run.py`, re-run.
 
-- [ ] **Step 5: Record the results** in `plan-driven-development/tests/red-results.md`: the plugin
+- [x] **Step 5: Record the results** in `plan-driven-development/tests/red-results.md`: the plugin
   versions the runs printed; for each scenario, its FAIL lines, and the model's own words where it
   reasoned past a rule (its final answer, `result` in the last line of `log-1.jsonl`), quoted
   verbatim, one or two sentences each. Those quotes are the rationalizations Tasks 11–12 answer.
@@ -3132,7 +3147,7 @@ done
   `grep -nE '/(Users|home|private|var/folders)/' plan-driven-development/tests/red-results.md`
   prints nothing.
 
-- [ ] **Step 6: Commit.** Write `.git/PDD_MSG`, filling each `<…>` from the runs:
+- [x] **Step 6: Commit.** Write `.git/PDD_MSG`, filling each `<…>` from the runs:
 
 ```text
 plan-driven-development: record the RED baselines
@@ -3152,7 +3167,7 @@ git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
 
-- [ ] **Step 7: Close (Tier 3).** A self-review: every scenario has at least one FAIL, and each
+- [x] **Step 7: Close (Tier 3).** A self-review: every scenario has at least one FAIL, and each
   rationalization is quoted, not paraphrased. **Now** → `Task 7: the leak check, open.` Commit
   `plan-driven-development: close Task 6: RED, the baselines without the skill`:
 
@@ -3184,7 +3199,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 8: Push (standing OK).**
+- [x] **Step 8: Push (standing OK).**
 
   Until Task 7 the scan uses local-ai's leak check, which reads Dan's denylist without printing
   it; `$LOCAL_AI` is local-ai's checkout (Global Constraints). Push only through this block:
@@ -6064,6 +6079,11 @@ fi
 ***
 
 ### Task 13: GREEN and REFACTOR in Claude Code
+
+> **First (Dan, 2026-10-22):** the isolation task before this one, and RED again headless under it
+> (see the order note at the top). GREEN compares against that clean baseline, not Task 6's
+> subagent runs. S04, S11, S13 and S14 failed nothing in Task 6; any of them that still fails
+> nothing headless is rewritten before GREEN (Dan's ruling at Task 6's close).
 
 **Tier:** 2 · **Scenarios:** S01–S14 and S17–S20 (S06–S08 and S17 through the pytest suite).
 
