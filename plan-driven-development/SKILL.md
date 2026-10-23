@@ -70,30 +70,22 @@ in phases, or to adopt this workflow in a repo that has none of it yet.
    `__VISIBILITY__`, `__DEMO__`, `__MODE__`, `__CHECK_COMMAND__`, and `__SKILL_VERSION__`, which is
    the short SHA of this skill's own checkout,
    `git -C <this skill's base directory> rev-parse --short HEAD`, or, for a plugin install with no
-   git, the name of the plugin's cache folder. Show Dan the filled file (in an existing repo, the
-   diff) before writing it.
+   git, the name of the plugin's cache folder.
+5. **Show Dan each file kickoff writes** (in an existing repo, its diff) before writing it.
+   `references/kickoff.md` lists what kickoff copies from this skill and where each file goes.
 
-**What kickoff copies into a project**, every path relative to this skill's base directory:
+**Not built yet (2026-10-22).** Of the files kickoff copies, only `templates/AGENTS.md` and
+`scripts/commitmsg.py` exist so far. Until the rest does, a trial project runs like this:
 
-| In this skill | In the project | What it is |
-|---|---|---|
-| `templates/AGENTS.md` | `AGENTS.md` | the rules that run each session, placeholders filled |
-| `templates/CLAUDE.md` | `CLAUDE.md` | one line, `@AGENTS.md`, plus only truly Claude-specific lines |
-| `templates/close-task.txt` | `docs/agents/close-task.txt` | the closing commit's message, with its required headings |
-| `templates/wip.txt` | `docs/agents/wip.txt` | the wip commit's message |
-| `templates/issue-tracker.md` | `docs/agents/issue-tracker.md` | the tracker doc Matt's `code-review` reads: "work is tracked in the plans" |
-| `templates/githooks/` | `.githooks/` | `pre-commit`, `commit-msg`, `pre-push`, `pre-merge-commit`, `gitleaks.toml` |
-| `scripts/leakcheck.py`, `scripts/commitmsg.py` | `scripts/` | the leak check and the commit-message checks the hooks run |
-| `templates/Makefile` | `Makefile` | the front door: `help`, `hooks`, `check`, `test`, `test-utc`, `lint`, `leaks`, `docs` |
-| `templates/gitignore` | `.gitignore` | the hardening block, appended |
-| `templates/ci.yml`, `templates/dependabot.yml` | `.github/workflows/ci.yml`, `.github/dependabot.yml` | CI (tests, leaks, shellcheck, site, the Pages deploy) and Dependabot for Actions and uv |
-| `templates/quarto/` | `website/` | the docs site, for a public project without a demo |
-
-**Not built yet (2026-10-22): everything in that table except `templates/AGENTS.md` and
-`scripts/commitmsg.py`.** Until the rest lands, kickoff copies those two, writes the project's
-`Makefile` by hand with the targets `AGENTS.md` names, and tells Dan, before the root commit, that
-the project has no hooks, leak check or CI yet: until it does, the leak rules in `AGENTS.md` are
-its only guard.
+- **Its `Makefile` is written by hand**, with the targets `AGENTS.md` names. `hooks` prints that no
+  hooks are installed yet and exits 0; `leaks` runs `gitleaks git --redact` over the history;
+  `check` runs the tests, the tests under `TZ=UTC`, and `leaks`.
+- **One interim line goes under its `AGENTS.md` header:** "Until the hooks and the leak check
+  exist, `make hooks` installs nothing and there is no denylist: every push waits for Dan's OK,
+  after `make leaks` passes, and there is no standing push OK." It replaces the missing-denylist
+  stop for now, and comes out when the project gets the hooks.
+- **Before the root commit,** kickoff tells Dan the project has no hooks, no denylist scan and no
+  CI yet.
 
 ## Planning
 
@@ -119,7 +111,7 @@ starts and again before it is called done.
   superpowers:executing-plans inline. Both keep their own steps except where *Overrides* says
   otherwise.
 - **A task ends with its close** (*Each task's loop*, step 6), the step the baseline runs skipped
-  most often (*Red flags*). Read a later task as the forward reviews left it, not as you remember it.
+  most often (*Red flags*). Read a later task as the forward reviews left it, not as remembered.
 
 ## Phase end and phase start
 
@@ -137,7 +129,7 @@ phase start before switching branches.
 ## Resume
 
 **Trigger:** every session start in such a repo; "where are we?"; and after a context compaction,
-a usage-limit stop or a restart. "Catch me up" is not this: it starts Dan's vault catch-up.
+a usage-limit stop or a restart.
 
 - **Follow the project's `AGENTS.md`, *Resume*.** It runs from `AGENTS.md` itself, so it works in
   any harness, with or without this skill; this skill adds nothing to its read order.
@@ -156,6 +148,15 @@ site task, and the live-URL check after a phase merges.
   cases, the Quarto site and its wrappers, the checks and the deploy.
 - Site work uses the posit-dev Quarto skills (`quarto:quarto-authoring`), alongside Quarto's own
   website docs.
+
+## When it doesn't apply
+
+- **A repo whose `AGENTS.md` doesn't name this skill** keeps its own rules. Adopting this workflow
+  there is a kickoff, and starts only when Dan asks for it.
+- **"Catch me up"** starts Dan's vault catch-up, not *Resume*; only "where are we?" and the session
+  events above start a resume.
+- **Matt Pocock's `tdd` and `diagnosing-bugs`** run only when Dan types them, even in such a repo
+  (`AGENTS.md`, *Overrides*).
 
 ## Where each rule lives
 
@@ -179,26 +180,27 @@ site task, and the live-URL check after a phase merges.
 ## Red flags
 
 Each row is what an agent working without this skill said, in its own words, in the baseline runs
-([`tests/red-results.md`](tests/red-results.md)), and the rule that answers it. If you catch
-yourself thinking one of these, stop and read the rule.
+([`tests/red-results.md`](tests/red-results.md)), and the rule in `templates/AGENTS.md` that
+answers it: quoted in its words, or named by its section. If you catch yourself thinking one of
+these, stop and read that rule.
 
 | The thought | The rule |
 |---|---|
-| *Those rules allow one kickoff question in Dan's own words.* (S01) | The open question comes first only when the request doesn't already say what the project is for (*Asking Dan*, rule 3). |
-| *My kickoff question was open-ended (…), so it had no option A.* (S01) | Every decision is a scenario with outcomes A, B and C, so Dan's "A" always answers one (*Asking Dan*, rule 3). |
-| *I did not implement Task 3 because I would have had to change the plan's test.* (S02) | A wrong listing is drift, not a stop: build it right and record it (*Each task's loop*). |
-| *The plan's "Now:" line still says Task 1 is open, and the plan has no Review Focus entries. I left both alone.* (S02) | The close ticks the boxes and moves Now, in a commit of its own (*Each task's loop*, step 6). |
-| *I left the plan's "Now: Task 1 ... open" line alone, because the plan's commit step stages only `tally.py` and `tests/test_tally.py`.* (S18) | The close stages the plan by path, whatever the build's commit step staged (step 6). |
-| *Task 3 needs `word_count`, but its interface and test still say `count_words`.* (S18) | The forward review rewrites that listing now and names it under `Forward:`; reporting it is not enough (step 4). |
-| *I stopped before Task 2 and changed nothing. I did not edit any files or make any commits.* (S03) | A fifth stop is recorded: a wip commit with the question on the Now line (*Stops*). |
-| *Dan should confirm it is acceptable to modify the vendored file.* (S03) | Ask the question itself, as a scenario with A, B and C, ending in "?" (*Asking Dan*). |
-| *I did not close it in the plan: the checkboxes and the "Now:" line are unchanged, because the plan, the spec and the earlier commits disagree and I wanted you to rule on that first.* (S10) | The commits win, and a task with no closing commit gets one; disagreement is not a stop (*Resume*). |
-| *I couldn't find a plan-driven-development skill to follow, so I used the plan's own checklist …* (S09) | `AGENTS.md` carries every rule, ledger included; a missing skill never lowers the bar (*Resume*, step 7). |
-| *The repo's AGENTS.md says to follow plan-driven-development. I did only the requested fix and flag, not the full plan process.* (S05) | A one-off request still loads systematic-debugging for a failure and test-driven-development for new code (*Overrides*, steering). |
-| *Why Task 1 was still open: the earlier commit 2c9def7, "count characters (this machine)", only added `tests/test_chars.py` with a placeholder `assert True`.* (S12) | Compare the branch with `origin/<branch>` before building; ahead and behind is diverged, a stop (*Resume*, step 3; *Stops*). |
-| *Deviation from the plan: the plan's code would not have met T02.* (S19) | Fixing a miss yourself is drift; the tier's review still runs after the build, and `Findings:` and `Rounds:` record it (steps 3 and 6; *Reviews*). |
-| *I assumed this one is not public, since it has no remote and no leak check.* (S20) | A leak is a stop whether or not the repo has a remote, a hook or a leak check (*Stops*). |
-| *`git commit --amend` or a reset is safe for now, as nothing has left the machine.* (S20) | History rewrites never relax; the fix is Dan's call, and the finding goes to him by kind and `file:line` (*Stops*). |
+| *Those rules allow one kickoff question in Dan's own words.* (S01) | Only "when the request doesn't say what the project is for or who uses it; naming what to build is not enough" (*Asking Dan*, rule 3). |
+| *My kickoff question was open-ended (…), so it had no option A.* (S01) | "In every other case the first question is a scenario too", with outcomes A, B and C (*Asking Dan*, rule 3). |
+| *I did not implement Task 3 because I would have had to change the plan's test.* (S02) | Unless building it right "would change the spec, one of Dan's decisions or a scenario's expected outcome", "it is drift: build it right" (*Each task's loop*, *A wrong listing*). |
+| *The plan's "Now:" line still says Task 1 is open, and the plan has no Review Focus entries. I left both alone.* (S02) | The close holds "the plan with this task's boxes ticked, **Now** set to `Task <N+1>: <title>, open.`" (*Each task's loop*, step 6). |
+| *I left the plan's "Now: Task 1 ... open" line alone, because the plan's commit step stages only `tally.py` and `tests/test_tally.py`.* (S18) | The close is "its own commit, before anything else starts, whatever the build's step staged" (*Each task's loop*, step 6). |
+| *Task 3 needs `word_count`, but its interface and test still say `count_words`.* (S18) | "rewrite in the plan, now, every later listing that uses what changed, and name each under `Forward:`" (*Each task's loop*, step 4). |
+| *I stopped before Task 2 and changed nothing. I did not edit any files or make any commits.* (S03) | Attended, the fifth stop "is recorded and committed": a wip commit, with the question on the Now line (*Stops*). |
+| *Dan should confirm it is acceptable to modify the vendored file.* (S03) | The Now line ends with the question's "?", and "then that question" goes to Dan as a scenario (*Stops*; *Asking Dan*, rule 3). |
+| *I did not close it in the plan: the checkboxes and the "Now:" line are unchanged, because the plan, the spec and the earlier commits disagree and I wanted you to rule on that first.* (S10) | "a task with no closing commit is open, whatever else says" (*Resume*); "Resume at the first task with no closing commit" (*Resume*, step 6); the close comes "before anything else starts" (*Each task's loop*, step 6). |
+| *… I couldn't find a plan-driven-development skill to follow, so I used the plan's own checklist …* (S09) | "Every session follows this file, in any harness, with or without the plan-driven-development skill" (the header); the ledger: *Resume*, step 7. |
+| *The repo's AGENTS.md says to follow plan-driven-development. I did only the requested fix and flag, not the full plan process.* (S05) | "Plan task or one-off request: a failing test or check loads `superpowers:systematic-debugging` before any fix, and new code loads `superpowers:test-driven-development` before its first test" (*Overrides*, *Steering*). |
+| *Why Task 1 was still open: the earlier commit 2c9def7, "count characters (this machine)", only added `tests/test_chars.py` with a placeholder `assert True`.* (S12) | Resume reads "ahead (`git log origin/<branch>..HEAD`) and behind (`git log HEAD..origin/<branch>`), upstream set or not" (*Resume*, step 3); "a diverged branch" is a stop (*Stops*). |
+| *Deviation from the plan: the plan's code would not have met T02.* (S19) | Backward review "after every build, whatever the build found or fixed" (*Each task's loop*, step 3); the security checklist, "each item a line in the review, and under `Rounds:`" (*Reviews*). |
+| *I assumed this one is not public, since it has no remote and no leak check.* (S20) | "A leak is a stop whether or not the repo has a remote, a hook or a leak check" (*Stops*). |
+| *`git commit --amend` or a reset is safe for now, as nothing has left the machine.* (S20) | Never relaxed: "history rewrites (an amend or reset of a commit included)"; "tell Dan its kind and `file:line`" (*Stops*). |
 
 **All of these mean:** the rule is already written down. Stop, read it in the project's
 `AGENTS.md`, and do what it says.

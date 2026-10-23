@@ -1,10 +1,12 @@
 # __PROJECT__: how we work
 
-Every session follows this file, in any harness, with or without the plan-driven-development
-skill. It is a user instruction, so it outranks every skill's defaults (*Overrides*).
+Follow the plan-driven-development skill wherever the harness has it. Every session follows this
+file, in any harness, with or without the plan-driven-development skill: it holds every rule that
+runs each session, and as a user instruction it outranks every skill's defaults (*Overrides*).
 
 **Size:** __SIZE__ · **Visibility:** __VISIBILITY__ · **Demo:** __DEMO__ · **Mode:** __MODE__ ·
 **Check:** `__CHECK_COMMAND__` · **Work in place:** this folder checks out the phase branch.
+Attended: phase PRs and the fifth stop wait for Dan; fully vibed: the agent merges and decides.
 Made from plan-driven-development __SKILL_VERSION__.
 
 ## Commands
@@ -28,11 +30,13 @@ restart, re-read the repo before acting, in this order; a summary drops details,
 5. **`docs/superpowers/`:** the spec's status lines; the plan's Now and boxes, Phase end's included.
 6. **Commits since the newest `close Task`:** a `Plan: … Task N` after it means Task N is open; a
    wip commit says where it stopped. Resume at the first task with no closing commit.
-7. **superpowers' ledger**, `.superpowers/sdd/<plan file name>/progress.md`, before its runner
-   starts: a `Task N: complete (commits <base7>..<close7>, review clean)` line for each task with a
-   closing commit and for no other; nothing else changes. No ledger: create it, first line
-   `# SDD ledger — plan: <plan file>`, then those lines only; mid-review, one fresh review runs
-   from the task's base.
+7. **superpowers' ledger**, `.superpowers/sdd/<plan file name without .md>/progress.md`, before its
+   runner starts: each task with a closing commit has a `Task N: complete` line, and no other task
+   does. A line already there stays as it is; a new one reads
+   `Task N: complete (commits <base7>..<close7>, review clean)`, or `, <K> parked` instead of
+   `, review clean` when the close parked findings. Nothing else changes. No ledger: create it,
+   first line `# SDD ledger — plan: <plan file>`, then those lines only; mid-review, one fresh
+   review runs from the task's base.
 8. **Uncommitted work:** run its tests; never touch it without Dan; untracked files by name only.
 9. **Q&A pages:** what waits on Dan; on a vibed project, every "decided without Dan".
 
@@ -71,9 +75,11 @@ Seven steps, any model or harness, with subagents or inline. Record the task's b
    run comes first: `reopen` the newest task closed before it (untick, reset Now) and fix it. No
    CI: the local checks are the gate, and the task closes on its closing commit.
 
-**A wrong listing is drift, not a stop:** a planned test or code that fails a check, misses a
-scenario or passes on one machine only is built right, with a "Built differently" note at the
-task's head (what, why, commits; the listing stays) and the `Drift:` line. Fix-round dispatches
+**A wrong listing** is a planned test or code that fails a check, misses a scenario, or passes on
+one machine only. If building it right would change the spec, one of Dan's decisions or a
+scenario's expected outcome, it is the fifth stop (*Stops*). Otherwise it is drift: build it right,
+with a "Built differently" note at the task's head (what, why, commits; the listing stays as
+planned) and the `Drift:` line. Fix-round dispatches
 carry the commit format and trailer. A bug a review missed is fixed with "escaped from Task N
 (Tier X), found by …" in the body.
 
@@ -97,17 +103,16 @@ carry the commit format and trailer. A bug a review missed is fixed with "escape
   axis, each report in a file before the next; `Rounds:` says "self-review (no subagent tool)".
 - **Severity:** Critical breaks a safety property, loses or leaks data, or blocks the phase (always
   to Dan); Important is a bug or missing case a user or test would hit, or a factually wrong doc;
-  Minor is style, wording and nice-to-haves.
-  **The cap:** re-reviews used up, a one-line fix is made directly, the rest goes to the phase-end
-  list or Dan; never another round.
+  Minor is style, wording and nice-to-haves. **The cap:** re-reviews used up, a one-line fix is
+  made directly, the rest goes to the phase-end list or Dan; never another round.
 
 ## Stops
 
 **The fifth stop:** a change would alter the spec, one of Dan's decisions or an approved scenario
 (its outcome, or moving it to Later or dropping it), or would remove the reason for a heavier later
-task (re-offer the simpler option). Attended, it is recorded and committed: a wip commit whose
-plan's **Now** reads, on one line,
-`Task N stopped: waiting on Dan: <what conflicts with which scenario or decision, as a question>?`;
+task (re-offer the simpler option). Attended, it is recorded and committed: a wip commit holding
+the question as item K on the phase's Q&A page, and the plan's **Now** reading, on one line,
+`Task N stopped: waiting on Dan (Q&A, item K): <what conflicts with which scenario or decision>?`;
 then that question (*Asking Dan*); nothing new starts. Vibed: a ruling, logged on the phase's Q&A
 page as "decided without Dan", in its commit body and in the next briefing. Attended runs on to an
 open, green phase PR, which waits for Dan's merge; vibed merges it once CI is green and the phase
@@ -121,7 +126,8 @@ or ignore entry added); the repo's visibility; tags and releases; repo settings 
 `gh api` writes, `gh` scopes); merging a PR you didn't open, Dependabot's too; an open Critical; a
 file the leak check couldn't scan going out; a missing or invalid denylist. Also a stop: a diverged
 branch (ahead and behind, whatever the other side's commits look like), or a merge or rebase
-stopped halfway: report it, never continue it.
+stopped halfway: report it, never continue it. superpowers deleting its own git-ignored workspace
+is not "deleting data".
 
 **A leak is a stop whether or not the repo has a remote, a hook or a leak check:** what is
 committed gets pushed, and pushed history is permanent. A token, private address or personal name
@@ -190,7 +196,8 @@ and new code loads `superpowers:test-driven-development` before its first test.
 2. **One at a time:** "Question N of M" and how many remain; say so when M changes.
 3. **A scenario:** "Scenario: …. What do you expect?", outcomes **A.**, **B.**, **C.**, one
    recommended. Kickoff may open with one "describe it in your own words" question only when the
-   request doesn't already say what the project is for; otherwise the first question is a scenario.
+   request doesn't say what the project is for or who uses it; naming what to build is not enough.
+   In every other case the first question is a scenario too.
 4. **Self-review:** a line just before it: what the recommendation was checked against (the
    evidence, Dan's goals, the answers settled, what could go wrong), and what changed.
 5. **Selectable options** where the harness has them (Claude Code's AskUserQuestion, the

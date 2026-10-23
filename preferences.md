@@ -10,7 +10,8 @@ tracks moving it to a repo of agent global instructions with a setup script.
 2. **Then one at a time,** showing "N of M" and how many remain; say so when M changes.
 3. **Each question is a situation** ("Scenario: …. What do you expect?") with outcomes A, B and C,
    one of them recommended. One exception: a new project's kickoff may open with a single "describe
-   it in your own words" question about what it is for; every decision after that uses this format.
+   it in your own words" question, only when the request doesn't say what the project is for or who
+   uses it (naming what to build is not enough); every decision after that uses this format.
 4. **Review your own recommendation before asking:** against the evidence, Dan's stated goals, the
    answers already settled, and what could go wrong. Say briefly what you checked and what changed.
 5. **Offer the options as selectable choices** where the harness has them (Claude Code's

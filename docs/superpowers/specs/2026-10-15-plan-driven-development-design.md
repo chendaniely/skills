@@ -104,7 +104,10 @@ plan-driven-development/
   asking rules (a short copy, since the fifth stop and resume use them), the docs-true rule and its
   sync table, the security rules, the security checklist and a short scoped re-review brief (both
   for harnesses without superpowers or subagents). About 100–120 lines, self-contained, so a
-  harness without the skill still works. It names the skill version it came from, so a later
+  harness without the skill still works. *(2026-10-22, Dan's ruling on Task 11's review, Q&A
+  record, "Task 11's review: two rulings": about 200–220 lines, about 2,600 words. The first
+  template came to 213 lines with every line carrying a rule this section lists; the estimate gave
+  way, and lines are neither unwrapped nor rules cut to meet it.)* It names the skill version it came from, so a later
   session can offer an update. It outranks superpowers because it is a user instruction; nothing
   in the skill does.
 - **Copied into each project** at kickoff: the template files and both scripts. A fix to them does
@@ -135,7 +138,10 @@ from the description.
 3. **Each question is a situation** ("Scenario: …. What do you expect?") with outcomes A, B and C,
    one recommended. One exception (Dan's decision A on brainstorming 7.0.0): a new project's
    kickoff may open with a single "describe it in your own words" question about intent; every
-   decision after that uses this format.
+   decision after that uses this format. *(2026-10-22, Dan's ruling on Task 11's review, Q&A
+   record, "Task 11's review: two rulings": only when the request doesn't say what the project is
+   for or who uses it; naming what to build is not enough. Otherwise the first question is a
+   scenario too.)*
 4. **A self-review of the recommendation** before asking: checked against the evidence, Dan's stated
    goals, the answers already settled, and what could go wrong.
 5. **Selectable options where the harness has them** (Dan, 2026-10-15: "i like the choices that you
@@ -156,7 +162,8 @@ template, so they hold in every project and every harness.
 
 1. **Classify and announce:** superpowers:brainstorming; "a new project, so architectural". It may
    open with one "describe it in your own words" question about what the project is for
-   (brainstorming 7.0.0's open question; the asking rules' one exception).
+   (brainstorming 7.0.0's open question; the asking rules' one exception, and its 2026-10-22
+   condition).
 2. **Setup questions**, by the asking rules:
    - small or large;
    - public or private;
@@ -841,3 +848,8 @@ The plan breaks these into 16 tasks, the last its small-project phase end.
   normal protections; the automated headless runs (GREEN, portability) wait for a separate
   unprivileged macOS user, because the grader's own git calls can still run agent-planted code as
   him.
+- 2026-10-22: Dan's ruling on Task 11's review (`f388d8c`): the `AGENTS.md` template's budget is
+  about 200–220 lines, about 2,600 words, not 100–120 (*Files*).
+- 2026-10-22: Dan's ruling on Task 11's review (`f388d8c`): kickoff's open question only when the
+  request doesn't say what the project is for or who uses it (*The asking rules*, rule 3); S01's
+  prompt gains a purpose, and `preferences.md` the same condition.
