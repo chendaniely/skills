@@ -1,0 +1,204 @@
+---
+name: plan-driven-development
+description: Dan's plan-and-commit workflow for building a project in phases with coding agents. Use when Dan asks to start a new project or app, plan one in phases, or adopt this workflow in an existing repo; in a repo whose AGENTS.md says to follow plan-driven-development, before and after each plan task and at a phase's start or end; and when he asks "where are we?" in such a repo.
+---
+
+# plan-driven-development
+
+## Overview
+
+Dan builds many projects with coding agents, and wants every one planned and built the same way,
+so that the repository and its git history hold the whole story: what was planned, what was built,
+how the build departed from the plan and why, and what comes next. Anyone picks a project up from
+the repo alone: an agent after a compaction or a usage-limit stop, a session on another machine, or
+Dan after months away.
+
+**A project's `AGENTS.md` holds every rule that runs each session:** the task loop, the reviews,
+the stops, the commit formats, pushing, resume, the asking rules, the overrides of other skills,
+docs and security. Kickoff makes it from [`templates/AGENTS.md`](templates/AGENTS.md). This file
+never restates those rules. It says which moment you are in and what to read before you act; where
+it names a rule, the template's wording is the rule.
+
+**Why the rules live in `AGENTS.md`, not here:**
+
+- A skill can't outrank another skill, but a user instruction outranks every skill, and Dan
+  approves `AGENTS.md` at kickoff. So every override of superpowers or of Matt Pocock's skills sits
+  in the template's *Overrides* table.
+- `AGENTS.md` reaches harnesses that never load this skill: OpenCode with a local model, pi, or a
+  machine where it isn't installed. It travels with the repo.
+- Subagents see only what they are sent. The rules reach them through the plan's own steps (every
+  commit written out in full) and the dispatch prompts.
+
+**Paths.** Every path in this skill is relative to its base directory, the folder that holds this
+`SKILL.md`. That folder may be a plugin's cache rather than a git checkout, so never assume
+`~/.claude/skills/`. Paths inside a project (`docs/agents/close-task.txt`, `scripts/leakcheck.py`)
+are relative to the project's root.
+
+**It writes files only when asked.** Kickoff runs on Dan's request. In a project, the `AGENTS.md`
+line saying to follow plan-driven-development is his standing request, since he approved that text
+at kickoff. Nothing edits a `CLAUDE.md`, or this `SKILL.md`, without his yes.
+
+## The six moments
+
+| Moment | Trigger | Before acting, read |
+|---|---|---|
+| Kickoff | Dan asks to start a new project or app, plan one in phases, or adopt this workflow in an existing repo | [`references/kickoff.md`](references/kickoff.md), and *Asking Dan* in [`templates/AGENTS.md`](templates/AGENTS.md) |
+| Planning | inside kickoff: the spec, then writing-plans once per phase, every phase before approval | [`references/plans.md`](references/plans.md) |
+| Each task | throughout a phase, before and after each plan task | the project's `AGENTS.md`: *Each task's loop*, *Reviews*, *Stops*, *Commits* |
+| Phase end | the phase's last task closes, so its "Phase end" task is next | [`references/phase-end.md`](references/phase-end.md) |
+| Phase start | the phase's PR has merged (Phase 2 onward) | [`references/phase-end.md`](references/phase-end.md), its phase start |
+| Resume | every session start; "where are we?"; after a compaction, a usage-limit stop or a restart | the project's `AGENTS.md`: *Resume* |
+
+A **small project** (one sitting, one plan, nothing touching secrets, the network or hardware) has
+no phases: kickoff, planning, each task, a shortened end, resume. Kickoff's first questions settle
+which it is, and `AGENTS.md`'s header records it.
+
+## Kickoff
+
+**Trigger:** Dan asks to start a new project or app ("let's start a new project: …"), to plan one
+in phases, or to adopt this workflow in a repo that has none of it yet.
+
+1. **Announce** superpowers:brainstorming, "a new project, so architectural".
+2. **Before kickoff's first question, read [`references/kickoff.md`](references/kickoff.md) and
+   *Asking Dan* in [`templates/AGENTS.md`](templates/AGENTS.md).** The first message Dan sees is
+   already in that format, including the one case where an open question may come first.
+3. **Follow `references/kickoff.md`** through the setup questions, safety before the first commit,
+   grilling, the design in sections, the spec, the root files, the plans, the review before approval
+   and Dan's approval. Read [`references/docs-site.md`](references/docs-site.md) before the root
+   files of a public project: which docs a project gets depends on its answers.
+4. **Fill `templates/AGENTS.md`'s placeholders** from the answers: `__PROJECT__`, `__SIZE__`,
+   `__VISIBILITY__`, `__DEMO__`, `__MODE__`, `__CHECK_COMMAND__`, and `__SKILL_VERSION__`, which is
+   the short SHA of this skill's own checkout,
+   `git -C <this skill's base directory> rev-parse --short HEAD`, or, for a plugin install with no
+   git, the name of the plugin's cache folder. Show Dan the filled file (in an existing repo, the
+   diff) before writing it.
+
+**What kickoff copies into a project**, every path relative to this skill's base directory:
+
+| In this skill | In the project | What it is |
+|---|---|---|
+| `templates/AGENTS.md` | `AGENTS.md` | the rules that run each session, placeholders filled |
+| `templates/CLAUDE.md` | `CLAUDE.md` | one line, `@AGENTS.md`, plus only truly Claude-specific lines |
+| `templates/close-task.txt` | `docs/agents/close-task.txt` | the closing commit's message, with its required headings |
+| `templates/wip.txt` | `docs/agents/wip.txt` | the wip commit's message |
+| `templates/issue-tracker.md` | `docs/agents/issue-tracker.md` | the tracker doc Matt's `code-review` reads: "work is tracked in the plans" |
+| `templates/githooks/` | `.githooks/` | `pre-commit`, `commit-msg`, `pre-push`, `pre-merge-commit`, `gitleaks.toml` |
+| `scripts/leakcheck.py`, `scripts/commitmsg.py` | `scripts/` | the leak check and the commit-message checks the hooks run |
+| `templates/Makefile` | `Makefile` | the front door: `help`, `hooks`, `check`, `test`, `test-utc`, `lint`, `leaks`, `docs` |
+| `templates/gitignore` | `.gitignore` | the hardening block, appended |
+| `templates/ci.yml`, `templates/dependabot.yml` | `.github/workflows/ci.yml`, `.github/dependabot.yml` | CI (tests, leaks, shellcheck, site, the Pages deploy) and Dependabot for Actions and uv |
+| `templates/quarto/` | `website/` | the docs site, for a public project without a demo |
+
+**Not built yet (2026-10-22): everything in that table except `templates/AGENTS.md` and
+`scripts/commitmsg.py`.** Until the rest lands, kickoff copies those two, writes the project's
+`Makefile` by hand with the targets `AGENTS.md` names, and tells Dan, before the root commit, that
+the project has no hooks, leak check or CI yet: until it does, the leak rules in `AGENTS.md` are
+its only guard.
+
+## Planning
+
+**Trigger:** inside kickoff, when the spec is written and then the plans; and at each phase start,
+where a later phase's plan is revised against the code as built.
+
+- **Before writing the spec or any plan, read [`references/plans.md`](references/plans.md).** It
+  holds what this workflow adds to brainstorming's spec and to writing-plans' plans.
+- superpowers:writing-plans runs once per phase, every phase in full and with full code, before
+  Dan approves anything. The template's *Overrides* table says where its defaults give way.
+- Every task's commit steps are written exactly as `AGENTS.md`'s *Commits* gives them, since
+  implementers copy plans faithfully, mistakes included.
+
+## Each task
+
+**Trigger:** in a repo whose `AGENTS.md` says to follow plan-driven-development, before a plan task
+starts and again before it is called done.
+
+- **Before a task's first step, re-read the project's `AGENTS.md`:** *Each task's loop*,
+  *Reviews*, *Stops* and *Commits*. The project's copy is the one Dan approved, so it wins in that
+  project, even where this skill's template has moved on.
+- **Run the plan the way Dan chose at approval:** superpowers:subagent-driven-development, or
+  superpowers:executing-plans inline. Both keep their own steps except where *Overrides* says
+  otherwise.
+- **A task ends with its close** (*Each task's loop*, step 6), the step the baseline runs skipped
+  most often (*Red flags*). Read a later task as the forward reviews left it, not as you remember it.
+
+## Phase end and phase start
+
+**Phase end trigger:** the phase's last task closes, so the plan's "Phase end" task is next; or a
+resume finds that task open.
+
+- **Before its first unticked box, read [`references/phase-end.md`](references/phase-end.md).**
+  Each step is a box, so a crash mid-way shows where it stopped: resume at the first unticked box,
+  never re-running a ticked one.
+- A small project runs the shortened end the reference gives.
+
+**Phase start trigger:** the phase's PR has merged (Phase 2 onward). Read the same reference's
+phase start before switching branches.
+
+## Resume
+
+**Trigger:** every session start in such a repo; "where are we?"; and after a context compaction,
+a usage-limit stop or a restart. "Catch me up" is not this: it starts Dan's vault catch-up.
+
+- **Follow the project's `AGENTS.md`, *Resume*.** It runs from `AGENTS.md` itself, so it works in
+  any harness, with or without this skill; this skill adds nothing to its read order.
+- **Then check the project's copy is current.** Compare the `Made from plan-driven-development …`
+  line in its `AGENTS.md` with this skill's own version (as at kickoff, step 4). If they differ,
+  list "update this project's rules and scripts from the skill" among the next steps; on Dan's yes,
+  show each file's diff before writing it. Never update a project's copies silently: projects keep
+  the versions they were made with until Dan says otherwise.
+
+## The docs site
+
+**Trigger:** kickoff of a public project (every public project has a deployed site), the plan's
+site task, and the live-URL check after a phase merges.
+
+- **Read [`references/docs-site.md`](references/docs-site.md) first.** It holds the three docs
+  cases, the Quarto site and its wrappers, the checks and the deploy.
+- Site work uses the posit-dev Quarto skills (`quarto:quarto-authoring`), alongside Quarto's own
+  website docs.
+
+## Where each rule lives
+
+| Rule | File and section |
+|---|---|
+| the commands, by `Makefile` target | `templates/AGENTS.md`, *Commands* |
+| resume's read order, the briefing, the go | `templates/AGENTS.md`, *Resume* |
+| the seven steps, drift, the close | `templates/AGENTS.md`, *Each task's loop* |
+| tiers, Matt's two-axis brief, the security checklist, re-reviews, the cap | `templates/AGENTS.md`, *Reviews* |
+| the fifth stop, the modes, the stops that never relax, leaks | `templates/AGENTS.md`, *Stops* |
+| subjects, trailers, `-F`, staging, merges | `templates/AGENTS.md`, *Commits* |
+| the standing OK, the pre-push hook, text that leaves without git | `templates/AGENTS.md`, *Pushing* |
+| where other skills give way; which skill for what | `templates/AGENTS.md`, *Overrides* |
+| how every question to Dan is asked | `templates/AGENTS.md`, *Asking Dan* |
+| docs kept true, the sync table, the denylist | `templates/AGENTS.md`, *Docs and security* |
+| setup questions, safety, grilling, root files, approval | `references/kickoff.md` |
+| the spec's and the plans' layouts, Now, Later, Revisions | `references/plans.md` |
+| phase end, councils, the retro, the PR, phase start | `references/phase-end.md` |
+| the docs cases, the Quarto site, its checks and deploy | `references/docs-site.md` |
+
+## Red flags
+
+Each row is what an agent working without this skill said, in its own words, in the baseline runs
+([`tests/red-results.md`](tests/red-results.md)), and the rule that answers it. If you catch
+yourself thinking one of these, stop and read the rule.
+
+| The thought | The rule |
+|---|---|
+| *Those rules allow one kickoff question in Dan's own words.* (S01) | The open question comes first only when the request doesn't already say what the project is for (*Asking Dan*, rule 3). |
+| *My kickoff question was open-ended (…), so it had no option A.* (S01) | Every decision is a scenario with outcomes A, B and C, so Dan's "A" always answers one (*Asking Dan*, rule 3). |
+| *I did not implement Task 3 because I would have had to change the plan's test.* (S02) | A wrong listing is drift, not a stop: build it right and record it (*Each task's loop*). |
+| *The plan's "Now:" line still says Task 1 is open, and the plan has no Review Focus entries. I left both alone.* (S02) | The close ticks the boxes and moves Now, in a commit of its own (*Each task's loop*, step 6). |
+| *I left the plan's "Now: Task 1 ... open" line alone, because the plan's commit step stages only `tally.py` and `tests/test_tally.py`.* (S18) | The close stages the plan by path, whatever the build's commit step staged (step 6). |
+| *Task 3 needs `word_count`, but its interface and test still say `count_words`.* (S18) | The forward review rewrites that listing now and names it under `Forward:`; reporting it is not enough (step 4). |
+| *I stopped before Task 2 and changed nothing. I did not edit any files or make any commits.* (S03) | A fifth stop is recorded: a wip commit with the question on the Now line (*Stops*). |
+| *Dan should confirm it is acceptable to modify the vendored file.* (S03) | Ask the question itself, as a scenario with A, B and C, ending in "?" (*Asking Dan*). |
+| *I did not close it in the plan: the checkboxes and the "Now:" line are unchanged, because the plan, the spec and the earlier commits disagree and I wanted you to rule on that first.* (S10) | The commits win, and a task with no closing commit gets one; disagreement is not a stop (*Resume*). |
+| *I couldn't find a plan-driven-development skill to follow, so I used the plan's own checklist …* (S09) | `AGENTS.md` carries every rule, ledger included; a missing skill never lowers the bar (*Resume*, step 7). |
+| *The repo's AGENTS.md says to follow plan-driven-development. I did only the requested fix and flag, not the full plan process.* (S05) | A one-off request still loads systematic-debugging for a failure and test-driven-development for new code (*Overrides*, steering). |
+| *Why Task 1 was still open: the earlier commit 2c9def7, "count characters (this machine)", only added `tests/test_chars.py` with a placeholder `assert True`.* (S12) | Compare the branch with `origin/<branch>` before building; ahead and behind is diverged, a stop (*Resume*, step 3; *Stops*). |
+| *Deviation from the plan: the plan's code would not have met T02.* (S19) | Fixing a miss yourself is drift; the tier's review still runs after the build, and `Findings:` and `Rounds:` record it (steps 3 and 6; *Reviews*). |
+| *I assumed this one is not public, since it has no remote and no leak check.* (S20) | A leak is a stop whether or not the repo has a remote, a hook or a leak check (*Stops*). |
+| *`git commit --amend` or a reset is safe for now, as nothing has left the machine.* (S20) | History rewrites never relax; the fix is Dan's call, and the finding goes to him by kind and `file:line` (*Stops*). |
+
+**All of these mean:** the rule is already written down. Stop, read it in the project's
+`AGENTS.md`, and do what it says.
