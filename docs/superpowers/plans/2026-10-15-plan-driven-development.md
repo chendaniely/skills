@@ -22,7 +22,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
 
-**Now:** Task 12: the four references, open.
+**Now:** Dan tries the skill on a real project (the order note below); then Task 7: the leak check, open.
 
 > **Order changed (Dan, 2026-10-16: "is this skill written up yet? i want to test it out"):**
 > after Task 5, run Task 6 (RED), then Tasks 11 and 12 (the skill text), then Dan tries the skill
@@ -3231,6 +3231,11 @@ fi
 
 ### Task 7: The leak check
 
+> **From Tasks 11–12's forward reviews:** once the leak check and the hooks exist (Tasks 7–8),
+> shrink and then delete `SKILL.md`'s *Not built yet* note, the interim line it puts in a
+> project's `AGENTS.md`, and `references/kickoff.md`'s two conditionals (the drill, the history
+> scan) on the hooks and `leakcheck.py` being there.
+
 **Tier:** 1 · **Scenarios:** S06.
 
 **Files:**
@@ -5953,6 +5958,18 @@ fi
 
 ### Task 12: The four references: kickoff, plans, phase end and the docs site
 
+> **Built differently** (closed 2026-10-23; commits b7185d0, 1029844):
+>
+> - **`ci.yml` and `dependabot.yml`** land in the plan's CI task, and the Quarto site in its docs
+>   task (the spec's *Kickoff* step 10), not among the root files.
+> - **`CHANGELOG.md`** joined the root files with a dated first entry, as the spec's root-files
+>   line has it.
+> - **The template's *Commits*** gained a phase-end-step row.
+> - **The references link to the template and to each other,** never restating a rule; the
+>   stopped Now line is the template's own line, linked.
+> - **Kickoff's drill and history scan** are conditionals on the hooks and `leakcheck.py` being in
+>   the project, so a trial before Tasks 7–8 never commits a drill file.
+
 > **From Task 11's forward review (2026-10-22):**
 >
 > - **`kickoff.md`** holds the list of what kickoff copies and where each file goes. `SKILL.md`
@@ -5979,9 +5996,9 @@ proven in Task 13.
 
 The same iron law and the same forms as Task 11: contracts, not words.
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: Write `references/kickoff.md`.** Budget: 150–220 lines. The setup questions (with
+- [x] **Step 1: Write `references/kickoff.md`.** Budget: 150–220 lines. The setup questions (with
   one opening "describe it in your own words" question allowed before them, Dan's decision A on
   brainstorming 7.0.0), safety before the first commit (the drill stages its files by path, commits
   with `-F`, expects exit 1 with the finding named, then unstages with `git rm --cached` and deletes
@@ -5999,7 +6016,7 @@ The same iron law and the same forms as Task 11: contracts, not words.
   settings checklist (flagged), the docs site and CI as the plan's first tasks (spec, *Kickoff*)
   (S01).
 
-- [ ] **Step 2: Write `references/plans.md`.** Budget: 100–150 lines. The spec's additions (status
+- [x] **Step 2: Write `references/plans.md`.** Budget: 100–150 lines. The spec's additions (status
   lines, outline, the scenario table with Later and dropped rows, Revisions, open items, diagrams
   by link), the plan's additions (Now after `**Spec:**`, Tier and Scenarios, a base recorded per
   task, every commit written out, the Phase end task named `### Task N: Phase end`, Built
@@ -6007,18 +6024,18 @@ The same iron law and the same forms as Task 11: contracts, not words.
   writing-plans 7.0.0), `***` rules, running a phase's listings, a small project that grows (spec,
   *Planning*).
 
-- [ ] **Step 3: Write `references/phase-end.md`.** Budget: 100–150 lines. The phase-end steps, the
+- [x] **Step 3: Write `references/phase-end.md`.** Budget: 100–150 lines. The phase-end steps, the
   small project's subset, the councils (four read-only reviewers; reports committed first; claims
   checked), the retro and its retuning rules, the PR (title, body ending with `Plan: … Phase end`,
   `--match-head-commit`, never `--admin` or `--delete-branch`), and the phase start (spec,
   *Phase end*, *Phase start*) (S14).
 
-- [ ] **Step 4: Write `references/docs-site.md`.** Budget: 80–130 lines. The three cases, the Quarto
+- [x] **Step 4: Write `references/docs-site.md`.** Budget: 80–130 lines. The three cases, the Quarto
   site from `templates/quarto/` with its placeholders, wrappers, the pages, links leaving the site,
   the checks (`make docs` locally, CI's site job), the deploy, the site task's closing rule, the
   posit-dev Quarto skills (spec, *Docs and the site*).
 
-- [ ] **Step 5: Check the shape:**
+- [x] **Step 5: Check the shape:**
 
 ```bash
 wc -l plan-driven-development/references/*.md
@@ -6028,7 +6045,7 @@ grep -o 'references/[a-z-]*\.md' plan-driven-development/SKILL.md | sort -u
 
   Expected: each file within its budget; every `grep -c` count `0`; `SKILL.md` links all four.
 
-- [ ] **Step 6: Commit.** Write `.git/PDD_MSG`, filling the `<…>` from `tests/red-results.md`:
+- [x] **Step 6: Commit.** Write `.git/PDD_MSG`, filling the `<…>` from `tests/red-results.md`:
 
 ```text
 plan-driven-development: write the four references from the RED results
@@ -6048,7 +6065,7 @@ git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
 
-- [ ] **Step 7: Review, look forward, close (Tier 2).**
+- [x] **Step 7: Review, look forward, close (Tier 2).**
   1. **Mechanical:** Step 5's checks; `make test` still passes.
   2. **Backward review:** `mattpocock-skills:code-review` from `$(cat .git/PDD_BASE)`, the spec
      being this task's contracts and the spec sections they cite; nothing restates the template;
@@ -6086,7 +6103,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 8: Push (standing OK).**
+- [x] **Step 8: Push (standing OK).**
 
   The skill's own leak check scans the range, with Dan's denylist. Push only through this block:
 
@@ -6122,6 +6139,11 @@ fi
 >   and a denial would be a HARNESS FAIL.
 > - **S19's grader or fixture** must cope with a miss the builder fixed itself (the template
 >   records that as drift), so the Findings check doesn't fail a correct run.
+>
+> **From Task 12's forward review (2026-10-23):** S01's options may be given in AskUserQuestion
+> (the asking rules prefer selectable options), where `final_text` never looks. The grader must
+> read AskUserQuestion's input as well, and `run.py`'s kickoff allow-list must decide how a
+> headless AskUserQuestion counts: today any denial outside SKILL_DENIALS is a HARNESS FAIL.
 
 **Tier:** 2 · **Scenarios:** S01–S14 and S17–S20 (S06–S08 and S17 through the pytest suite).
 
