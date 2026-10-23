@@ -10,6 +10,8 @@
 
 `prepare` builds the scenario's RED work folder under ROOT with run.py's own `prepare` (the fixture
 repo, start.txt, start.diff, the fixture denylist; no skill in the repo) and launches nothing. It
+warms the folder's own uv cache as run.py does, outside any sandbox and before the agent starts, so
+the graders' offline test runs find pytest (a failed warm prints HARNESS FAIL and exits 3). It
 writes the turn prompts to WORK/prompt-1.md (and prompt-2.md) and prints `repo=`, `work=`,
 `prompt=` (and `prompt2=`). The subagent is given the repo and the prompt; the caller then passes
 its transcript to `grade`.
@@ -22,7 +24,10 @@ The mapping:
     `tool_use` with `name` and `input`) in the stream-json shape, which is all grade.py reads;
   - an assistant line whose `message.content` is a plain string becomes one `text` block;
   - every other line (`attachment`, hook output, summaries, blanks, non-JSON) is dropped;
-  - no `result` event is made up: grade.py then takes the last assistant `text` as the final answer;
+  - a subagent ends its run with a `SubagentHandback` tool call, not a text block, and its
+    `input.message` is the reply the user would read; the last one becomes a closing `result`
+    event, the one `claude -p` writes, which grade.py takes as the final answer. A transcript with
+    none gets no `result`, and grade.py then takes the last assistant `text`;
   - no `init` event is made: grade.py never reads one (run.py's isolation check does, and a
     subagent run has no such start-up to check).
 A check that grade.py skips (ok is None) prints `N/A (subagent run)`. None of today's checks does:
@@ -50,7 +55,7 @@ def _load(name: str):
 
 def convert(text: str) -> str:
     """One transcript's text as the stream-json log text grade.py reads (see the mapping above)."""
-    out = []
+    out, handback = [], None
     for raw in text.splitlines():
         try:
             event = json.loads(raw)
@@ -65,14 +70,28 @@ def convert(text: str) -> str:
             message["content"] = [{"type": "text", "text": message["content"]}]
         if event["type"] == "assistant" and not isinstance(message.get("content", []), list):
             continue
+        if event["type"] == "assistant":
+            for block in message.get("content", []):
+                if isinstance(block, dict) and block.get("type") == "tool_use" and block.get("name") == "SubagentHandback" \
+                        and isinstance((block.get("input") or {}).get("message"), str):
+                    handback = block["input"]["message"]
         out.append(json.dumps(event))
+    if handback is not None:
+        out.append(json.dumps({"type": "result", "result": handback}))
     return "\n".join(out) + ("\n" if out else "")
+
+
+class WarmFailed(Exception):
+    pass
 
 
 def prepare(scenario: str, root: Path) -> list[str]:
     run = _load("run")
     root = root.expanduser().resolve()
     work, repo = run.prepare(scenario, "red", root)
+    problem = run.warm_uv_cache(repo, work / "uv-cache")
+    if problem:
+        raise WarmFailed(f"HARNESS FAIL {scenario}: cannot warm the uv cache: {problem} ({work})")
     names = run.TURNS[scenario]
     lines = [f"repo={repo.resolve()}", f"work={work.resolve()}"]
     for n, name in enumerate(names, start=1):
@@ -103,7 +122,11 @@ def main(argv: list[str]) -> int:
         if len(argv) != 3:
             print(usage, file=sys.stderr)
             return 2
-        out = prepare(argv[1], Path(argv[2]))
+        try:
+            out = prepare(argv[1], Path(argv[2]))
+        except WarmFailed as failed:
+            print(failed)
+            return 3
     else:
         if len(argv) not in (4, 5):
             print(usage, file=sys.stderr)

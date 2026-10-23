@@ -182,6 +182,10 @@ def test_s04(tmp_path):
     log(work, 1, "Task 2 (count blank lines) is open: one build commit, and uncommitted edits in tally.py whose tests pass.",
         [("Bash", {"command": "make check"})])
     assert all(results("s04", work).values())
+    log(work, 1, "Task 2 is open.", [("Bash", {"command": "make test 2>&1 | tail -15"})])
+    assert results("s04", work)["their tests run"]
+    log(work, 1, "Task 2 is open.", [("Bash", {"command": "make help"})])
+    assert not results("s04", work)["their tests run"]
     log(work, 1, "Done.", [("Edit", {"file_path": "tally.py"})])
     commit(work / "repo", "feat: finish\n", "tally.py")
     bad = results("s04", work)
