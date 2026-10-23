@@ -155,8 +155,6 @@ site task, and the live-URL check after a phase merges.
   there is a kickoff, and starts only when Dan asks for it.
 - **"Catch me up"** starts Dan's vault catch-up, not *Resume*; only "where are we?" and the session
   events above start a resume.
-- **Matt Pocock's `tdd` and `diagnosing-bugs`** run only when Dan types them, even in such a repo
-  (`AGENTS.md`, *Overrides*).
 
 ## Where each rule lives
 

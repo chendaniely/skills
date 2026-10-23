@@ -79,9 +79,8 @@ Seven steps, any model or harness, with subagents or inline. Record the task's b
 one machine only. If building it right would change the spec, one of Dan's decisions or a
 scenario's expected outcome, it is the fifth stop (*Stops*). Otherwise it is drift: build it right,
 with a "Built differently" note at the task's head (what, why, commits; the listing stays as
-planned) and the `Drift:` line. Fix-round dispatches
-carry the commit format and trailer. A bug a review missed is fixed with "escaped from Task N
-(Tier X), found by …" in the body.
+planned) and the `Drift:` line. Fix-round dispatches carry the commit format and trailer. A bug a
+review missed is fixed with "escaped from Task N (Tier X), found by …" in the body.
 
 ## Reviews
 
