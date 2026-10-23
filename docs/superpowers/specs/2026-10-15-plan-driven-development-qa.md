@@ -1085,3 +1085,28 @@ Asked with selectable options (1 of 1):
 
 **Dan:** "Re-check under isolation" (the recommended option). He gave no further reason.
 
+## Task 11's review: two rulings (2026-10-22)
+
+Asked with selectable options, as 1 of 2 and 2 of 2.
+
+**1. The template's length.** `templates/AGENTS.md` came out at 213 lines (about 2,600 words),
+against the spec's estimate of "about 100–120 lines". Every line carries a rule the contract
+requires, and both reviewers advised against unwrapping lines to pass the count. The options:
+- accept about 210 lines, and record the new budget;
+- split it into about 120 lines plus `docs/agents/*.md` files that a task reads when needed;
+- cut rules until it fits.
+
+**Dan:** "Accept ~210 lines" (the recommended option).
+
+**2. When kickoff may open with the open question.** Decision A allowed one "describe it in your
+own words" question about intent. The template narrowed it to "only when the request doesn't
+already say what the project is for". S01's request names what to build, but not what it is for,
+so RED's agent asking was right under that rule, and it was the scripted "A" that failed. The
+options:
+- ask it only when the request doesn't say what the project is for or who uses it, give S01's
+  prompt a purpose, and give `preferences.md` the same condition;
+- count a request that names what to build as enough;
+- drop the exception altogether.
+
+**Dan:** "When purpose is missing" (the recommended option).
+
