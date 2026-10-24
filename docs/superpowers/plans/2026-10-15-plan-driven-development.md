@@ -35,6 +35,12 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 > builds a separate unprivileged macOS user for the test sessions and the grading, then runs RED
 > again headless under it for all fourteen scenarios (Task 6's Steps 2–4). That gives GREEN a clean
 > baseline: Task 6's subagent runs had Dan's global instructions loaded.
+>
+> **Merged after Task 12 (Dan, 2026-10-23: "let's setup the PR so i can delete the
+> plan-driven-development worktree"):** the branch merges into `main` now, with a merge commit, so
+> the skill, `preferences.md` and the setup live on `main`. The rest of the plan runs on a new
+> `plan-driven-development` branch cut from `main`, so the push blocks keep their names, and Task
+> 16's PR is that branch's.
 
 ## Global Constraints
 
