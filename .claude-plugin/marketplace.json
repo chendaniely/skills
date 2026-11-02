@@ -11,11 +11,12 @@
   "plugins": [
     {
       "name": "vault",
-      "description": "Obsidian-style vault workflows: conversation capture, catch-up and the daily email digest",
+      "description": "Obsidian-style vault workflows: conversation capture, mirrored Claude chats, catch-up and the daily email digest",
       "source": "./",
       "strict": false,
       "skills": [
         "./capture-conversation",
+        "./claude-chats",
         "./catch-up",
         "./email-digest"
       ]

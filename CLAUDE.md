@@ -18,7 +18,7 @@ Dan's personal Claude Code skills, public on GitHub as `chendaniely/skills`. Eac
 
 When a skill folder is renamed or moved, update all of these in the same sitting:
 
-- **The Obsidian vault's `CLAUDE.md`:** it points, by this checkout's absolute path (print it with `git rev-parse --show-toplevel`, then search the vault's `CLAUDE.md` for it), to `product-search`, `clothing-inventory`, `ootd` and `capture-conversation`, and to the repo root.
+- **The Obsidian vault's `CLAUDE.md`:** it points, by this checkout's absolute path (print it with `git rev-parse --show-toplevel`, then search the vault's `CLAUDE.md` for it), to `product-search`, `clothing-inventory`, `ootd`, `capture-conversation` and `claude-chats`, and to the repo root.
   - Find the vault through Obsidian's vault list (`~/Library/Application Support/obsidian/obsidian.json`); it is the vault named `vault`.
   - A safety hook may block broad commands over the whole vault. Use narrow paths or the vault's own scripts (`scripts/lint.py`).
 - **`~/git/private/claude-cowork`:** its `CLAUDE.md` and `README.md` point to `email-digest/SKILL.md` and say to commit skill changes here.
@@ -39,6 +39,7 @@ When a skill folder is renamed or moved, update all of these in the same sitting
   - `clothing-inventory` hard-codes this vault's `inventory/` paths and defers to `inventory/Inventory.md`.
   - `email-digest` gets its vault settings from claude-cowork's config.
   - Frontmatter changes wait for the vault's Phase 10 migration (see TODO.md).
+- **`claude-chats` and `capture-conversation` split claude.ai links.** `claude-chats` mirrors Dan's own chats by driving the vault's `scripts/claude_chats.py` (its `snippet`, `ingest`, `render` and `summary` subcommands, and the one-file `claude-chat-*.json` they pass along). A change to those commands or their output must be matched in the skill, and the vault's script tests run with `uv run scripts/test_claude_chats_cli.py` from the vault root. `capture-conversation` defers those links to it and keeps someone else's share links, plus thinking notes on top of a mirrored chat.
 - **Inbox and transcripts:**
   - `catch-up` files `inbox/` notes, and `inbox/` is also where `ootd` looks for unlogged outfit photos.
   - Plaud transcripts reach the vault's `sources/transcripts/` through the vault's audio pipeline. `catch-up` never files them, and `capture-conversation` should link them instead of transcribing again (see TODO.md).
