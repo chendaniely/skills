@@ -1,7 +1,7 @@
 # plan-driven-development: design spec
 
 **Status:** spec approved by Dan, 2026-10-15 · plan approved 2026-10-16, run subagent-driven ·
-Now: Dan tries the skill, then Task 7 · branch `plan-driven-development`, pushed on its branch, not merged.
+Now: Task 7 · merged into `main` through Task 12 (`465b249`, PR #10); the rest runs on a new branch `plan-driven-development`, pushed on its branch.
 
 This is the binding document for the `plan-driven-development` skill. Every decision in it was
 made with Dan, one question at a time; the questions, the options turned down and his answers in

@@ -1123,5 +1123,9 @@ and moved towards the right side of the menu bar since it's not the main contnet
 
 - **The navbar:** Architecture, Design, Changelog and How we work go in one `Repo` menu on the
   right; the project's own pages keep the left. The Architecture page stays, out of the way.
-- **"A bit verbose and much":** recorded; what it should cut is still to be asked.
+  `3d-models` got the same navbar (`cdd3889`).
+- **"A bit verbose and much":** asked with selectable options, after measuring the plans at about
+  3 times the size of the code in both `3d-models` and `vid2sub`. **Dan:** "Fewer questions,
+  Shorter messages to me". He didn't pick the recommended "Shorter plans", or less commit
+  bookkeeping.
 

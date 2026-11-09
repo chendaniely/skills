@@ -22,7 +22,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
 
-**Now:** Dan tries the skill on a real project (the order note below); then Task 7: the leak check, open.
+**Now:** Task 7: the leak check, open.
 
 > **Order changed (Dan, 2026-10-16: "is this skill written up yet? i want to test it out"):**
 > after Task 5, run Task 6 (RED), then Tasks 11 and 12 (the skill text), then Dan tries the skill
@@ -6142,6 +6142,10 @@ fi
 
 ### Task 13: GREEN and REFACTOR in Claude Code
 
+> **From Dan's trial (2026-11-09; the Q&A):** he wants fewer questions and shorter messages to him.
+> He didn't pick shorter plans or less commit bookkeeping. REFACTOR takes this on, `preferences.md`'s
+> asking rules included, since they set how many questions and re-shown lists he gets.
+>
 > **First (Dan, 2026-10-22):** the isolation task before this one, and RED again headless under it
 > (see the order note at the top). GREEN compares against that clean baseline, not Task 6's
 > subagent runs. S04, S11, S13 and S14 failed nothing in Task 6; any of them that still fails
