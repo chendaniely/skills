@@ -1110,3 +1110,18 @@ options:
 
 **Dan:** "When purpose is missing" (the recommended option).
 
+## Dan's first trial of the skill (2026-11-09)
+
+After three weeks of using the skill on real projects, `3d-models` among them.
+
+**Dan:** "yeah the project is a bit verbose and much, but it seems like it's doing a decent setup.
+what i would like with the quarto websitte setup is a lot of the repo information can probably be
+in a top menubar sub menu. e.g., the architecture page isn't really necessary to be front and
+center for each project. that one mostly only applied to my local-ai project. in my 3d-models
+project, the architeture, desig, changelog, how we work can all be collapsed under a top sub menu
+and moved towards the right side of the menu bar since it's not the main contnet"
+
+- **The navbar:** Architecture, Design, Changelog and How we work go in one `Repo` menu on the
+  right; the project's own pages keep the left. The Architecture page stays, out of the way.
+- **"A bit verbose and much":** recorded; what it should cut is still to be asked.
+

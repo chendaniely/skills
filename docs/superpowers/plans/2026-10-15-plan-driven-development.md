@@ -5227,6 +5227,10 @@ fi
 
 **Tier:** 2 · **Scenarios:** the docs part of S02 (closing-commit template); the site checks.
 
+> **From Dan's trial (2026-11-09):** the repo's own pages move into a `Repo` menu on the right of
+> the navbar. `_quarto.yml` and the render test below already do this; both were run on Quarto
+> 1.11.6, and the test failed on the old layout.
+
 **Files:**
 - Create: `plan-driven-development/templates/quarto/_quarto.yml`, `index.qmd`, `_overview.qmd`,
   `architecture.qmd`, `design.qmd`, `wrapper.md`, `changelog.md`, `how-we-work.md`,
@@ -5332,6 +5336,9 @@ def test_the_sample_site_renders_with_working_cross_links(tmp_path):
     assert f'href="../../superpowers/specs/{SPEC}.html"' in plan_html
     home = (repo / "website/_site/index.html").read_text()
     assert "A demo." in home and "mermaid" in home
+    right = home.partition("navbar-nav-scroll ms-auto")[2]
+    for page in ("architecture", "design", "changelog", "how-we-work"):
+        assert f'class="dropdown-item" href="./{page}.html"' in right, page
 
 
 @needs_quarto
@@ -5379,15 +5386,17 @@ website:
   repo-url: "__REPO_URL__"
   repo-subdir: website
   navbar:
-    left:
-      - text: Architecture
-        href: architecture.qmd
-      - text: Design
-        href: design.qmd
-      - text: Changelog
-        href: changelog.md
-      - text: How we work
-        href: how-we-work.md
+    right:
+      - text: Repo
+        menu:
+          - text: Architecture
+            href: architecture.qmd
+          - text: Design
+            href: design.qmd
+          - text: Changelog
+            href: changelog.md
+          - text: How we work
+            href: how-we-work.md
 
 format:
   html:

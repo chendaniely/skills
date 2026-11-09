@@ -575,6 +575,9 @@ Every public project always has a deployed site; the repo's website field points
   diagrams; built parts solid, planned dashed; click-to-zoom from local-ai's `_diagram-zoom.html`,
   after re-checking whether Quarto's lightbox now handles wide Mermaid diagrams); Design (the
   wrappers); Changelog and How we work (includes); How-to only when a person has steps to do.
+- **The navbar** (Dan, 2026-11-09, after using the skill on `3d-models`): the project's own content
+  pages on the left; on the right, one `Repo` menu holding Architecture, Design, Changelog and How
+  we work, because they're about the repo, not the project's main content.
 - **Links leaving the site** (from the root files and the included docs) are full site URLs or
   code-span paths: a `../` link out of the site breaks with no warning.
 - **Checks on every push:** every doc shown on the site has its wrapper; CI fails on Quarto's
@@ -853,3 +856,5 @@ The plan breaks these into 16 tasks, the last its small-project phase end.
 - 2026-10-22: Dan's ruling on Task 11's review (`f388d8c`): kickoff's open question only when the
   request doesn't say what the project is for or who uses it (*The asking rules*, rule 3); S01's
   prompt gains a purpose, and `preferences.md` the same condition.
+- 2026-11-09: Dan's feedback from using the skill on `3d-models` (the Q&A): the repo's own pages
+  move into a `Repo` menu on the right of the navbar (*Docs and the site*).
