@@ -81,22 +81,27 @@ this:
 - **Its `Makefile` is written by hand**, with the targets `AGENTS.md` names. `hooks` prints that no
   hooks are installed yet and exits 0; `leaks` runs `gitleaks git --redact` over the history;
   `check` runs the tests, the tests under `TZ=UTC`, and `leaks`.
-- **Its `.gitignore` is written by hand** (appended in an existing repo): keys and certificates,
-  `secrets.*`, `.env` and `.env.*`, agent and editor state, captured machine output,
-  `.superpowers/`, and a rendered site's `website/_site/` and `website/.render.log`. The template
-  this stands in for is `templates/gitignore`.
+- **Its `.gitignore` is written by hand** (appended in an existing repo), standing in for
+  `templates/gitignore`. With no hooks yet it is the only barrier, so it lists all of: `*.pem`,
+  `*.key`, `*.crt`, `*.p12`, `*.pfx`, `id_rsa*`, `id_ecdsa*`, `id_ed25519*`, `*.kdbx`, `secrets.*`,
+  `*secret*.yml`, `*secret*.yaml`, `*credentials*.json`, `*.env`, `.env`, `.env.*`,
+  `.claude/settings.local.json`, `.mcp.local.json`, `.vscode/settings.json`, `*-inventory.txt`,
+  `ip-addr.txt`, `tailscale-status.txt`, `.superpowers/`, `website/_site/`, `website/.quarto/` and
+  `website/.render.log`.
 - **The safety files are skipped, with no stand-ins:** `templates/githooks/` and
   `scripts/leakcheck.py`.
-- **The plan's CI task writes `ci.yml` (running `make check`) and `dependabot.yml` by hand,** or
-  the plan drops that task and the local checks are the gate (`AGENTS.md`, *Each task's loop*,
-  step 7).
+- **The plan's CI task writes `ci.yml` (running `make check`) and `dependabot.yml` by hand.** A
+  Quarto site's `ci.yml` also has the `site` and `pages` jobs, as *The checks* and *The deploy* in
+  [`references/docs-site.md`](references/docs-site.md) describe. With no Quarto site, the plan may
+  drop that task, and the local checks are the gate (`AGENTS.md`, *Each task's loop*, step 7).
 - **A Quarto site's files are written by hand** in `website/`, each as the table in
   [`references/docs-site.md`](references/docs-site.md) describes it, since `templates/quarto/`
   doesn't exist yet.
 - **One interim line goes under its `AGENTS.md` header:** "Until the hooks and the leak check
   exist, `make hooks` installs nothing and there is no denylist: every push waits for Dan's OK,
-  after `make leaks` passes, and there is no standing push OK." It replaces the missing-denylist
-  stop for now, and comes out when the project gets the hooks.
+  after `make leaks` passes, and there is no standing push OK. Text that leaves without git is
+  scanned by `gitleaks stdin` alone." It replaces the missing-denylist stop for now, and comes out
+  when the project gets the hooks.
 - **Before the root commit,** kickoff tells Dan the project has no hooks, no denylist scan and no
   CI yet.
 
@@ -146,10 +151,10 @@ a usage-limit stop or a restart.
   any harness, with or without this skill; this skill adds nothing to its read order.
 - **Then check the project's copy is current.** Compare the `Made from plan-driven-development …`
   line in its `AGENTS.md` with this skill's own version (as at kickoff, step 4). If they differ,
-  list "update this project's rules and scripts from the skill" among the next steps; on Dan's yes,
-  show each file's diff before writing it, a file kickoff copies that the project lacks included.
-  Never update a project's copies silently: projects keep
-  the versions they were made with until Dan says otherwise.
+  list "update this project's rules and scripts from the skill" among the next steps, including any
+  file kickoff copies that the project lacks; on Dan's yes, show each file's diff before writing
+  it. Never update a project's copies silently: projects keep the versions they were made with
+  until Dan says otherwise.
 
 ## The docs site
 

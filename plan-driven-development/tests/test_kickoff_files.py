@@ -50,7 +50,7 @@ def kickoff_sources() -> list[str]:
     return sources
 
 
-def key(source: str) -> str:
+def not_built_label(source: str) -> str:
     """What the *Not built yet* section calls a missing file: a template subfolder by its name."""
     parts = source.split("/")
     return parts[1] if parts[0] == "templates" and len(parts) > 2 else parts[-1]
@@ -60,4 +60,4 @@ def test_each_file_kickoff_copies_exists_or_not_built_yet_says_what_to_do():
     assert kickoff_sources()
     not_built = (SKILL / "SKILL.md").read_text().partition("**Not built yet")[2].partition("## Planning")[0]
     missing = [source for source in kickoff_sources() if not (SKILL / source).exists()]
-    assert [source for source in missing if key(source) not in not_built] == []
+    assert [source for source in missing if not_built_label(source) not in not_built] == []

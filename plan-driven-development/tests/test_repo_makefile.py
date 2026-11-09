@@ -45,10 +45,9 @@ def test_install_runs_the_install_script():
 
 
 def guards_setup(tmp_path: Path, copies: dict[str, str]) -> tuple[Path, Path]:
-    """A repo holding this Makefile and a guards/ with `copies`, and an empty private config repo."""
+    """A folder with a guards/ holding `copies`, and an empty private config repo."""
     repo = tmp_path / "repo"
     (repo / "guards").mkdir(parents=True)
-    shutil.copy2(MAKEFILE, repo / "Makefile")
     for name, text in copies.items():
         (repo / "guards" / name).write_text(text)
     config = tmp_path / "config"
@@ -57,7 +56,7 @@ def guards_setup(tmp_path: Path, copies: dict[str, str]) -> tuple[Path, Path]:
 
 
 def sync_guards(repo: Path, config: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["make", "sync-guards", f"CLAUDE_CONFIG={config}"], cwd=repo, capture_output=True, text=True)
+    return make("sync-guards", f"CLAUDE_CONFIG={config}", cwd=repo)
 
 
 def test_sync_guards_refreshes_a_copy_from_the_config_root_or_its_hooks(tmp_path):

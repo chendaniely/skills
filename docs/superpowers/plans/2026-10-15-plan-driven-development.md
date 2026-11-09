@@ -49,8 +49,8 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 > if a tracked file names one of its files. And `AGENTS.md` pointed at `docs/agents/` files kickoff
 > had nothing to copy for, which matters most in a harness that has only the repo: Task 10's four
 > small templates were built ahead of it, and *Not built yet* in `SKILL.md` now covers every other
-> file kickoff copies. The suite stood at 157 tests at the merge, so the expected totals from Task
-> 7 on, stale since the reorder, read as "all pass".
+> file kickoff copies. The expected test totals from Task 7 on, stale since the reorder, now say
+> how many tests each task adds.
 
 ## Global Constraints
 
@@ -3248,9 +3248,10 @@ fi
 ### Task 7: The leak check
 
 > **From Tasks 11–12's forward reviews:** once the leak check and the hooks exist (Tasks 7–8),
-> shrink and then delete `SKILL.md`'s *Not built yet* note, the interim line it puts in a
-> project's `AGENTS.md`, and `references/kickoff.md`'s two conditionals (the drill, the history
-> scan) on the hooks and `leakcheck.py` being there.
+> take out of `SKILL.md`'s *Not built yet* note its safety bullet and the interim line it puts in
+> a project's `AGENTS.md`, and out of `references/kickoff.md` its two conditionals (the drill, the
+> history scan) on the hooks and `leakcheck.py` being there. Task 9 takes out the note's
+> `Makefile`, `.gitignore` and CI bullets, and Task 10 its Quarto bullet and the note itself.
 
 **Tier:** 1 · **Scenarios:** S06.
 
@@ -3940,8 +3941,8 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
-- [ ] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: `119 passed`
-  both times (63 + 56).
+- [ ] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: all pass
+  both times, 56 more than before this task.
 
 - [ ] **Step 5: Validate the real denylist without reading it:**
 
@@ -4483,8 +4484,8 @@ chmod 755 plan-driven-development/templates/githooks/pre-commit plan-driven-deve
 shellcheck plan-driven-development/templates/githooks/pre-commit plan-driven-development/templates/githooks/commit-msg plan-driven-development/templates/githooks/pre-push plan-driven-development/templates/githooks/pre-merge-commit
 ```
 
-- [ ] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: `142 passed`
-  both times (119 + 23). On a machine without gitleaks 8.19+ or uv the tool-dependent tests skip:
+- [ ] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: all pass
+  both times, 23 more than before this task. On a machine without gitleaks 8.19+ or uv the tool-dependent tests skip:
   install them, as the hooks require.
 
 - [ ] **Step 5: Prove the hooks read this machine's real denylist (Decision 11).** After Task 1's
@@ -4547,7 +4548,8 @@ git ls-files -s plan-driven-development/templates/githooks
   3. **Forward review:** Task 9's shellcheck job names all four hooks and its Makefile's `hooks`
      target validates the denylist before `git config core.hooksPath .githooks`; Task 12's kickoff
      reference says to unstage the drill with `git rm --cached`.
-  4. **Docs:** none yet.
+  4. **Docs:** `SKILL.md`'s *Not built yet* loses its safety bullet and interim line, and
+     `references/kickoff.md` its two conditionals (the note at Task 7's head).
   5. **Close:** **Now** → `Task 9: the project templates, open.` Commit
      `plan-driven-development: close Task 8: the four git hooks`:
 
@@ -5123,8 +5125,8 @@ docs: ## Render the site; every doc has its wrapper, no unresolved link, every i
 	else echo "lychee isn't installed here: CI checks every internal link"; fi
 ```
 
-- [ ] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: `163 passed`
-  both times (142 + 21).
+- [ ] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: all pass
+  both times, 21 more than before this task.
 
 - [ ] **Step 5: Run the Makefile on Linux too** (Ubuntu 24.04's GNU make 4.3), if Docker is up; if
   it isn't, record "Linux run pending" under `Phase-end:` in the closing commit:
@@ -5179,7 +5181,7 @@ git log -1 --format='%(trailers)'
   3. **Forward review:** Task 10's site test runs CI's wrapper-check step from this file; Task 11's
      template names the Makefile's targets; Task 12's kickoff reference says to fill
      `__TEST_COMMAND__` and `__LINT_COMMAND__` and when to delete `site`, `pages` and `docs`.
-  4. **Docs:** none yet.
+  4. **Docs:** `SKILL.md`'s *Not built yet* loses its `Makefile`, `.gitignore` and CI bullets.
   5. **Close:** **Now** → `Task 10: the docs templates, open.` Commit
      `plan-driven-development: close Task 9: the project templates`:
 
@@ -5233,9 +5235,9 @@ fi
 
 ***
 
-### Task 10: The docs templates: the Quarto site, the root files and the message templates
+### Task 10: The docs templates: the Quarto site
 
-**Tier:** 2 · **Scenarios:** the docs part of S02 (closing-commit template); the site checks.
+**Tier:** 2 · **Scenarios:** the site checks.
 
 **Files:**
 - Create: `plan-driven-development/templates/quarto/_quarto.yml`, `index.qmd`, `_overview.qmd`,
@@ -5680,7 +5682,8 @@ git log -1 --format='%(trailers)'
   2. **Backward review:** `mattpocock-skills:code-review` from `$(cat .git/PDD_BASE)`, the spec
      being this task and the spec's *Docs and the site*; at most one re-review.
   3. **Forward review:** Task 12's `docs-site.md` names these files and their placeholders.
-  4. **Docs:** none yet.
+  4. **Docs:** delete `SKILL.md`'s *Not built yet*: every file kickoff copies now exists, which
+     `tests/test_kickoff_files.py` checks.
   5. **Close:** **Now** → `Task 11: the every-session rules, open.` Commit
      `plan-driven-development: close Task 10: the docs templates`:
 
@@ -6111,7 +6114,7 @@ fi
 
 - [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: The deterministic scenarios:** `make test` and `make test-utc`. Expected: `169 passed`
+- [ ] **Step 1: The deterministic scenarios:** `make test` and `make test-utc`. Expected: all pass
   both times (S06–S08, S17).
 
 - [ ] **Step 2: Run every behavioural scenario with the skill** (the same model as RED; the runner
