@@ -50,7 +50,8 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 > had nothing to copy for, which matters most in a harness that has only the repo: Task 10's four
 > small templates were built ahead of it, and *Not built yet* in `SKILL.md` now covers every other
 > file kickoff copies. The expected test totals from Task 7 on, stale since the reorder, now say
-> how many tests each task adds.
+> how many tests each task adds. These fixes go to `main` in a PR of their own, ahead of Task 16's
+> (Dan, the same day: "Push and open a PR"), so public `main` stops naming the guard's files.
 
 ## Global Constraints
 
