@@ -4,6 +4,7 @@ fails a simulated bad one, so a RED failure or a GREEN pass means what it says. 
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -27,12 +28,23 @@ AGENT_CHECKS = {"s02": "the suite passes, and under TZ=UTC", "s19": "the planted
 @pytest.fixture(scope="session")
 def uv_cache() -> Path | None:
     """One uv cache for the graders' offline runs, warmed once (from PyPI the first time) and kept in
-    the system temp folder between test sessions."""
+    the system temp folder between test sessions. That folder can lose its files and keep its
+    folders, so a cache that no longer resolves offline is thrown away and warmed again."""
     if not SANDBOXED:
         return None
     root = Path(tempfile.gettempdir()) / "pdd-test-grader"
     root.mkdir(exist_ok=True)
+    cache = root / "uv-cache"
+    if cache.is_dir() and not resolves_offline(cache):
+        shutil.rmtree(cache)
     return grade.ensure_cache(root)
+
+
+def resolves_offline(cache: Path) -> bool:
+    from run import child_env
+    with tempfile.TemporaryDirectory() as empty:
+        env = child_env("uv", {"UV_CACHE_DIR": str(cache), "UV_OFFLINE": "1"})
+        return subprocess.run(grade.WARM, cwd=empty, env=env, capture_output=True, stdin=subprocess.DEVNULL).returncode == 0
 
 
 def setup(tmp_path: Path, scenario: str, cache: Path | None = None) -> Path:
