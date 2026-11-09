@@ -1,12 +1,13 @@
 # skills
 
-My personal [Claude Code](https://code.claude.com/docs/en/skills) skills. Each folder is one skill: a `SKILL.md`, plus any templates or reference files it uses.
+My personal [Claude Code](https://code.claude.com/docs/en/skills) skills. Each folder is one skill: a `SKILL.md`, plus any templates or reference files it uses. The one exception is `docs/`, which holds design records.
 
 ## Skills
 
 | Skill | Group | What it does |
 |---|---|---|
 | [capture-conversation](capture-conversation/) | Vault | Turns a Claude chat, voice memo or meeting recording into a verbatim transcript plus a note on how the thinking went. |
+| [claude-chats](claude-chats/) | Vault | Paste a claude.ai share link and it mirrors that chat into the vault: the whole chat with its photos, a summary on top, daily-note links and follow-ups, with no questions. |
 | [catch-up](catch-up/) | Vault | When asked, catches the vault up after a gap: files the inbox, sweeps `#todo` lines into `TODO.md`, writes weekly rollups and rewrites today's Today block. |
 | [clothing-inventory](clothing-inventory/) | Vault · wardrobe | Catalogues a garment I own from its photos and sewn-in labels. |
 | [ootd](ootd/) | Vault · wardrobe | Logs an outfit photo, links the pieces to the inventory once I confirm them, and scores the outfit. |
@@ -17,7 +18,7 @@ My personal [Claude Code](https://code.claude.com/docs/en/skills) skills. Each f
 | [creating-ultra-crew-guides](creating-ultra-crew-guides/) | Running | Builds offline crew guides for an ultramarathon: aid stations, driving, cutoffs and drop bags. |
 | [external-app-review](external-app-review/) | Coding | After you fix an app another model or agent built, writes an honest review folder: executive summary, chapters, Mermaid diagrams, screenshots from the commit history. |
 
-The vault skills assume an Obsidian-style markdown vault and read its `CLAUDE.md` for folder names. `catch-up` and `email-digest` are written for my own setup, and `email-digest` also needs my private `claude-cowork` repo.
+The vault skills assume an Obsidian-style markdown vault and read its `CLAUDE.md` for folder names. `catch-up`, `claude-chats` and `email-digest` are written for my own setup: `claude-chats` drives the vault's own `scripts/claude_chats.py` and a logged-in Chrome, and `email-digest` also needs my private `claude-cowork` repo.
 
 ## Install
 
@@ -39,6 +40,10 @@ Or install them as plugins from this repo's marketplace:
 The plugins are `vault`, `wardrobe`, `teaching`, `running` and `coding`, matching the groups above. Plugin skills carry the plugin's name (`/wardrobe:ootd`) and update through `/plugin`; turn on auto-update for the marketplace there. Use one install method or the other, not both.
 
 Call a skill by name (for example `/capture-learning-moment`), or let Claude load it when a request matches its description.
+
+## Setup
+
+`make setup` wires the shared `preferences.md` into Claude Code, pi and OpenCode and adds the leak-check guard's deny rules; `make setup-check` shows what it would do and changes nothing. [docs/setup.md](docs/setup.md) lists each step and how to undo it. These setup pieces will move to [chendaniely/agents](https://github.com/chendaniely/agents), the setup repo for my agents; this repo keeps the skills.
 
 ## License
 

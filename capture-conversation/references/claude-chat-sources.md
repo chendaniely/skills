@@ -2,8 +2,12 @@
 
 How to get the text of a claude.ai conversation (SKILL.md step 1a and 1b).
 
-⚠️ The share-snapshot route (`/api/chat_snapshots/<share-id>`) is closed: it
-returns 403. Don't retry it.
+⚠️ The bare share-snapshot route (`/api/chat_snapshots/<share-id>`) is closed: it
+returns 403, so don't retry it. The org-scoped route the share page itself calls,
+`/api/organizations/<org-uuid>/chat_snapshots/<share-id>`, works from a logged-in
+session. It returns the snapshot's messages in the same shape as below, plus
+`conversation_uuid`, the chat it was made from. This was checked on 2026-11-01 on the
+user's own share links only; other people's are untested.
 
 ## (a) The user's own chats: org-API JSON
 

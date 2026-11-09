@@ -1,6 +1,6 @@
 ---
 name: capture-conversation
-description: Use when ingesting a conversation or voice capture into an Obsidian-style knowledge vault (Obsidian, VS Code Foam, or any markdown + wikilink system) — Claude chat transcripts (shared links, exports, pasted text), solo voice memos, or multi-speaker meeting/talk recordings. Produces a verbatim source file plus a distilled thinking note that preserves how the thinking happened, not just what was concluded.
+description: Use when ingesting a conversation or voice capture into an Obsidian-style knowledge vault (Obsidian, VS Code Foam, or any markdown + wikilink system) — Claude chat transcripts (shared links, exports, pasted text), solo voice memos, or multi-speaker meeting/talk recordings. Produces a verbatim source file plus a distilled thinking note that preserves how the thinking happened, not just what was concluded. In a vault that mirrors the user's own claude.ai chats with scripts/claude_chats.py, links to those chats go to claude-chats instead.
 ---
 
 # Capture Conversation
@@ -40,6 +40,9 @@ Origin: this skill was specced inside the first conversation it ever ingested
 ## When to Use
 
 - User shares a claude.ai conversation link/export and wants it "in the vault"
+  - **Except** a link to the user's own chat in a vault that mirrors them with
+    `scripts/claude_chats.py`: that is `claude-chats`. Come back here only to add a
+    thinking note on top of a mirrored chat, without fetching it again.
 - A voice memo or recorder file (audio + transcript) needs ingesting
 - A meeting or conference talk recording needs to become notes
 - User says "process this conversation", "ingest this transcript", "capture this"
