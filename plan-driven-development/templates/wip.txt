@@ -1,0 +1,8 @@
+chore(plan): 🤖 wip Task N: <where it stopped, in a few words>
+
+Done so far: <what this task has built so far, by commit>
+Stopped at: <the step, and what was in progress>
+Tests: <the suite's state: green, or which tests fail and why>
+
+Plan: <plan file> Task N
+Co-Authored-By: <the model's own line>

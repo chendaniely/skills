@@ -1,0 +1,12 @@
+docs(plan): 🤖 close Task N: <the task's title>
+
+Drift: <how the build departed from the plan, and why; or "none">
+Rulings: <each ruling: what was decided, why, what it costs if wrong; or "none">
+Phase-end: <findings deferred to the phase-end list, each with its severity and file; or "none">
+Forward: <later tasks or phases the forward review changed, and how; or "none">
+Tier: <1, 2 or 3>
+Rounds: <the reviews and re-reviews run; "self-review (no subagent tool)" when so>
+Findings: <Critical n, Important n, Minor n, and what became of each>
+
+Plan: <plan file> Task N
+Co-Authored-By: <the model's own line>

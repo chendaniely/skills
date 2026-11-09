@@ -41,6 +41,18 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 > the skill, `preferences.md` and the setup live on `main`. The rest of the plan runs on a new
 > `plan-driven-development` branch cut from `main`, so the push blocks keep their names, and Task
 > 16's PR is that branch's.
+>
+> **After the merge (Dan, 2026-11-09: "yes let's fix the problems with the recommendations you
+> have"):** a check of the merged work found two gaps, fixed ahead of Task 7. The guard's file names
+> had reached the public repo, against this plan's own constraint: `make sync-guards` now refreshes
+> only what is already in the git-ignored `guards/`, the Q&A describes the guard, and a test fails
+> if a tracked file names one of its files. And `AGENTS.md` pointed at `docs/agents/` files kickoff
+> had nothing to copy for, which matters most in a harness that has only the repo: Task 10's four
+> small templates were built ahead of it, and *Not built yet* in `SKILL.md` now covers every other
+> file kickoff copies. The expected test totals from Task 7 on, stale since the reorder, now say
+> how many tests each task adds. These fixes merge with the rest of this branch's work, not in a
+> PR of their own (Dan, the same day: "there's already a PR in the project. let's plan to merge
+> them all together"), so public `main` names the guard's files until that PR merges.
 
 ## Global Constraints
 
@@ -3238,9 +3250,10 @@ fi
 ### Task 7: The leak check
 
 > **From Tasks 11–12's forward reviews:** once the leak check and the hooks exist (Tasks 7–8),
-> shrink and then delete `SKILL.md`'s *Not built yet* note, the interim line it puts in a
-> project's `AGENTS.md`, and `references/kickoff.md`'s two conditionals (the drill, the history
-> scan) on the hooks and `leakcheck.py` being there.
+> take out of `SKILL.md`'s *Not built yet* note its safety bullet and the interim line it puts in
+> a project's `AGENTS.md`, and out of `references/kickoff.md` its two conditionals (the drill, the
+> history scan) on the hooks and `leakcheck.py` being there. Task 9 takes out the note's
+> `Makefile`, `.gitignore` and CI bullets, and Task 10 its Quarto bullet and the note itself.
 
 **Tier:** 1 · **Scenarios:** S06.
 
@@ -3930,8 +3943,8 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
-- [ ] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: `119 passed`
-  both times (63 + 56).
+- [ ] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: all pass
+  both times, 56 more than before this task.
 
 - [ ] **Step 5: Validate the real denylist without reading it:**
 
@@ -4473,8 +4486,8 @@ chmod 755 plan-driven-development/templates/githooks/pre-commit plan-driven-deve
 shellcheck plan-driven-development/templates/githooks/pre-commit plan-driven-development/templates/githooks/commit-msg plan-driven-development/templates/githooks/pre-push plan-driven-development/templates/githooks/pre-merge-commit
 ```
 
-- [ ] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: `142 passed`
-  both times (119 + 23). On a machine without gitleaks 8.19+ or uv the tool-dependent tests skip:
+- [ ] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: all pass
+  both times, 23 more than before this task. On a machine without gitleaks 8.19+ or uv the tool-dependent tests skip:
   install them, as the hooks require.
 
 - [ ] **Step 5: Prove the hooks read this machine's real denylist (Decision 11).** After Task 1's
@@ -4537,7 +4550,8 @@ git ls-files -s plan-driven-development/templates/githooks
   3. **Forward review:** Task 9's shellcheck job names all four hooks and its Makefile's `hooks`
      target validates the denylist before `git config core.hooksPath .githooks`; Task 12's kickoff
      reference says to unstage the drill with `git rm --cached`.
-  4. **Docs:** none yet.
+  4. **Docs:** `SKILL.md`'s *Not built yet* loses its safety bullet and interim line, and
+     `references/kickoff.md` its two conditionals (the note at Task 7's head).
   5. **Close:** **Now** → `Task 9: the project templates, open.` Commit
      `plan-driven-development: close Task 8: the four git hooks`:
 
@@ -5113,8 +5127,8 @@ docs: ## Render the site; every doc has its wrapper, no unresolved link, every i
 	else echo "lychee isn't installed here: CI checks every internal link"; fi
 ```
 
-- [ ] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: `163 passed`
-  both times (142 + 21).
+- [ ] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: all pass
+  both times, 21 more than before this task.
 
 - [ ] **Step 5: Run the Makefile on Linux too** (Ubuntu 24.04's GNU make 4.3), if Docker is up; if
   it isn't, record "Linux run pending" under `Phase-end:` in the closing commit:
@@ -5169,7 +5183,7 @@ git log -1 --format='%(trailers)'
   3. **Forward review:** Task 10's site test runs CI's wrapper-check step from this file; Task 11's
      template names the Makefile's targets; Task 12's kickoff reference says to fill
      `__TEST_COMMAND__` and `__LINT_COMMAND__` and when to delete `site`, `pages` and `docs`.
-  4. **Docs:** none yet.
+  4. **Docs:** `SKILL.md`'s *Not built yet* loses its `Makefile`, `.gitignore` and CI bullets.
   5. **Close:** **Now** → `Task 10: the docs templates, open.` Commit
      `plan-driven-development: close Task 9: the project templates`:
 
@@ -5223,9 +5237,9 @@ fi
 
 ***
 
-### Task 10: The docs templates: the Quarto site, the root files and the message templates
+### Task 10: The docs templates: the Quarto site
 
-**Tier:** 2 · **Scenarios:** the docs part of S02 (closing-commit template); the site checks.
+**Tier:** 2 · **Scenarios:** the site checks.
 
 > **From Dan's trial (2026-11-09):** the repo's own pages move into a `Repo` menu on the right of
 > the navbar. `_quarto.yml` and the render test below already do this; both were run on Quarto
@@ -5235,25 +5249,25 @@ fi
 - Create: `plan-driven-development/templates/quarto/_quarto.yml`, `index.qmd`, `_overview.qmd`,
   `architecture.qmd`, `design.qmd`, `wrapper.md`, `changelog.md`, `how-we-work.md`,
   `_diagram-zoom.html`
-- Create: `plan-driven-development/templates/CLAUDE.md`, `issue-tracker.md`, `close-task.txt`, `wip.txt`
 - Test: `plan-driven-development/tests/test_site.py`
 
+> **Built ahead (Dan, 2026-11-09; the note at the top says why):** `templates/CLAUDE.md`,
+> `issue-tracker.md`, `close-task.txt` and `wip.txt`, as this task listed them, with their tests in
+> `tests/test_kickoff_files.py`. Those parts are out of the listing below.
+
 **Interfaces:**
-- Consumes: `templates/ci.yml`'s wrapper-check step (Task 9); `commitmsg.problems` (Task 3).
+- Consumes: `templates/ci.yml`'s wrapper-check step (Task 9).
 - Produces: the files kickoff copies for a site project (placeholders `__PROJECT__`,
-  `__SITE_URL__`, `__REPO_URL__`, `__SPEC__`; a wrapper's `__TITLE__` and `__PATH__`), and the
-  message templates a project keeps in `docs/agents/`.
+  `__SITE_URL__`, `__REPO_URL__`, `__SPEC__`; a wrapper's `__TITLE__` and `__PATH__`).
 
 - [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
 - [ ] **Step 1: Write the failing test,** `plan-driven-development/tests/test_site.py`:
 
 ```python
-"""The docs templates: a sample site rendered from them with real Quarto, CI's wrapper check run
-against it, and the commit-message templates checked once filled in. Rendering skips without
-Quarto; lychee runs only in CI."""
+"""The docs templates: a sample site rendered from them with real Quarto, and CI's wrapper check run
+against it. Rendering skips without Quarto; lychee runs only in CI."""
 
-import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -5261,9 +5275,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from helpers import TEMPLATES, load_script
+from helpers import TEMPLATES
 
-commitmsg = load_script("commitmsg")
 needs_quarto = pytest.mark.skipif(shutil.which("quarto") is None, reason="needs Quarto on PATH")
 
 SPEC = "2026-01-01-demo-design"
@@ -5348,27 +5361,11 @@ def test_a_link_quarto_cant_resolve_fails_the_render_check(tmp_path):
     spec.write_text(spec.read_text() + "\nSee [a missing page](../plans/missing.md).\n")
     result = subprocess.run(["quarto", "render", "website"], cwd=repo, capture_output=True, text=True)
     assert "Unable to resolve link target" in result.stdout + result.stderr
-
-
-def filled(template: str) -> str:
-    text = (TEMPLATES / template).read_text()
-    text = text.replace("Task N", "Task 3")
-    return re.sub(r"<[^>]*>", "x", text)
-
-
-@pytest.mark.parametrize("template", ["close-task.txt", "wip.txt"])
-def test_the_message_templates_pass_the_format_checks_once_filled(template):
-    assert commitmsg.problems(filled(template)) == []
-
-
-def test_claude_md_only_reads_agents_md():
-    assert (TEMPLATES / "CLAUDE.md").read_text() == "@AGENTS.md\n"
 ```
 
 - [ ] **Step 2: Run it; watch it fail.**
   `uv run --quiet --with pytest --with pyyaml pytest plan-driven-development/tests/test_site.py -q`.
-  Expected: `6 failed` (`FileNotFoundError` for `templates/quarto`, `CLAUDE.md`, `close-task.txt`,
-  `wip.txt`).
+  Expected: `3 failed` (`FileNotFoundError` for `templates/quarto`).
 
 - [ ] **Step 3: Write the Quarto templates** in `plan-driven-development/templates/quarto/`.
   `_quarto.yml`:
@@ -5666,71 +5663,27 @@ pagetitle: "How we work"
 </script>
 ```
 
-- [ ] **Step 4: Write the root and message templates.** `plan-driven-development/templates/CLAUDE.md`
-  is the single line `@AGENTS.md`. `plan-driven-development/templates/issue-tracker.md`:
+- [x] **Step 4: The root and message templates,** built ahead of this task (the note at its head).
 
-```markdown
-# Issue tracker
-
-Work in this repo is tracked in its plans, not in an issue tracker: `docs/superpowers/plans/`, each
-task with checkbox steps, plus the spec's scenario table and its Later list. A task's state is its
-box, the plan's **Now** line and its closing commit (`docs(plan): 🤖 close Task N: …`).
-
-Anything with a date or someone waiting on it is proposed to Dan as a ticket in his own tracker,
-never filed silently. Dependabot's PRs are the only GitHub PRs besides each phase's own.
-```
-
-  `plan-driven-development/templates/close-task.txt`:
-
-```text
-docs(plan): 🤖 close Task N: <the task's title>
-
-Drift: <how the build departed from the plan, and why; or "none">
-Rulings: <each ruling: what was decided, why, what it costs if wrong; or "none">
-Phase-end: <findings deferred to the phase-end list, each with its severity and file; or "none">
-Forward: <later tasks or phases the forward review changed, and how; or "none">
-Tier: <1, 2 or 3>
-Rounds: <the reviews and re-reviews run; "self-review (no subagent tool)" when so>
-Findings: <Critical n, Important n, Minor n, and what became of each>
-
-Plan: <plan file> Task N
-Co-Authored-By: <the model's own line>
-```
-
-  `plan-driven-development/templates/wip.txt`:
-
-```text
-chore(plan): 🤖 wip Task N: <where it stopped, in a few words>
-
-Done so far: <what this task has built so far, by commit>
-Stopped at: <the step, and what was in progress>
-Tests: <the suite's state: green, or which tests fail and why>
-
-Plan: <plan file> Task N
-Co-Authored-By: <the model's own line>
-```
-
-- [ ] **Step 5: Run the tests; they pass.** `make test` and `make test-utc`. Expected: `169 passed`
-  both times (163 + 6; the two render tests need Quarto on `PATH`).
+- [ ] **Step 5: Run the tests; they pass.** `make test` and `make test-utc`. Expected: all pass,
+  three more than before this task (the two render tests need Quarto on `PATH`).
 
 - [ ] **Step 6: Commit.** Write `.git/PDD_MSG`:
 
 ```text
-plan-driven-development: add the docs and message templates
+plan-driven-development: add the docs templates
 
 The Quarto site a public project without a demo gets: Home (the README
 and the overview), Architecture (every diagram), Design (the spec and
 plans through .md wrappers at mirrored paths), Changelog and How we
-work, plus local-ai's diagram zoom. CLAUDE.md is @AGENTS.md. The
-issue-tracker note serves Matt Pocock's code-review; close-task.txt and
-wip.txt are the message templates the commit-msg hook checks.
+work, plus local-ai's diagram zoom.
 
 Plan: docs/superpowers/plans/2026-10-15-plan-driven-development.md Task 10
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ```
 
 ```bash
-git add plan-driven-development/templates/quarto plan-driven-development/templates/CLAUDE.md plan-driven-development/templates/issue-tracker.md plan-driven-development/templates/close-task.txt plan-driven-development/templates/wip.txt plan-driven-development/tests/test_site.py
+git add plan-driven-development/templates/quarto plan-driven-development/tests/test_site.py
 git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
@@ -5739,9 +5692,9 @@ git log -1 --format='%(trailers)'
   1. **Mechanical:** `make test` and `make test-utc`.
   2. **Backward review:** `mattpocock-skills:code-review` from `$(cat .git/PDD_BASE)`, the spec
      being this task and the spec's *Docs and the site*; at most one re-review.
-  3. **Forward review:** Task 12's `docs-site.md` names these files and their placeholders; the
-     kickoff reference copies `close-task.txt` and `wip.txt` to `docs/agents/`.
-  4. **Docs:** none yet.
+  3. **Forward review:** Task 12's `docs-site.md` names these files and their placeholders.
+  4. **Docs:** delete `SKILL.md`'s *Not built yet*: every file kickoff copies now exists, which
+     `tests/test_kickoff_files.py` checks.
   5. **Close:** **Now** → `Task 11: the every-session rules, open.` Commit
      `plan-driven-development: close Task 10: the docs templates`:
 
@@ -6176,7 +6129,7 @@ fi
 
 - [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: The deterministic scenarios:** `make test` and `make test-utc`. Expected: `169 passed`
+- [ ] **Step 1: The deterministic scenarios:** `make test` and `make test-utc`. Expected: all pass
   both times (S06–S08, S17).
 
 - [ ] **Step 2: Run every behavioural scenario with the skill** (the same model as RED; the runner

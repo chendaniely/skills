@@ -536,6 +536,12 @@ def test_guard_deny_all_hook_is_not_a_guard(home):
     assert line(run(home), "guard").startswith("warn")
 
 
+def test_guard_warning_says_where_the_install_steps_are(home):
+    hook_settings(home, [])
+    warning = line(run(home), "guard")
+    assert "docs/setup.md" in warning and "make sync-guards" not in warning
+
+
 def test_guard_real_guard_is_ok_and_payload_is_realistic(home):
     log = home / "payloads.log"
     h = script(

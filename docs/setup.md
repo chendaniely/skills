@@ -99,10 +99,10 @@ uv run --quiet --with pytest pytest plan-driven-development/tests/test_setup.py 
    make install
    ```
 
-   Then, to refresh this repo's git-ignored copy in `guards/` (optional, for reference), run from this repo's folder:
+   Then, if you keep a git-ignored copy in `guards/` (optional, for reference), copy the guard's files to the top of that folder by hand the first time, since this public repo can't list them. To refresh them afterwards, run from this repo's folder:
 
    ```bash
-   make sync-guards CLAUDE_CONFIG=~/path/to/your-config-repo
+   make sync-guards CLAUDE_CONFIG="$HOME/path/to/your-config-repo"
    ```
 
    It worked when `make setup-check` prints `guard: ok`: that step runs the hook against a command naming the denylist and against a harmless one. Until the guard is installed, `guard: warn` is expected. To undo, remove the link in `~/.claude/hooks/` and the hook entry in `~/.claude/settings.json`.
@@ -182,10 +182,10 @@ Nothing here replaces never reading the denylist: a session may test that it exi
 
 ## The git-ignored guard copies
 
-`guards/` holds copies of the guard's hook, its tests, its reference settings, and the config repo's README and Makefile, so they are saved next to this setup. `.gitignore` excludes `/guards/`, so none of it reaches the public repo until Dan has reviewed it for security. Fill or refresh it with:
+`guards/` holds copies of the guard's hook, its tests, its reference settings, and the config repo's README and Makefile, so they are saved next to this setup. `.gitignore` excludes `/guards/`, so none of it reaches the public repo until Dan has reviewed it for security. This repo describes the guard and never names its files, so fill `guards/` by hand the first time, and refresh it afterwards with:
 
 ```bash
 make sync-guards CLAUDE_CONFIG=<path to the private config repo>
 ```
 
-`CLAUDE_CONFIG` has no default; the target stops with a message if it is not set. Never `git add` anything under `guards/`.
+`CLAUDE_CONFIG` has no default; the target stops with a message if it is not set. For each file at the top of `guards/` (it doesn't look in subfolders), it looks at the top of the config repo and then in its `hooks/`. It never adds a file, leaves one it can't find (and says so), and stops if `guards/` is empty or holds nothing the config repo has. Never `git add` anything under `guards/`.

@@ -958,8 +958,8 @@ Recommended A: Matt separates the axes on purpose, and the brief's cost came fro
 the tier caps now bound. **Dan: A.**
 
 **11 of 11. A guard on the denylist.** Only prose kept an agent from reading it; Dan's secrets
-guard (35 `Read` deny rules in `~/.claude/settings.json`, and the `block-secret-access.sh` hook,
-since deny rules "only cover the Read tool") doesn't mention it.
+guard (`Read` deny rules in `~/.claude/settings.json`, and a hook, since deny rules "only cover the
+Read tool") doesn't mention it.
 - **A:** both layers: `Read` deny rules for `~/.config/local-ai/denylist` and
   `~/.config/leakcheck/denylist`, and both paths in the hook's patterns with new test cases;
   diffs shown first, applied at step 5 with the other config changes; then a scratch-repo commit
