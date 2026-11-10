@@ -1148,3 +1148,12 @@ seven.**
 Shown the two values, **Dan:** the address "seems to be a fake IP address", and the path "is fine as
 a path". So that stop was lifted for that commit: its deleted lines were left out of the leak
 check, and everything else went through as usual.
+
+## GREEN, for now (2026-11-09)
+
+Task 17 was written: a separate macOS account for the headless runs. Dan asked why it was needed, and
+was told: to keep test agents and the code they write away from his files, and to give results free of
+his own global instructions; the skill works without it. Asked with selectable options: set up the
+account, run GREEN without it, or skip GREEN for now. **Dan:** "Skip GREEN for now". He gave no
+further reason. Task 17 stays written and unrun, the skill stays ungraded and out of the marketplace,
+and nothing was changed on his machine.
