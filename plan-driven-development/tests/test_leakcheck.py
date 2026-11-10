@@ -543,6 +543,16 @@ def test_a_sha_not_remotes_range_still_works(tmp_path, monkeypatch):
     assert leakcheck.main(["--range", f"{sha} --not --remotes", "--denylist", str(denylist(tmp_path))]) == 1
 
 
+def test_a_named_remote_is_allowed_in_a_range_but_a_glob_is_not(tmp_path, monkeypatch):
+    repo = leaking_repo(tmp_path)
+    sha = git(repo, "rev-parse", "HEAD").stdout.strip()
+    monkeypatch.chdir(repo)
+    deny = str(denylist(tmp_path))
+    assert leakcheck.main(["--range", f"{sha} --not --remotes=origin", "--denylist", deny]) == 1
+    for wide in ("--remotes=*", "--remotes=or*", "--remotes=", "--remotes=a b"):
+        assert leakcheck.main(["--range", f"{sha} --not {wide}", "--denylist", deny]) == 2, wide
+
+
 # F6: an unreadable range's name may be private.
 def test_an_unreadable_range_never_prints_the_range(tmp_path, monkeypatch, capsys):
     repo = leaking_repo(tmp_path)

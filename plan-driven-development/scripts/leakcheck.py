@@ -225,15 +225,16 @@ def tracked_texts(cwd: Path | None = None) -> list[tuple[str, str | None]]:
 
 
 _RANGE_FLAGS = frozenset({"--not", "--remotes"})
+_REMOTES_NAME = re.compile(r"--remotes=[A-Za-z0-9._/-]+")  # one named remote; no glob characters
 
 
 def _range_log(options: list[str], revs: str, cwd: Path | None) -> bytes:
-    """`git log` over `revs`. Callers pass `A..B` or `<sha> --not --remotes`, so any other token
+    """`git log` over `revs`. Callers pass `A..B` or `<sha> --not --remotes[=<name>]`, so any other token
     that starts with `-` is refused before git runs (`--output=FILE` writes a file, `--max-count=0`
     scans nothing). The message never holds the range: a ref name can be private."""
     try:
         tokens = shlex.split(revs)
-        if any(t.startswith("-") and t not in _RANGE_FLAGS for t in tokens):
+        if any(t.startswith("-") and t not in _RANGE_FLAGS and not _REMOTES_NAME.fullmatch(t) for t in tokens):
             raise ValueError
         # core.quotePath=false keeps a non-ASCII file name readable in the patch headers.
         return _git(["-c", "core.quotePath=false", "log", *options, *tokens, "--"], cwd)

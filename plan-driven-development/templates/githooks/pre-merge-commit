@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 # Leak guard for a merge git completes by itself: git runs this hook for it, not pre-commit.
-# Never bypass it with --no-verify (AGENTS.md, Security).
+# Never bypass it with --no-verify (AGENTS.md, Stops).
 set -euo pipefail
 exec "$(dirname "$0")/pre-commit"

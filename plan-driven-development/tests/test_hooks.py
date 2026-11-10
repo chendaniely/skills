@@ -65,14 +65,14 @@ def test_the_hook_templates_are_executable():
         assert os.access(TEMPLATES / "githooks" / name, os.X_OK), name
 
 
-@pytest.mark.parametrize("hook", ["pre-commit", "commit-msg", "pre-push"])
+@pytest.mark.parametrize("hook", list(HOOKS))
 def test_a_hook_refuses_without_gitleaks(tmp_path, hook):
     result = run_hook(tmp_path, hook, fake_bin(tmp_path, "git", "bash", "dirname", "cat"))
     assert result.returncode == 1
     assert "gitleaks is not installed" in result.stderr
 
 
-@pytest.mark.parametrize("hook", ["pre-commit", "commit-msg", "pre-push"])
+@pytest.mark.parametrize("hook", list(HOOKS))
 def test_a_hook_refuses_a_gitleaks_without_the_git_command(tmp_path, hook):
     bindir = fake_bin(tmp_path, "git", "bash", "dirname", "cat")
     (bindir / "gitleaks").write_text(OLD_GITLEAKS)
@@ -83,7 +83,7 @@ def test_a_hook_refuses_a_gitleaks_without_the_git_command(tmp_path, hook):
 
 
 @needs_tools
-@pytest.mark.parametrize("hook", ["pre-commit", "commit-msg", "pre-push"])
+@pytest.mark.parametrize("hook", list(HOOKS))
 def test_a_hook_refuses_clearly_without_uv(tmp_path, hook):
     result = run_hook(tmp_path, hook, fake_bin(tmp_path, "git", "bash", "dirname", "cat", "gitleaks"))
     assert result.returncode == 1
@@ -240,6 +240,24 @@ def test_the_hooks_work_in_a_folder_whose_path_has_a_space(tmp_path):
 
 
 @needs_tools
+def test_pre_push_and_pre_merge_commit_work_in_a_folder_whose_path_has_a_space(tmp_path):
+    spaced = tmp_path / "My Projects"
+    spaced.mkdir()
+    repo, env = pushed_project(spaced)
+    git(repo, "switch", "-q", "-c", "other", "main")
+    (repo / "leak.md").write_text(f"box {ip(10, 0, 0, 7)}\n")
+    git(repo, "add", "leak.md")
+    git(repo, "commit", "-q", "-m", "docs(repo): sneaked past the commit hooks")
+    pushed = push(repo, env, "-q", "origin", "other")
+    assert pushed.returncode == 1 and "outgoing commits" in pushed.stderr
+    git(repo, "switch", "-q", "phase-1")
+    msg = repo.parent / "merge-message"
+    msg.write_text("chore(repo): 🤖 merge other into phase-1\n")
+    merged = git(repo, "merge", "--no-ff", "-F", str(msg), "other", hooks=True, check=False, env=env)
+    assert merged.returncode != 0 and "private IPv4 address" in merged.stderr
+
+
+@needs_tools
 def test_a_push_of_two_branches_is_refused_if_either_leaks(tmp_path):
     # Review Focus 4: pre-push reads one line per ref; any leaking ref refuses the whole push.
     repo, env = pushed_project(tmp_path)
@@ -251,3 +269,151 @@ def test_a_push_of_two_branches_is_refused_if_either_leaks(tmp_path):
     git(repo, "commit", "-q", "-m", "docs(repo): sneaked past the commit hooks")  # hooks off here
     result = push(repo, env, "origin", "phase-1", "phase-2")
     assert result.returncode == 1 and "outgoing commits" in result.stderr
+
+
+def seeded_leak(repo: Path, name: str = "b.md", text: str | None = None, remove: bool = False) -> None:
+    """A commit with a private address, made with the hooks off. `remove` deletes the file in a
+    later commit, so only history holds the leak (the tracked-files scan can't be what refuses)."""
+    (repo / name).write_text(text if text is not None else f"box {ip(10, 0, 0, 7)}\n")
+    git(repo, "add", name)
+    git(repo, "commit", "-q", "-m", "docs(repo): sneaked past the commit hooks")
+    if remove:
+        git(repo, "rm", "-q", name)
+        git(repo, "commit", "-q", "-m", "docs(repo): remove it again")
+
+
+@needs_tools
+def test_a_branch_another_remote_already_has_is_still_scanned_for_this_remote(tmp_path):
+    # F1: `--not --remotes` excluded every remote's refs; only the remote pushed to may be excluded.
+    repo, env = pushed_project(tmp_path)
+    other = tmp_path / "private.git"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(other)], check=True)
+    git(repo, "remote", "add", "private", str(other))
+    seeded_leak(repo, remove=True)
+    git(repo, "push", "-q", "private", "phase-1")
+    git(repo, "fetch", "-q", "private")
+    result = push(repo, env, "-q", "origin", "phase-1")
+    assert result.returncode == 1 and "outgoing commits" in result.stderr
+
+
+@needs_tools
+def test_a_new_branch_pushed_to_a_url_scans_its_whole_history(tmp_path):
+    repo, env = pushed_project(tmp_path)
+    seeded_leak(repo, remove=True)
+    git(repo, "push", "-q", "origin", "phase-1")  # hooks off: origin has the leak
+    (repo / "c.md").write_text("fine\n")
+    assert commit(repo, env, "docs(repo): 🤖 add c\n", "c.md").returncode == 0
+    url = tmp_path / "elsewhere.git"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(url)], check=True)
+    result = push(repo, env, "-q", str(url), "phase-1")
+    assert result.returncode == 1 and "outgoing commits" in result.stderr
+
+
+@needs_tools
+def test_a_token_on_a_gitleaks_allow_line_is_still_refused(tmp_path):
+    repo, env = pushed_project(tmp_path)
+    text = f"key {token()}  # gitleaks:allow\n"
+    (repo / "a.md").write_text(text)
+    result = commit(repo, env, "docs(repo): 🤖 add a\n", "a.md")
+    assert result.returncode == 1 and "leaks found" in result.stdout + result.stderr
+    git(repo, "reset", "-q")
+    seeded_leak(repo, "a.md", text)
+    pushed = push(repo, env, "-q", "origin", "phase-1")
+    assert pushed.returncode == 1 and "leaks found" in pushed.stdout + pushed.stderr
+
+
+@needs_tools
+def test_an_untracked_gitleaksignore_is_refused_by_commit_and_push(tmp_path):
+    repo, env = pushed_project(tmp_path)
+    (repo / "a.md").write_text("fine\n")
+    git(repo, "add", "a.md")
+    (repo / ".gitleaksignore").write_text("anything\n")
+    result = git(repo, "commit", "-q", "-m", "docs(repo): add a", hooks=True, check=False, env=env)
+    assert result.returncode == 1 and ".gitleaksignore" in result.stderr
+    git(repo, "commit", "-q", "-m", "docs(repo): add a")  # hooks off
+    pushed = push(repo, env, "-q", "origin", "phase-1")
+    assert pushed.returncode == 1 and ".gitleaksignore" in pushed.stderr
+
+
+@needs_tools
+def test_a_token_in_a_merge_resolution_is_refused(tmp_path):
+    # F3: gitleaks skips merge diffs unless the log options say -m.
+    repo, env = pushed_project(tmp_path)
+    git(repo, "switch", "-q", "main")
+    (repo / "f.md").write_text("base\n")
+    git(repo, "add", "f.md")
+    git(repo, "commit", "-q", "-m", "docs(repo): add f")
+    git(repo, "push", "-q", "origin", "main")
+    git(repo, "switch", "-q", "phase-1")
+    git(repo, "merge", "-q", "--ff-only", "main")
+    git(repo, "switch", "-q", "-c", "other")
+    (repo / "f.md").write_text("theirs\n")
+    git(repo, "commit", "-q", "-am", "docs(repo): theirs")
+    git(repo, "switch", "-q", "phase-1")
+    (repo / "f.md").write_text("mine\n")
+    git(repo, "commit", "-q", "-am", "docs(repo): mine")
+    assert git(repo, "merge", "other", check=False).returncode != 0
+    (repo / "f.md").write_text(f"key {token()}\n")
+    git(repo, "add", "f.md")
+    git(repo, "commit", "-q", "-m", "chore(repo): merge other")
+    result = push(repo, env, "-q", "origin", "phase-1")
+    assert result.returncode == 1 and "leaks found" in result.stdout + result.stderr
+
+
+@needs_tools
+def test_a_branch_name_with_a_denylisted_term_or_an_address_is_refused(tmp_path):
+    repo, env = pushed_project(tmp_path)
+    env = env_with(tmp_path, "secret-project")
+    (repo / "b.md").write_text("fine\n")
+    assert commit(repo, env, "docs(repo): 🤖 add b\n", "b.md").returncode == 0
+    named = push(repo, env, "-q", "origin", "phase-1:secret-project-x")
+    assert named.returncode == 1 and "denylisted term" in named.stderr
+    assert "secret-project" not in named.stdout + named.stderr
+    addr = ip(10, 0, 0, 7)
+    numbered = push(repo, env, "-q", "origin", f"phase-1:{addr}")
+    assert numbered.returncode == 1 and "private IPv4 address" in numbered.stderr
+    assert addr not in numbered.stdout + numbered.stderr
+
+
+@needs_tools
+def test_a_push_outside_refs_heads_is_refused(tmp_path):
+    repo, env = pushed_project(tmp_path)
+    (repo / "b.md").write_text("fine\n")
+    assert commit(repo, env, "docs(repo): 🤖 add b\n", "b.md").returncode == 0
+    result = push(repo, env, "-q", "origin", "phase-1:refs/foo/bar")
+    assert result.returncode == 1 and "only branches" in result.stderr and "AGENTS.md, Pushing" in result.stderr
+
+
+@needs_tools
+def test_a_gitleaks_refusal_names_the_rule_and_file_but_not_the_token(tmp_path):
+    repo = make_project(tmp_path)
+    env = env_with(tmp_path)
+    (repo / "drill-token.md").write_text(f"key {token()}\n")
+    result = commit(repo, env, "test(repo): 🤖 leak drill\n", "drill-token.md")
+    out = result.stdout + result.stderr
+    assert result.returncode == 1
+    assert "github-pat" in out and "drill-token.md" in out and token() not in out
+
+
+@needs_tools
+def test_a_token_in_a_commit_message_is_refused_by_commit_msg(tmp_path):
+    repo = make_project(tmp_path)
+    env = env_with(tmp_path)
+    (repo / "a.md").write_text("fine\n")
+    result = commit(repo, env, f"docs(repo): 🤖 add a\n\nkey {token()}\n", "a.md")
+    out = result.stdout + result.stderr
+    assert result.returncode == 1 and "leaks found" in out and token() not in out
+
+
+@needs_tools
+def test_a_token_in_an_outgoing_commit_is_refused_by_pre_push(tmp_path):
+    repo, env = pushed_project(tmp_path)
+    seeded_leak(repo, "b.md", f"key {token()}\n")
+    result = push(repo, env, "-q", "origin", "phase-1")
+    out = result.stdout + result.stderr
+    assert result.returncode == 1 and "leaks found" in out and token() not in out
+
+
+def test_no_message_cites_a_section_the_template_lacks():
+    for name in HOOKS:
+        assert "AGENTS.md, Security" not in (TEMPLATES / "githooks" / name).read_text(), name

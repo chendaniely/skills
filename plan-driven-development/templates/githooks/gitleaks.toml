@@ -1,3 +1,3 @@
-# gitleaks config: the default rules, nothing removed (AGENTS.md, Security).
+# gitleaks config: the default rules, nothing removed (AGENTS.md, Docs and security).
 [extend]
 useDefault = true
