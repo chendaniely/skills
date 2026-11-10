@@ -22,7 +22,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
 
-**Now:** Dan tries the skill on a real project (the order note below); then Task 7: the leak check, open.
+**Now:** waiting on Dan: the isolation task before Task 13 (a separate macOS user; the order note below), then Task 13: GREEN and REFACTOR.
 
 > **Order changed (Dan, 2026-10-16: "is this skill written up yet? i want to test it out"):**
 > after Task 5, run Task 6 (RED), then Tasks 11 and 12 (the skill text), then Dan tries the skill
@@ -41,6 +41,23 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 > the skill, `preferences.md` and the setup live on `main`. The rest of the plan runs on a new
 > `plan-driven-development` branch cut from `main`, so the push blocks keep their names, and Task
 > 16's PR is that branch's.
+>
+> **After the merge (Dan, 2026-11-09: "yes let's fix the problems with the recommendations you
+> have"):** a check of the merged work found two gaps, fixed ahead of Task 7. The guard's file names
+> had reached the public repo, against this plan's own constraint: `make sync-guards` now refreshes
+> only what is already in the git-ignored `guards/`, the Q&A describes the guard, and a test fails
+> if a tracked file names one of its files. And `AGENTS.md` pointed at `docs/agents/` files kickoff
+> had nothing to copy for, which matters most in a harness that has only the repo: Task 10's four
+> small templates were built ahead of it, and *Not built yet* in `SKILL.md` now covers every other
+> file kickoff copies. The expected test totals from Task 7 on, stale since the reorder, now say
+> how many tests each task adds. These fixes merge with the rest of this branch's work, not in a
+> PR of their own (Dan, the same day: "there's already a PR in the project. let's plan to merge
+> them all together"), so public `main` names the guard's files until that PR merges.
+>
+> **Merged after Task 10 (Dan, 2026-11-09: "i'd like to get all these things committed and
+> merged"):** the branch goes to `main` in a PR of its own, with GREEN not yet run. The isolation
+> task and Tasks 13 to 16 run on a new `plan-driven-development` branch cut from `main`. The Q&A
+> records the seven decisions.
 
 ## Global Constraints
 
@@ -3238,9 +3255,18 @@ fi
 ### Task 7: The leak check
 
 > **From Tasks 11–12's forward reviews:** once the leak check and the hooks exist (Tasks 7–8),
-> shrink and then delete `SKILL.md`'s *Not built yet* note, the interim line it puts in a
-> project's `AGENTS.md`, and `references/kickoff.md`'s two conditionals (the drill, the history
-> scan) on the hooks and `leakcheck.py` being there.
+> take out of `SKILL.md`'s *Not built yet* note its safety bullet and the interim line it puts in
+> a project's `AGENTS.md`, and out of `references/kickoff.md` its two conditionals (the drill, the
+> history scan) on the hooks and `leakcheck.py` being there. Task 9 takes out the note's
+> `Makefile`, `.gitignore` and CI bullets, and Task 10 its Quarto bullet and the note itself.
+>
+> **Built differently (`cf08071`, from this task's Tier 1 review):** the listings below are the port
+> as planned (`68dce57`), and the review found gaps the port inherited from local-ai, so the files
+> now differ from them. A crash printed a private file name whole; any unexpected error now exits 2
+> and names only the exception's type. `--tracked` reads blobs from the index and `--staged` reads
+> by blob id, so a dangling symlink, a submodule or a file named `0:notes.md` no longer crashes or
+> fools them. Binaries renamed and changed, or added in a merge, are named. `--range` accepts only
+> `A..B` and `<sha> --not --remotes`, and its error no longer repeats the range.
 
 **Tier:** 1 · **Scenarios:** S06.
 
@@ -3257,9 +3283,9 @@ fi
   ("not scanned (binary): … — check it by eye") without changing the exit code. Also `scan_text`,
   `load_denylist`, `staged_texts`, `tracked_texts`, `range_text`, `range_binaries`.
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: Write the failing test,** `plan-driven-development/tests/test_leakcheck.py` (ported
+- [x] **Step 1: Write the failing test,** `plan-driven-development/tests/test_leakcheck.py` (ported
   from local-ai's `spark/tests/test_leakcheck.py` at `e32096c`, every test and assertion kept, plus
   the range and its binaries, the environment default, the silent validation, the stop message and
   Review Focus 3 and 5):
@@ -3611,11 +3637,11 @@ def test_a_non_ascii_file_name_is_scanned(tmp_path, monkeypatch, capsys):
     assert "café-notes.md:1: private IPv4 address" in capsys.readouterr().err
 ```
 
-- [ ] **Step 2: Run it; watch it fail.**
+- [x] **Step 2: Run it; watch it fail.**
   `uv run --quiet --with pytest pytest plan-driven-development/tests/test_leakcheck.py -q`.
   Expected: `1 error` at collection: `FileNotFoundError: … scripts/leakcheck.py`.
 
-- [ ] **Step 3: Write `plan-driven-development/scripts/leakcheck.py`** (local-ai's
+- [x] **Step 3: Write `plan-driven-development/scripts/leakcheck.py`** (local-ai's
   `spark/src/spark/leakcheck.py` at `e32096c`, standalone, with every one of its patterns, the
   `--range` mode with its binaries named, this repo's denylist default, and a refusal that tells an
   agent to stop and tell Dan):
@@ -3930,10 +3956,10 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
-- [ ] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: `119 passed`
-  both times (63 + 56).
+- [x] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: all pass
+  both times, 56 more than before this task.
 
-- [ ] **Step 5: Validate the real denylist without reading it:**
+- [x] **Step 5: Validate the real denylist without reading it:**
 
 ```bash
 uv run --quiet --script plan-driven-development/scripts/leakcheck.py --message /dev/null; echo "denylist: exit=$?"
@@ -3942,7 +3968,7 @@ uv run --quiet --script plan-driven-development/scripts/leakcheck.py --message /
   Expected: nothing printed, then `denylist: exit=0`. Exit 2 means the link from Task 1 Step 8 is
   missing or the list has no terms: stop and tell Dan.
 
-- [ ] **Step 6: Commit.** Write `.git/PDD_MSG`:
+- [x] **Step 6: Commit.** Write `.git/PDD_MSG`:
 
 ```text
 plan-driven-development: add the leak check, ported from local-ai
@@ -3966,7 +3992,7 @@ git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
 
-- [ ] **Step 7: Review, look forward, close (Tier 1).**
+- [x] **Step 7: Review, look forward, close (Tier 1).**
   1. **Mechanical:** `make test` and `make test-utc`.
   2. **Backward review:** `mattpocock-skills:code-review` from `$(cat .git/PDD_BASE)`, the spec
      being this task, the spec's *Security hooks and the leak check*, and local-ai's source and
@@ -4007,7 +4033,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 8: Push (standing OK).** From here on the push block uses the skill's own leak check:
+- [x] **Step 8: Push (standing OK).** From here on the push block uses the skill's own leak check:
 
   The skill's own leak check scans the range, with Dan's denylist. Push only through this block:
 
@@ -4031,6 +4057,14 @@ fi
 
 ### Task 8: The four git hooks
 
+> **Built differently (`ed12c5b`, from this task's Tier 1 review):** the listings below are the
+> hooks as planned (`8e434dd`), and the files now differ from them. A new branch's scan excludes
+> only the remote being pushed to, because `--not --remotes` let another remote's commits through
+> unscanned. gitleaks ignores allow comments and sees merge diffs; an untracked `.gitleaksignore`
+> is refused; ref names are scanned; only `refs/heads/*` may be pushed; a refusal names the rule
+> and the file. Messages cite the template's real sections. `leakcheck.py` accepts
+> `--remotes=<name>`, and `--all` again (`460af29`), which kickoff's whole-history scan uses.
+
 **Tier:** 1 · **Scenarios:** S06 (the drill), S07, S08 (through the hook).
 
 **Files:**
@@ -4044,9 +4078,9 @@ fi
 - Produces: the hooks a project's `.githooks/` gets at kickoff; each refuses without gitleaks 8.19+
   or uv; `pre-push` refuses `main`, tags, deletions and force pushes and scans what goes out.
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: Write the failing tests,** `plan-driven-development/tests/test_hooks.py` (local-ai's
+- [x] **Step 1: Write the failing tests,** `plan-driven-development/tests/test_hooks.py` (local-ai's
   `spark/tests/test_hooks.py` at `e32096c`, ported, plus the new hooks, the commit-msg checks, the
   drill with its findings named, and Review Focus 1 and 4):
 
@@ -4334,7 +4368,7 @@ def test_a_green_fixture_gets_the_hooks_and_the_template(tmp_path):
     assert subprocess.run(["git", "config", "core.hooksPath"], cwd=repo, capture_output=True, text=True).stdout.strip() == ".githooks"
 ```
 
-- [ ] **Step 2: Run them; watch them fail.**
+- [x] **Step 2: Run them; watch them fail.**
 
 ```bash
 uv run --quiet --with pytest --with pyyaml pytest plan-driven-development/tests/test_hooks.py plan-driven-development/tests/test_green_fixture.py -q
@@ -4342,7 +4376,7 @@ uv run --quiet --with pytest --with pyyaml pytest plan-driven-development/tests/
 
   Expected: `23 failed`, each for want of `templates/githooks`.
 
-- [ ] **Step 3: Write the hooks.** `plan-driven-development/templates/githooks/pre-commit`:
+- [x] **Step 3: Write the hooks.** `plan-driven-development/templates/githooks/pre-commit`:
 
 ```bash
 #!/usr/bin/env bash
@@ -4473,11 +4507,11 @@ chmod 755 plan-driven-development/templates/githooks/pre-commit plan-driven-deve
 shellcheck plan-driven-development/templates/githooks/pre-commit plan-driven-development/templates/githooks/commit-msg plan-driven-development/templates/githooks/pre-push plan-driven-development/templates/githooks/pre-merge-commit
 ```
 
-- [ ] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: `142 passed`
-  both times (119 + 23). On a machine without gitleaks 8.19+ or uv the tool-dependent tests skip:
+- [x] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: all pass
+  both times, 23 more than before this task. On a machine without gitleaks 8.19+ or uv the tool-dependent tests skip:
   install them, as the hooks require.
 
-- [ ] **Step 5: Prove the hooks read this machine's real denylist (Decision 11).** After Task 1's
+- [x] **Step 5: Prove the hooks read this machine's real denylist (Decision 11).** After Task 1's
   guard, a commit in a throwaway project must still run the leak check, which reads the denylist
   itself; the agent never names or reads it. In a shell where `LEAKCHECK_DENYLIST` is not set:
 
@@ -4500,7 +4534,7 @@ rm -rf "$d"
   Expected: `commit: exit=0`. `denylist not found` or a refusal from Dan's own guard is a stop: tell
   Dan.
 
-- [ ] **Step 6: Commit.** Write `.git/PDD_MSG`:
+- [x] **Step 6: Commit.** Write `.git/PDD_MSG`:
 
 ```text
 plan-driven-development: add the four git hooks
@@ -4528,7 +4562,7 @@ git ls-files -s plan-driven-development/templates/githooks
 
   Expected: mode `100755` for the four hooks.
 
-- [ ] **Step 7: Review, look forward, close (Tier 1).**
+- [x] **Step 7: Review, look forward, close (Tier 1).**
   1. **Mechanical:** `make test` and `make test-utc`; shellcheck clean.
   2. **Backward review:** `mattpocock-skills:code-review` from `$(cat .git/PDD_BASE)`, the spec
      being this task, the spec's *Security hooks*, *Pushing, PRs and modes* and *Commits*, and
@@ -4537,7 +4571,8 @@ git ls-files -s plan-driven-development/templates/githooks
   3. **Forward review:** Task 9's shellcheck job names all four hooks and its Makefile's `hooks`
      target validates the denylist before `git config core.hooksPath .githooks`; Task 12's kickoff
      reference says to unstage the drill with `git rm --cached`.
-  4. **Docs:** none yet.
+  4. **Docs:** `SKILL.md`'s *Not built yet* loses its safety bullet and interim line, and
+     `references/kickoff.md` its two conditionals (the note at Task 7's head).
   5. **Close:** **Now** → `Task 9: the project templates, open.` Commit
      `plan-driven-development: close Task 8: the four git hooks`:
 
@@ -4569,7 +4604,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 8: Push (standing OK).**
+- [x] **Step 8: Push (standing OK).**
 
   The skill's own leak check scans the range, with Dan's denylist. Push only through this block:
 
@@ -4593,6 +4628,12 @@ fi
 
 ### Task 9: The project templates: CI, Dependabot, `.gitignore` and the `Makefile`
 
+> **Built differently (`558d3c5`, from this task's Tier 1 review):** the listings below are the
+> templates as planned (`961e622`), and the files now differ from them. `make hooks` requires all
+> four hooks to be executable before turning them on; `test-utc` exports `TZ`; Dependabot waits seven
+> days; setup-uv's cache is off; the filled test command sits in a block scalar; comments cite the
+> template's real headings; the `make hooks` tests from local-ai are ported.
+
 **Tier:** 1 (CI's leak jobs and the Pages permissions) · **Scenarios:** S17; Dan's Makefile
 preference.
 
@@ -4609,9 +4650,9 @@ preference.
   the `docs` target deleted in the same case; its targets `help`, `hooks`, `check`, `test`,
   `test-utc`, `lint`, `leaks`, `docs` (Task 11's template names them).
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: Write the failing test,** `plan-driven-development/tests/test_templates.py` (ported
+- [x] **Step 1: Write the failing test,** `plan-driven-development/tests/test_templates.py` (ported
   from local-ai's `spark/tests/test_workflows.py` at `e32096c`, plus the site, the deploy, the
   `.gitignore` patterns and the Makefile):
 
@@ -4853,12 +4894,12 @@ def test_docs_checks_wrappers_unresolved_links_and_internal_links(tmp_path):
         assert fragment in out, fragment
 ```
 
-- [ ] **Step 2: Run it; watch it fail.**
+- [x] **Step 2: Run it; watch it fail.**
   `uv run --quiet --with pytest --with pyyaml pytest plan-driven-development/tests/test_templates.py -q`.
   Expected: `21 failed`, each with `FileNotFoundError: … templates/ci.yml` (or `dependabot.yml`,
   `gitignore`, `Makefile`).
 
-- [ ] **Step 3: Write the templates.** `plan-driven-development/templates/ci.yml`:
+- [x] **Step 3: Write the templates.** `plan-driven-development/templates/ci.yml`:
 
 ```yaml
 name: ci
@@ -4913,7 +4954,7 @@ jobs:
           echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tar.gz" | sha256sum -c -
           tar -xzf gitleaks.tar.gz gitleaks
       - name: gitleaks over the whole history
-        run: ./gitleaks git --redact --no-banner -v --config .githooks/gitleaks.toml .
+        run: ./gitleaks git --redact --no-banner -v --ignore-gitleaks-allow --log-opts="--all --full-history -m" --config .githooks/gitleaks.toml .
       - name: the leak check over every tracked file
         env:
           CI: "true"
@@ -5113,10 +5154,10 @@ docs: ## Render the site; every doc has its wrapper, no unresolved link, every i
 	else echo "lychee isn't installed here: CI checks every internal link"; fi
 ```
 
-- [ ] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: `163 passed`
-  both times (142 + 21).
+- [x] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: all pass
+  both times, 21 more than before this task.
 
-- [ ] **Step 5: Run the Makefile on Linux too** (Ubuntu 24.04's GNU make 4.3), if Docker is up; if
+- [x] **Step 5: Run the Makefile on Linux too** (Ubuntu 24.04's GNU make 4.3), if Docker is up; if
   it isn't, record "Linux run pending" under `Phase-end:` in the closing commit:
 
 ```bash
@@ -5136,7 +5177,7 @@ make -f /src/Makefile
   Expected: `GNU Make 4.3`, the target list, the four `check` commands, `tests-ran` twice and
   `lint-ran`, `no wrapper for docs/superpowers/specs/x.md …`, and this repo's own target list.
 
-- [ ] **Step 6: Commit.** Write `.git/PDD_MSG`:
+- [x] **Step 6: Commit.** Write `.git/PDD_MSG`:
 
 ```text
 plan-driven-development: add the CI, Dependabot, .gitignore and Makefile templates
@@ -5160,7 +5201,7 @@ git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
 
-- [ ] **Step 7: Review, look forward, close (Tier 1).**
+- [x] **Step 7: Review, look forward, close (Tier 1).**
   1. **Mechanical:** `make test` and `make test-utc`; Step 5.
   2. **Backward review:** `mattpocock-skills:code-review` from `$(cat .git/PDD_BASE)`, the spec
      being this task, the spec's *Docs and the site* (deploy), *Security hooks* (CI) and local-ai's
@@ -5169,7 +5210,7 @@ git log -1 --format='%(trailers)'
   3. **Forward review:** Task 10's site test runs CI's wrapper-check step from this file; Task 11's
      template names the Makefile's targets; Task 12's kickoff reference says to fill
      `__TEST_COMMAND__` and `__LINT_COMMAND__` and when to delete `site`, `pages` and `docs`.
-  4. **Docs:** none yet.
+  4. **Docs:** `SKILL.md`'s *Not built yet* loses its `Makefile`, `.gitignore` and CI bullets.
   5. **Close:** **Now** → `Task 10: the docs templates, open.` Commit
      `plan-driven-development: close Task 9: the project templates`:
 
@@ -5201,7 +5242,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 8: Push (standing OK).**
+- [x] **Step 8: Push (standing OK).**
 
   The skill's own leak check scans the range, with Dan's denylist. Push only through this block:
 
@@ -5223,33 +5264,37 @@ fi
 
 ***
 
-### Task 10: The docs templates: the Quarto site, the root files and the message templates
+### Task 10: The docs templates: the Quarto site
 
-**Tier:** 2 · **Scenarios:** the docs part of S02 (closing-commit template); the site checks.
+**Tier:** 2 · **Scenarios:** the site checks.
+
+> **From Dan's trial (2026-11-09):** the repo's own pages move into a `Repo` menu on the right of
+> the navbar. `_quarto.yml` and the render test below already do this; both were run on Quarto
+> 1.11.6, and the test failed on the old layout.
 
 **Files:**
 - Create: `plan-driven-development/templates/quarto/_quarto.yml`, `index.qmd`, `_overview.qmd`,
   `architecture.qmd`, `design.qmd`, `wrapper.md`, `changelog.md`, `how-we-work.md`,
   `_diagram-zoom.html`
-- Create: `plan-driven-development/templates/CLAUDE.md`, `issue-tracker.md`, `close-task.txt`, `wip.txt`
 - Test: `plan-driven-development/tests/test_site.py`
 
+> **Built ahead (Dan, 2026-11-09; the note at the top says why):** `templates/CLAUDE.md`,
+> `issue-tracker.md`, `close-task.txt` and `wip.txt`, as this task listed them, with their tests in
+> `tests/test_kickoff_files.py`. Those parts are out of the listing below.
+
 **Interfaces:**
-- Consumes: `templates/ci.yml`'s wrapper-check step (Task 9); `commitmsg.problems` (Task 3).
+- Consumes: `templates/ci.yml`'s wrapper-check step (Task 9).
 - Produces: the files kickoff copies for a site project (placeholders `__PROJECT__`,
-  `__SITE_URL__`, `__REPO_URL__`, `__SPEC__`; a wrapper's `__TITLE__` and `__PATH__`), and the
-  message templates a project keeps in `docs/agents/`.
+  `__SITE_URL__`, `__REPO_URL__`, `__SPEC__`; a wrapper's `__TITLE__` and `__PATH__`).
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: Write the failing test,** `plan-driven-development/tests/test_site.py`:
+- [x] **Step 1: Write the failing test,** `plan-driven-development/tests/test_site.py`:
 
 ```python
-"""The docs templates: a sample site rendered from them with real Quarto, CI's wrapper check run
-against it, and the commit-message templates checked once filled in. Rendering skips without
-Quarto; lychee runs only in CI."""
+"""The docs templates: a sample site rendered from them with real Quarto, and CI's wrapper check run
+against it. Rendering skips without Quarto; lychee runs only in CI."""
 
-import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -5257,9 +5302,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from helpers import TEMPLATES, load_script
+from helpers import TEMPLATES
 
-commitmsg = load_script("commitmsg")
 needs_quarto = pytest.mark.skipif(shutil.which("quarto") is None, reason="needs Quarto on PATH")
 
 SPEC = "2026-01-01-demo-design"
@@ -5332,6 +5376,9 @@ def test_the_sample_site_renders_with_working_cross_links(tmp_path):
     assert f'href="../../superpowers/specs/{SPEC}.html"' in plan_html
     home = (repo / "website/_site/index.html").read_text()
     assert "A demo." in home and "mermaid" in home
+    right = home.partition("navbar-nav-scroll ms-auto")[2]
+    for page in ("architecture", "design", "changelog", "how-we-work"):
+        assert f'class="dropdown-item" href="./{page}.html"' in right, page
 
 
 @needs_quarto
@@ -5341,29 +5388,13 @@ def test_a_link_quarto_cant_resolve_fails_the_render_check(tmp_path):
     spec.write_text(spec.read_text() + "\nSee [a missing page](../plans/missing.md).\n")
     result = subprocess.run(["quarto", "render", "website"], cwd=repo, capture_output=True, text=True)
     assert "Unable to resolve link target" in result.stdout + result.stderr
-
-
-def filled(template: str) -> str:
-    text = (TEMPLATES / template).read_text()
-    text = text.replace("Task N", "Task 3")
-    return re.sub(r"<[^>]*>", "x", text)
-
-
-@pytest.mark.parametrize("template", ["close-task.txt", "wip.txt"])
-def test_the_message_templates_pass_the_format_checks_once_filled(template):
-    assert commitmsg.problems(filled(template)) == []
-
-
-def test_claude_md_only_reads_agents_md():
-    assert (TEMPLATES / "CLAUDE.md").read_text() == "@AGENTS.md\n"
 ```
 
-- [ ] **Step 2: Run it; watch it fail.**
+- [x] **Step 2: Run it; watch it fail.**
   `uv run --quiet --with pytest --with pyyaml pytest plan-driven-development/tests/test_site.py -q`.
-  Expected: `6 failed` (`FileNotFoundError` for `templates/quarto`, `CLAUDE.md`, `close-task.txt`,
-  `wip.txt`).
+  Expected: `3 failed` (`FileNotFoundError` for `templates/quarto`).
 
-- [ ] **Step 3: Write the Quarto templates** in `plan-driven-development/templates/quarto/`.
+- [x] **Step 3: Write the Quarto templates** in `plan-driven-development/templates/quarto/`.
   `_quarto.yml`:
 
 ```yaml
@@ -5379,15 +5410,17 @@ website:
   repo-url: "__REPO_URL__"
   repo-subdir: website
   navbar:
-    left:
-      - text: Architecture
-        href: architecture.qmd
-      - text: Design
-        href: design.qmd
-      - text: Changelog
-        href: changelog.md
-      - text: How we work
-        href: how-we-work.md
+    right:
+      - text: Repo
+        menu:
+          - text: Architecture
+            href: architecture.qmd
+          - text: Design
+            href: design.qmd
+          - text: Changelog
+            href: changelog.md
+          - text: How we work
+            href: how-we-work.md
 
 format:
   html:
@@ -5657,82 +5690,38 @@ pagetitle: "How we work"
 </script>
 ```
 
-- [ ] **Step 4: Write the root and message templates.** `plan-driven-development/templates/CLAUDE.md`
-  is the single line `@AGENTS.md`. `plan-driven-development/templates/issue-tracker.md`:
+- [x] **Step 4: The root and message templates,** built ahead of this task (the note at its head).
 
-```markdown
-# Issue tracker
+- [x] **Step 5: Run the tests; they pass.** `make test` and `make test-utc`. Expected: all pass,
+  three more than before this task (the two render tests need Quarto on `PATH`).
 
-Work in this repo is tracked in its plans, not in an issue tracker: `docs/superpowers/plans/`, each
-task with checkbox steps, plus the spec's scenario table and its Later list. A task's state is its
-box, the plan's **Now** line and its closing commit (`docs(plan): 🤖 close Task N: …`).
-
-Anything with a date or someone waiting on it is proposed to Dan as a ticket in his own tracker,
-never filed silently. Dependabot's PRs are the only GitHub PRs besides each phase's own.
-```
-
-  `plan-driven-development/templates/close-task.txt`:
+- [x] **Step 6: Commit.** Write `.git/PDD_MSG`:
 
 ```text
-docs(plan): 🤖 close Task N: <the task's title>
-
-Drift: <how the build departed from the plan, and why; or "none">
-Rulings: <each ruling: what was decided, why, what it costs if wrong; or "none">
-Phase-end: <findings deferred to the phase-end list, each with its severity and file; or "none">
-Forward: <later tasks or phases the forward review changed, and how; or "none">
-Tier: <1, 2 or 3>
-Rounds: <the reviews and re-reviews run; "self-review (no subagent tool)" when so>
-Findings: <Critical n, Important n, Minor n, and what became of each>
-
-Plan: <plan file> Task N
-Co-Authored-By: <the model's own line>
-```
-
-  `plan-driven-development/templates/wip.txt`:
-
-```text
-chore(plan): 🤖 wip Task N: <where it stopped, in a few words>
-
-Done so far: <what this task has built so far, by commit>
-Stopped at: <the step, and what was in progress>
-Tests: <the suite's state: green, or which tests fail and why>
-
-Plan: <plan file> Task N
-Co-Authored-By: <the model's own line>
-```
-
-- [ ] **Step 5: Run the tests; they pass.** `make test` and `make test-utc`. Expected: `169 passed`
-  both times (163 + 6; the two render tests need Quarto on `PATH`).
-
-- [ ] **Step 6: Commit.** Write `.git/PDD_MSG`:
-
-```text
-plan-driven-development: add the docs and message templates
+plan-driven-development: add the docs templates
 
 The Quarto site a public project without a demo gets: Home (the README
 and the overview), Architecture (every diagram), Design (the spec and
 plans through .md wrappers at mirrored paths), Changelog and How we
-work, plus local-ai's diagram zoom. CLAUDE.md is @AGENTS.md. The
-issue-tracker note serves Matt Pocock's code-review; close-task.txt and
-wip.txt are the message templates the commit-msg hook checks.
+work, plus local-ai's diagram zoom.
 
 Plan: docs/superpowers/plans/2026-10-15-plan-driven-development.md Task 10
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ```
 
 ```bash
-git add plan-driven-development/templates/quarto plan-driven-development/templates/CLAUDE.md plan-driven-development/templates/issue-tracker.md plan-driven-development/templates/close-task.txt plan-driven-development/templates/wip.txt plan-driven-development/tests/test_site.py
+git add plan-driven-development/templates/quarto plan-driven-development/tests/test_site.py
 git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
 
-- [ ] **Step 7: Review, look forward, close (Tier 2).**
+- [x] **Step 7: Review, look forward, close (Tier 2).**
   1. **Mechanical:** `make test` and `make test-utc`.
   2. **Backward review:** `mattpocock-skills:code-review` from `$(cat .git/PDD_BASE)`, the spec
      being this task and the spec's *Docs and the site*; at most one re-review.
-  3. **Forward review:** Task 12's `docs-site.md` names these files and their placeholders; the
-     kickoff reference copies `close-task.txt` and `wip.txt` to `docs/agents/`.
-  4. **Docs:** none yet.
+  3. **Forward review:** Task 12's `docs-site.md` names these files and their placeholders.
+  4. **Docs:** delete `SKILL.md`'s *Not built yet*: every file kickoff copies now exists, which
+     `tests/test_kickoff_files.py` checks.
   5. **Close:** **Now** → `Task 11: the every-session rules, open.` Commit
      `plan-driven-development: close Task 10: the docs templates`:
 
@@ -5764,7 +5753,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 8: Push (standing OK).**
+- [x] **Step 8: Push (standing OK).**
 
   The skill's own leak check scans the range, with Dan's denylist. Push only through this block:
 
@@ -6133,6 +6122,10 @@ fi
 
 ### Task 13: GREEN and REFACTOR in Claude Code
 
+> **From Dan's trial (2026-11-09; the Q&A):** he wants fewer questions and shorter messages to him.
+> He didn't pick shorter plans or less commit bookkeeping. REFACTOR takes this on, `preferences.md`'s
+> asking rules included, since they set how many questions and re-shown lists he gets.
+>
 > **First (Dan, 2026-10-22):** the isolation task before this one, and RED again headless under it
 > (see the order note at the top). GREEN compares against that clean baseline, not Task 6's
 > subagent runs. S04, S11, S13 and S14 failed nothing in Task 6; any of them that still fails
@@ -6163,7 +6156,7 @@ fi
 
 - [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: The deterministic scenarios:** `make test` and `make test-utc`. Expected: `169 passed`
+- [ ] **Step 1: The deterministic scenarios:** `make test` and `make test-utc`. Expected: all pass
   both times (S06–S08, S17).
 
 - [ ] **Step 2: Run every behavioural scenario with the skill** (the same model as RED; the runner

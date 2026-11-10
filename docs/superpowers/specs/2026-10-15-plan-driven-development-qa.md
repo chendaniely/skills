@@ -958,8 +958,8 @@ Recommended A: Matt separates the axes on purpose, and the brief's cost came fro
 the tier caps now bound. **Dan: A.**
 
 **11 of 11. A guard on the denylist.** Only prose kept an agent from reading it; Dan's secrets
-guard (35 `Read` deny rules in `~/.claude/settings.json`, and the `block-secret-access.sh` hook,
-since deny rules "only cover the Read tool") doesn't mention it.
+guard (`Read` deny rules in `~/.claude/settings.json`, and a hook, since deny rules "only cover the
+Read tool") doesn't mention it.
 - **A:** both layers: `Read` deny rules for `~/.config/local-ai/denylist` and
   `~/.config/leakcheck/denylist`, and both paths in the hook's patterns with new test cases;
   diffs shown first, applied at step 5 with the other config changes; then a scratch-repo commit
@@ -1110,3 +1110,41 @@ options:
 
 **Dan:** "When purpose is missing" (the recommended option).
 
+## Dan's first trial of the skill (2026-11-09)
+
+After three weeks of using the skill on real projects, `3d-models` among them.
+
+**Dan:** "yeah the project is a bit verbose and much, but it seems like it's doing a decent setup.
+what i would like with the quarto websitte setup is a lot of the repo information can probably be
+in a top menubar sub menu. e.g., the architecture page isn't really necessary to be front and
+center for each project. that one mostly only applied to my local-ai project. in my 3d-models
+project, the architeture, desig, changelog, how we work can all be collapsed under a top sub menu
+and moved towards the right side of the menu bar since it's not the main contnet"
+
+- **The navbar:** Architecture, Design, Changelog and How we work go in one `Repo` menu on the
+  right; the project's own pages keep the left. The Architecture page stays, out of the way.
+  `3d-models` got the same navbar (`cdd3889`).
+- **"A bit verbose and much":** asked with selectable options, after measuring the plans at about
+  3 times the size of the code in both `3d-models` and `vid2sub`. **Dan:** "Fewer questions,
+  Shorter messages to me". He didn't pick the recommended "Shorter plans", or less commit
+  bookkeeping.
+
+## The decisions before the merge (2026-11-09)
+
+After Tasks 7 to 10, Dan asked: "what other thigns do you need me to decide? i'd like to get all
+these things committed and merged". Seven decisions, each with a recommendation. **Dan took all
+seven.**
+
+1. **When to merge:** now, in a PR that says GREEN hasn't run. The isolation task and Tasks 13 to 16
+   run on a new branch afterwards.
+2. **His uncommitted work:** `claude-chats` and `class-notes`, as two commits in that PR.
+3. **The two lines the leak check flagged:** replaced with generic values (`15699ce`).
+4. **Commit identities:** scanned, after a run with the real denylist found no match on this repo's.
+5. **Checksums for Quarto, lychee and setup-uv:** left for now, in `TODO.md`.
+6. **A tracked `.gitleaksignore`:** left, since it shows in the diff.
+7. **The spec's wording for a new branch's scan:** kept.
+
+**The push of `15699ce`.** The leak check refused it, because a patch shows the lines it deletes.
+Shown the two values, **Dan:** the address "seems to be a fake IP address", and the path "is fine as
+a path". So that stop was lifted for that commit: its deleted lines were left out of the leak
+check, and everything else went through as usual.

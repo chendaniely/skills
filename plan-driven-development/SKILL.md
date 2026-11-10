@@ -73,19 +73,6 @@ in phases, or to adopt this workflow in a repo that has none of it yet.
 5. **Show Dan each file kickoff writes** (in an existing repo, its diff) before writing it.
    `references/kickoff.md` lists what kickoff copies from this skill and where each file goes.
 
-**Not built yet (2026-10-22).** Of the files kickoff copies, only `templates/AGENTS.md` and
-`scripts/commitmsg.py` exist so far. Until the rest does, a trial project runs like this:
-
-- **Its `Makefile` is written by hand**, with the targets `AGENTS.md` names. `hooks` prints that no
-  hooks are installed yet and exits 0; `leaks` runs `gitleaks git --redact` over the history;
-  `check` runs the tests, the tests under `TZ=UTC`, and `leaks`.
-- **One interim line goes under its `AGENTS.md` header:** "Until the hooks and the leak check
-  exist, `make hooks` installs nothing and there is no denylist: every push waits for Dan's OK,
-  after `make leaks` passes, and there is no standing push OK." It replaces the missing-denylist
-  stop for now, and comes out when the project gets the hooks.
-- **Before the root commit,** kickoff tells Dan the project has no hooks, no denylist scan and no
-  CI yet.
-
 ## Planning
 
 **Trigger:** inside kickoff, when the spec is written and then the plans; and at each phase start,
@@ -132,9 +119,10 @@ a usage-limit stop or a restart.
   any harness, with or without this skill; this skill adds nothing to its read order.
 - **Then check the project's copy is current.** Compare the `Made from plan-driven-development …`
   line in its `AGENTS.md` with this skill's own version (as at kickoff, step 4). If they differ,
-  list "update this project's rules and scripts from the skill" among the next steps; on Dan's yes,
-  show each file's diff before writing it. Never update a project's copies silently: projects keep
-  the versions they were made with until Dan says otherwise.
+  list "update this project's rules and scripts from the skill" among the next steps, including any
+  file kickoff copies that the project lacks; on Dan's yes, show each file's diff before writing
+  it. Never update a project's copies silently: projects keep the versions they were made with
+  until Dan says otherwise.
 
 ## The docs site
 

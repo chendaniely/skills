@@ -1,0 +1,5 @@
+---
+pagetitle: "Changelog"
+---
+
+{{< include /../CHANGELOG.md >}}

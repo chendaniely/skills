@@ -29,9 +29,21 @@ setup: ## Wire preferences.md and the leak-check guard into this machine's harne
 setup-check: ## Report what setup would do, changing nothing
 	bash setup.sh --check
 
-sync-guards: ## Copy the guard files from CLAUDE_CONFIG=<private config repo> into guards/ (git-ignored)
+# This repo is public, so it describes the guard and never names its files: the names live only in
+# the git-ignored guards/, and this target refreshes what is already there.
+sync-guards: ## Refresh the copies already in guards/ (git-ignored) from CLAUDE_CONFIG=<private config repo>
 	@test -n "$(CLAUDE_CONFIG)" || { echo "CLAUDE_CONFIG is not set: pass CLAUDE_CONFIG=<path to the private config repo>" >&2; exit 1; }
 	@test -d "$(CLAUDE_CONFIG)" || { echo "CLAUDE_CONFIG is not a folder: $(CLAUDE_CONFIG)" >&2; exit 1; }
-	mkdir -p guards
-	cp "$(CLAUDE_CONFIG)/hooks/block-secret-access.sh" "$(CLAUDE_CONFIG)/hooks/test_block_secret_access.py" \
-	  "$(CLAUDE_CONFIG)/settings.reference.json" "$(CLAUDE_CONFIG)/README.md" "$(CLAUDE_CONFIG)/Makefile" guards/
+	@count=0; refreshed=0; \
+	for copy in guards/*; do \
+	  [ -f "$$copy" ] || continue; \
+	  count=$$((count + 1)); name=$${copy##*/}; \
+	  if [ -f "$(CLAUDE_CONFIG)/$$name" ]; then source="$(CLAUDE_CONFIG)/$$name"; \
+	  elif [ -f "$(CLAUDE_CONFIG)/hooks/$$name" ]; then source="$(CLAUDE_CONFIG)/hooks/$$name"; \
+	  else echo "left as is, not in CLAUDE_CONFIG: $$name"; continue; fi; \
+	  cp "$$source" "$$copy" || exit 1; \
+	  refreshed=$$((refreshed + 1)); \
+	done; \
+	test "$$count" -gt 0 || { echo "guards/ is empty: copy the guard's files there by hand once, then this refreshes them" >&2; exit 1; }; \
+	test "$$refreshed" -gt 0 || { echo "none of the files in guards/ is in CLAUDE_CONFIG: is the path right?" >&2; exit 1; }; \
+	echo "refreshed $$refreshed of $$count files in guards/"

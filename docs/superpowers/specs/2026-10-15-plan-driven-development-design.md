@@ -1,7 +1,7 @@
 # plan-driven-development: design spec
 
 **Status:** spec approved by Dan, 2026-10-15 · plan approved 2026-10-16, run subagent-driven ·
-Now: Dan tries the skill, then Task 7 · branch `plan-driven-development`, pushed on its branch, not merged.
+Now: the isolation task, then Task 13 · merged into `main` through Task 12 (`465b249`, PR #10), and Tasks 7 to 10 in the PR after it; the rest runs on a new branch `plan-driven-development`, pushed on its branch.
 
 This is the binding document for the `plan-driven-development` skill. Every decision in it was
 made with Dan, one question at a time; the questions, the options turned down and his answers in
@@ -575,6 +575,9 @@ Every public project always has a deployed site; the repo's website field points
   diagrams; built parts solid, planned dashed; click-to-zoom from local-ai's `_diagram-zoom.html`,
   after re-checking whether Quarto's lightbox now handles wide Mermaid diagrams); Design (the
   wrappers); Changelog and How we work (includes); How-to only when a person has steps to do.
+- **The navbar** (Dan, 2026-11-09, after using the skill on `3d-models`): the project's own content
+  pages on the left; on the right, one `Repo` menu holding Architecture, Design, Changelog and How
+  we work, because they're about the repo, not the project's main content.
 - **Links leaving the site** (from the root files and the included docs) are full site URLs or
   code-span paths: a `../` link out of the site breaks with no warning.
 - **Checks on every push:** every doc shown on the site has its wrapper; CI fails on Quarto's
@@ -619,7 +622,8 @@ lose:
   - it scans file names, type changes and UTF-16/32 text, names binaries instead of scanning them,
     and prints 3-character excerpts only;
   - modes `--staged`, `--message <file>`, `--range <revs>` (failing closed when its base is
-    missing; a new ref is `<sha> --not --remotes`), `--tracked`, `--ci` (no denylist);
+    missing; a new ref is `<sha> --not --remotes=<the remote pushed to>`), `--tracked`, `--ci` (no
+    denylist);
   - the allow marker excuses a line from the generic patterns only, never from the denylist, and
     adding one is a stop;
   - the denylist is `$LEAKCHECK_DENYLIST` if set, else `~/.config/leakcheck/denylist`; it fails
@@ -853,3 +857,8 @@ The plan breaks these into 16 tasks, the last its small-project phase end.
 - 2026-10-22: Dan's ruling on Task 11's review (`f388d8c`): kickoff's open question only when the
   request doesn't say what the project is for or who uses it (*The asking rules*, rule 3); S01's
   prompt gains a purpose, and `preferences.md` the same condition.
+- 2026-11-09: Dan's feedback from using the skill on `3d-models` (the Q&A): the repo's own pages
+  move into a `Repo` menu on the right of the navbar (*Docs and the site*).
+- 2026-11-09: from Task 8's security review (`ed12c5b`): a new ref's scan excludes only the remote
+  being pushed to, because `--remotes` alone let another remote's commits through unscanned
+  (*Security hooks and the leak check*).

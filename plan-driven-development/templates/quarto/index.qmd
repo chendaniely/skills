@@ -1,0 +1,10 @@
+---
+pagetitle: "__PROJECT__"
+---
+
+{{< include /../README.md >}}
+
+{{< include _overview.qmd >}}
+
+**Solid** parts are built; **dashed** parts are planned, labelled with the phase that brings them.
+[Architecture](architecture.qmd) has every diagram.

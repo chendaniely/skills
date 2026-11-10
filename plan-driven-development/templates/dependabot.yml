@@ -1,0 +1,16 @@
+# Made from plan-driven-development's template: proposals for the pinned Actions, Fridays, a few at
+# a time. Actions stay pinned by commit SHA; Dependabot moves a SHA pin and its version comment
+# together. A project with a uv lock adds a `uv` entry with `cooldown: default-days: 7`, so nothing
+# under a week old is proposed. Dependabot's PRs are Dan's to merge, into main, between phases.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: friday
+    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "ci(repo)"

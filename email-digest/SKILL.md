@@ -16,7 +16,7 @@ win over anything here.
 
 Hard rules, never negotiable:
 - **Thunderbird is strictly read-only.** Never write under
-  `/Volumes/expansionSD/applications/thunderbird/profiles`. Never reply to,
+  `<mail drive>/applications/thunderbird/profiles`. Never reply to,
   mark, move or delete any mail. Dan acts in Thunderbird himself.
 - **Fail open.** Never drop a message to save effort. Anything you can't
   classify stays pending, so it surfaces as unclassified.

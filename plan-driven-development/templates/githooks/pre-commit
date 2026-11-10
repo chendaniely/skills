@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Leak guard, run on every commit. Never bypass it with --no-verify (AGENTS.md, Stops).
+set -euo pipefail
+root="$(git rev-parse --show-toplevel)"
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "leak guard: gitleaks is not installed, so this is refused (AGENTS.md, Stops)." >&2
+  exit 1
+fi
+if ! gitleaks git --help >/dev/null 2>&1; then
+  echo "leak guard: this gitleaks has no 'git' command; it needs 8.19 or later (AGENTS.md, Stops)." >&2
+  exit 1
+fi
+if ! command -v uv >/dev/null 2>&1; then
+  echo "leak guard: uv is not on this shell's PATH, so this is refused (AGENTS.md, Stops)." >&2
+  exit 1
+fi
+if [ -e "$root/.gitleaksignore" ] && ! git -C "$root" ls-files --error-unmatch -- .gitleaksignore >/dev/null 2>&1; then
+  echo "leak guard: an untracked .gitleaksignore can silence gitleaks, so this is refused; stop and tell Dan (AGENTS.md, Stops)." >&2
+  exit 1
+fi
+gitleaks git --pre-commit --staged --redact -v --ignore-gitleaks-allow --no-banner --config "$root/.githooks/gitleaks.toml" "$root"
+exec uv run --quiet --script "$root/scripts/leakcheck.py" --staged

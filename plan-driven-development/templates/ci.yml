@@ -1,0 +1,136 @@
+name: ci
+# Made from plan-driven-development's template. Runs on every push and PR; on main it also publishes
+# the docs site (the pages job), and so does a run by hand from the Actions tab on main. Kickoff
+# replaces __TEST_COMMAND__ with the project's suite and lint, adds the setup steps the project
+# needs to the tests job, and deletes the site and pages jobs when the docs are read on GitHub
+# instead (AGENTS.md, Docs and security).
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+# A newer push cancels a branch's older runs, except on main, where a deploy may be running; a task
+# counts as closed when any run from its closing commit onward is green (AGENTS.md, Each task's loop).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+# Every job gets a time limit, so a hung step fails instead of holding a runner for six hours.
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.18"
+          enable-cache: false
+      - run: |
+          __TEST_COMMAND__
+
+  leaks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.12.18"
+          enable-cache: false
+      # Three gitleaks steps, so a red one names its cause: a failed download is a network problem,
+      # a failed checksum is a tampered or corrupt download, and only the scan reports leaks.
+      - name: download gitleaks
+        run: curl -fsSL --retry 3 --max-time 120 -o gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz"
+      - name: check gitleaks against its pinned checksum, then unpack it
+        run: |
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+      - name: gitleaks over the whole history
+        run: ./gitleaks git --redact --no-banner -v --ignore-gitleaks-allow --log-opts="--all --full-history -m" --config .githooks/gitleaks.toml .
+      - name: the leak check over every tracked file
+        env:
+          CI: "true"
+        run: uv run --script scripts/leakcheck.py --tracked --ci
+      # gitleaks' rules don't cover addresses, so the leak check also reads every commit's patches
+      # (--cc adds a merge's conflict resolutions) and messages, not only today's tree.
+      - name: the leak check over every commit's patches and messages
+        env:
+          CI: "true"
+        run: |
+          git log -p --cc --format='%H%n%B' > "$RUNNER_TEMP/history.txt"
+          uv run --script scripts/leakcheck.py --message "$RUNNER_TEMP/history.txt" --ci
+
+  shellcheck:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: shellcheck .githooks/pre-commit .githooks/commit-msg .githooks/pre-push .githooks/pre-merge-commit
+
+  site:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: every doc shown on the site has its wrapper
+        shell: bash
+        run: |
+          missing=0
+          while IFS= read -r -d '' doc; do
+            wrapper="website/${doc#docs/}"
+            if [ ! -f "$wrapper" ]; then echo "no wrapper for $doc (expected $wrapper)"; missing=1; fi
+          done < <(git ls-files -z 'docs/superpowers/*.md')
+          exit "$missing"
+      - uses: quarto-dev/quarto-actions/setup@8a96df13519ee81fd526f2dfca5962811136661b # v2.2.0
+        with:
+          version: "1.11.5"
+      # Quarto only warns about a link it can't resolve; here that fails the job.
+      - name: render, failing on a link Quarto can't resolve
+        shell: bash
+        run: |
+          quarto render website 2>&1 | tee "$RUNNER_TEMP/render.log"
+          if grep -q "Unable to resolve link target" "$RUNNER_TEMP/render.log"; then exit 1; fi
+      # A ../ link out of the site breaks with no warning at all, so every internal link is checked.
+      - name: every internal link in the rendered site resolves
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          args: --offline --no-progress website/_site
+          fail: true
+      # On main, the rendered site becomes the artifact the pages job deploys.
+      - if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: website/_site
+
+  # Publishes the site with GitHub's Pages actions ("GitHub Actions" as the Pages source), so there
+  # is no gh-pages branch keeping every rendered version. It runs only on main and only once every
+  # other job passed, so nothing reaches the public site past a failed test or leak scan, and it
+  # alone gets Pages' permissions. One deploy at a time: a newer one waits.
+  pages:
+    if: github.ref == 'refs/heads/main'
+    needs: [tests, leaks, shellcheck, site]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

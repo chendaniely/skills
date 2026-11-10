@@ -65,6 +65,10 @@ holding only a `pagetitle:` and `{{< include /../docs/superpowers/<path> >}}`: a
 - **Changelog** and **How we work:** includes of the root `CHANGELOG.md` and `AGENTS.md`.
 - **How-to:** only when a person has steps to do.
 
+**The navbar:** the project's own content pages on the left, How-to among them. On the right, one
+`Repo` menu holding Architecture, Design, Changelog and How we work, in that order: they're about
+the repo, not the project's main content.
+
 **Links leaving the site,** from the root files and the included docs, are full site URLs or
 code-span paths: a `../` link out of the site breaks with no warning.
 

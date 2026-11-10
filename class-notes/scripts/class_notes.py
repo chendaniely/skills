@@ -527,8 +527,9 @@ def run_claude(message, model):
 
 
 def run_local(message, model):
-    """Placeholder for local models -- the DGX Spark, reached over Tailscale through
-    LiteLLM. Not built yet, because none of that is set up to test against.
+    """Placeholder for local models -- an OpenAI-compatible endpoint, such as the DGX
+    Spark's llama-swap or SGLang through an SSH tunnel. Not built yet; until it is,
+    references/local-models.md has the manual route, with the same message and footer.
 
     The real version must:
       - size the context window to the input. Ollama's default context silently truncates
@@ -540,8 +541,8 @@ def run_local(message, model):
       - never inherit the Claude environment (ANTHROPIC_*), and never fall back to Claude.
     """
     raise BackendNotReady(
-        "local backend not set up yet (DGX Spark via Tailscale + LiteLLM pending); "
-        "use a Claude model, or `payload` to take the message to another tool")
+        "local backend not built yet; use a Claude model, `payload` to take the message "
+        "to another tool, or the class-notes skill's references/local-models.md")
 
 
 BACKENDS = {"claude": run_claude, "local": run_local}

@@ -1,0 +1,151 @@
+<!-- Click or tap any Mermaid diagram to open it full-screen, at its natural size, to zoom and pan.
+     Included after the body of every page by _quarto.yml. No library: a <dialog> and a copy of the SVG.
+     Quarto's own lightbox needs mermaid-format: png, whose renders cropped wide diagrams (2026-10-14). -->
+<style>
+  figure.diagram-zoomable { cursor: zoom-in; }
+  figure.diagram-zoomable:focus-visible { outline: 2px solid var(--bs-primary, #2780e3); outline-offset: 4px; }
+  .diagram-zoom-hint { margin: 0.25rem 0 0; font-size: 0.8rem; color: var(--bs-secondary-color, #6c757d); text-align: right; }
+  dialog.diagram-zoom { width: 100vw; height: 100vh; max-width: none; max-height: none; margin: 0; padding: 0;
+    border: 0; background: var(--bs-body-bg, #fff); }
+  dialog.diagram-zoom[open] { display: flex; flex-direction: column; }
+  .diagram-zoom-bar { display: flex; gap: 0.5rem; align-items: center; justify-content: flex-end; padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--bs-border-color, #dee2e6); }
+  .diagram-zoom-bar span { margin-right: auto; font-size: 0.9rem; color: var(--bs-secondary-color, #6c757d); }
+  .diagram-zoom-bar button { min-width: 2.5rem; padding: 0.25rem 0.75rem; border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: 0.375rem; background: var(--bs-body-bg, #fff); color: var(--bs-body-color, #373a3c); }
+  .diagram-zoom-view { flex: 1; overflow: auto; cursor: grab; touch-action: pan-x pan-y pinch-zoom; }
+  .diagram-zoom-view.dragging { cursor: grabbing; user-select: none; }
+  .diagram-zoom-view svg { display: block; margin: 1rem auto; max-width: none !important; height: auto; }
+</style>
+<script>
+(function () {
+  "use strict";
+
+  var STEP = 1.25, MIN = 0.1, MAX = 4;
+  var dialog, view, label, svg, naturalW = 0, naturalH = 0, zoom = 1;
+
+  function build() {
+    dialog = document.createElement("dialog");
+    dialog.className = "diagram-zoom";
+    dialog.setAttribute("aria-label", "Enlarged diagram");
+    dialog.innerHTML =
+      '<div class="diagram-zoom-bar">' +
+      "<span>Drag or scroll to move around. Esc closes.</span>" +
+      '<button type="button" data-act="out" aria-label="Zoom out">−</button>' +
+      '<button type="button" data-act="actual" aria-label="Actual size">100%</button>' +
+      '<button type="button" data-act="in" aria-label="Zoom in">+</button>' +
+      '<button type="button" data-act="fit">Fit</button>' +
+      '<button type="button" data-act="close" aria-label="Close">✕</button>' +
+      "</div>" +
+      '<div class="diagram-zoom-view"></div>';
+    document.body.appendChild(dialog);
+    view = dialog.querySelector(".diagram-zoom-view");
+    label = dialog.querySelector('[data-act="actual"]');
+
+    dialog.querySelector(".diagram-zoom-bar").addEventListener("click", function (e) {
+      var button = e.target.closest("button");
+      var act = button && button.getAttribute("data-act");
+      if (act === "in") setZoom(zoom * STEP);
+      if (act === "out") setZoom(zoom / STEP);
+      if (act === "actual") setZoom(1);
+      if (act === "fit") setZoom(fitZoom());
+      if (act === "close") dialog.close();
+    });
+    dialog.addEventListener("keydown", function (e) {
+      if (e.key === "+" || e.key === "=") setZoom(zoom * STEP);
+      if (e.key === "-") setZoom(zoom / STEP);
+      if (e.key === "0") setZoom(1);
+    });
+    dialog.addEventListener("close", function () { view.innerHTML = ""; svg = null; });
+
+    // A trackpad pinch arrives as a wheel event with ctrlKey set.
+    view.addEventListener("wheel", function (e) {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setZoom(zoom * Math.pow(STEP, -e.deltaY / 100), e.clientX, e.clientY);
+    }, { passive: false });
+
+    // Drag to pan with a mouse; touch keeps the browser's own scrolling.
+    var drag = null;
+    view.addEventListener("pointerdown", function (e) {
+      if (e.pointerType !== "mouse" || e.button !== 0) return;
+      drag = { x: e.clientX, y: e.clientY, left: view.scrollLeft, top: view.scrollTop };
+      view.classList.add("dragging");
+      view.setPointerCapture(e.pointerId);
+    });
+    view.addEventListener("pointermove", function (e) {
+      if (!drag) return;
+      view.scrollLeft = drag.left - (e.clientX - drag.x);
+      view.scrollTop = drag.top - (e.clientY - drag.y);
+    });
+    function endDrag() { drag = null; view.classList.remove("dragging"); }
+    view.addEventListener("pointerup", endDrag);
+    view.addEventListener("pointercancel", endDrag);
+  }
+
+  function fitZoom() {
+    return Math.min((view.clientWidth - 32) / naturalW, (view.clientHeight - 32) / naturalH, 1);
+  }
+
+  // Zoom about a point on screen (the view's centre by default), so what is under it stays put.
+  function setZoom(z, cx, cy) {
+    if (!svg) return;
+    z = Math.max(MIN, Math.min(MAX, z));
+    var rect = view.getBoundingClientRect();
+    var px = (cx === undefined ? rect.width / 2 : cx - rect.left);
+    var py = (cy === undefined ? rect.height / 2 : cy - rect.top);
+    var fx = (view.scrollLeft + px) / view.scrollWidth;
+    var fy = (view.scrollTop + py) / view.scrollHeight;
+    zoom = z;
+    svg.style.width = naturalW * zoom + "px";
+    view.scrollLeft = fx * view.scrollWidth - px;
+    view.scrollTop = fy * view.scrollHeight - py;
+    label.textContent = Math.round(zoom * 100) + "%";
+  }
+
+  function open(figure) {
+    var original = figure.querySelector("svg");
+    if (!original) return;
+    var box = original.viewBox && original.viewBox.baseVal;
+    if (!box || !box.width) return;
+    if (!dialog) build();
+    naturalW = box.width;
+    naturalH = box.height;
+    // The copy keeps the original's id: Mermaid scopes the diagram's styles to it.
+    svg = original.cloneNode(true);
+    svg.removeAttribute("width");
+    svg.removeAttribute("height");
+    view.innerHTML = "";
+    view.appendChild(svg);
+    dialog.showModal();
+    // Natural size, where the text reads as body text; Fit shows the whole diagram.
+    setZoom(1);
+    view.scrollLeft = 0;
+    view.scrollTop = 0;
+  }
+
+  function mark(figure) {
+    if (figure.classList.contains("diagram-zoomable")) return;
+    figure.classList.add("diagram-zoomable");
+    figure.setAttribute("tabindex", "0");
+    figure.setAttribute("role", "button");
+    figure.setAttribute("aria-label", "Enlarge diagram");
+    var hint = document.createElement("p");
+    hint.className = "diagram-zoom-hint";
+    hint.textContent = "Click or tap the diagram to enlarge it.";
+    figure.appendChild(hint);
+  }
+
+  document.querySelectorAll("figure pre.mermaid-js, figure svg.mermaid-js").forEach(function (el) {
+    mark(el.closest("figure"));
+  });
+  document.addEventListener("click", function (e) {
+    var figure = e.target.closest("figure.diagram-zoomable");
+    if (figure && !e.target.closest("a")) open(figure);
+  });
+  document.addEventListener("keydown", function (e) {
+    var figure = e.target.closest && e.target.closest("figure.diagram-zoomable");
+    if (figure && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); open(figure); }
+  });
+})();
+</script>

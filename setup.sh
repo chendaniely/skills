@@ -327,7 +327,7 @@ if blocks_target and not blocks_harmless:
     print("guard: ok")
 else:
     print("guard: warn: no PreToolUse hook naming Bash refuses a command that names the denylist "
-          "while allowing a harmless one; the guard's copy is in guards/ (make sync-guards)")
+          "while allowing a harmless one; docs/setup.md, item 3, says how to install the guard")
 PY
 )
 uv run --no-project --quiet python -I -c "$py_guard" "$settings" "$localai_dir/$denylist_name"

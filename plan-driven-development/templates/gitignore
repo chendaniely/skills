@@ -1,0 +1,44 @@
+# ---------------------------------------------------------------------------
+# Public-repo hardening (plan-driven-development's template): git history is
+# permanent, so these must never reach a commit in the first place.
+# ---------------------------------------------------------------------------
+
+# Credentials, keys, certificates
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+id_rsa*
+id_ecdsa*
+id_ed25519*
+*.kdbx
+secrets.*
+*secret*.yml
+*secret*.yaml
+*credentials*.json
+# A service's secret file is <service>.env, so a copied or rendered one must never stage. If a
+# non-secret template is ever tracked, re-include it by name with a `!` line below these.
+*.env
+.env
+.env.*
+.envrc
+.pypirc
+
+# Local agent and editor state that can carry paths and tokens
+.claude/settings.local.json
+.mcp.local.json
+.vscode/settings.json
+
+# Captured machine output that commonly carries identifiers
+*-inventory.txt
+ip-addr.txt
+tailscale-status.txt
+
+# superpowers' plan-runner workspace (its ledger); the closing commits copy what matters out of it
+.superpowers/
+
+# The rendered docs site
+website/_site/
+website/.quarto/
+website/.render.log

@@ -7,7 +7,7 @@ My personal [Claude Code](https://code.claude.com/docs/en/skills) skills. Each f
 | Skill | Group | What it does |
 |---|---|---|
 | [capture-conversation](capture-conversation/) | Vault | Turns a Claude chat, voice memo or meeting recording into a verbatim transcript plus a note on how the thinking went. |
-| [claude-chats](claude-chats/) | Vault | Paste a claude.ai share link and it mirrors that chat into the vault: the whole chat with its photos, a summary on top, daily-note links and follow-ups, with no questions. |
+| [claude-chats](claude-chats/) | Vault | Paste a claude.ai share link and it mirrors that chat into the vault: the whole chat with its photos, a summary on top, daily-note links and follow-ups, with no questions. Or name a project to sync all of it, then go through its photos for the outfit log and inventory. |
 | [catch-up](catch-up/) | Vault | When asked, catches the vault up after a gap: files the inbox, sweeps `#todo` lines into `TODO.md`, writes weekly rollups and rewrites today's Today block. |
 | [clothing-inventory](clothing-inventory/) | Vault · wardrobe | Catalogues a garment I own from its photos and sewn-in labels. |
 | [ootd](ootd/) | Vault · wardrobe | Logs an outfit photo, links the pieces to the inventory once I confirm them, and scores the outfit. |

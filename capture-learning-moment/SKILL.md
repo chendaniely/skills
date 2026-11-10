@@ -44,7 +44,7 @@ The `.qmd` file may be shared publicly (that's the point),
 and when the output folder is a published website, a push makes it public.
 Replace real IPs, usernames, UUIDs, hostnames, local file paths, API keys, and any other
 identifying values with plausible fakes or placeholders
-(e.g. `100.123.45.67`, `john.doe`, `AAAA1111-BBBB-2222-CCCC-333344445555`).
+(e.g. `100.x.y.z`, `john.doe`, `AAAA1111-BBBB-2222-CCCC-333344445555`).
 The learning is in the *structure* of the exchange, not the actual values.
 
 If in doubt, ask the user whether a value is safe to include before writing the file.

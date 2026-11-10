@@ -1,6 +1,6 @@
 ---
 name: claude-chats
-description: Use when Dan pastes a claude.ai share link (claude.ai/share/…) or a claude.ai chat URL (claude.ai/chat/…) in an Obsidian vault that mirrors his Claude chats with scripts/claude_chats.py, whether alone or with words like "capture this", "add this" or "mirror this", and when he asks to re-sync a chat already mirrored there.
+description: Use when Dan pastes a claude.ai share link (claude.ai/share/…) or a claude.ai chat URL (claude.ai/chat/…) in an Obsidian vault that mirrors his Claude chats with scripts/claude_chats.py, whether alone or with words like "capture this", "add this" or "mirror this"; when he asks to re-sync a chat already mirrored there; when he asks to sync a claude.ai project by name; and when he asks to process the chats a project sync brought in, such as going through his outfits.
 ---
 
 # Claude Chats
@@ -21,6 +21,11 @@ other chats, and not a project's instructions or files.
 
 Read the vault's `CLAUDE.md` paragraph on mirrored Claude chats once per session. Where it
 and this skill differ, the vault wins.
+
+**A whole project, or processing what one brought in:** follow
+[references/projects.md](references/projects.md). First run
+`uv run scripts/claude_chats.py --help`. If `queue` isn't among its subcommands, those
+commands aren't built in this vault yet: say so and stop.
 
 ## When not to use
 
