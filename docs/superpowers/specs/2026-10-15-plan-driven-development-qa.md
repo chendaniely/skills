@@ -1163,3 +1163,11 @@ and nothing was changed on his machine.
 Dan asked: "can we continue with green without creating a new user?" Told yes, as subagents under his
 account like the first baselines, with what that can't show. Asked with selectable options: all 14
 on Sonnet, only the 10 that failed, or not yet. **Dan:** "All 14 on Sonnet" (the recommended option).
+
+## Portability and the last merge (2026-11-10)
+
+**Dan:** "yeah i want the portability into opencode and pi and hermes and all other harnesses", then, while
+that was being checked, "let's just push through get everyrthign merged into main". S04 passed in OpenCode
+on the one Spark model that fit. S02 hit its time limit there, and pi and Hermes wait for room on the Spark.
+Only those three harnesses are installed. His go covered the runs and the merge; he wasn't asked about the
+2026-10-22 line that headless runs wait for a separate user (the spec's Revisions).

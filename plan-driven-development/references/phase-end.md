@@ -32,9 +32,9 @@ and a ticked box never runs again.
 9. **After the merge,** on a site project: the live URL serves the new site. The status line's
    `merged` entry comes with the next phase's start (*Phase start*, step 3).
 10. **[Dan] The closing commit, when no next phase follows** (a small project, or the last phase):
-    `main` refuses a commit, so Dan makes the one commit that sets the status line to `merged
-    <commit> <date>`, with `--no-verify`, or says to leave it at `PR open (#N)`. The agent never
-    commits to `main`.
+    The agent never commits to `main`, so it hands Dan the edit and the message, and he makes the one
+    commit that sets the status line to `merged <commit> <date>`, with `--no-verify`, or says to leave it
+    at `PR open (#N)`.
 
 **A small project** has no council, metrics or retro. Its Phase end task holds steps 1 and 2, then
 **3. The docs check** (step 4's docs part: every doc the branch touched is true, built parts

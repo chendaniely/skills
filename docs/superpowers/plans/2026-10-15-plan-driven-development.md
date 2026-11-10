@@ -22,7 +22,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
 
-**Now:** Task 16: phase end, open. Task 17 stays written and unrun: GREEN ran without it, as subagents.
+**Now:** merged into `main` (2026-11-10). Waiting on Dan: Task 14's Steps 2 and 3, when the Spark has room; Task 13's fewer questions and shorter messages; Task 17, if he wants clean headless runs.
 
 > **Order changed (Dan, 2026-10-16: "is this skill written up yet? i want to test it out"):**
 > after Task 5, run Task 6 (RED), then Tasks 11 and 12 (the skill text), then Dan tries the skill
@@ -6950,9 +6950,9 @@ fi
 - Consumes: the finished branch.
 - Produces: an open PR against `main`, and after Dan merges it, the skill installed.
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **1. The final whole-branch review:** `mattpocock-skills:code-review` from
+- [x] **1. The final whole-branch review:** `mattpocock-skills:code-review` from
   `git merge-base main HEAD`, the spec being the spec; then one fix dispatch, one scoped re-review
   (superpowers' `re-review-prompt.md`), and a Ruling on whatever is left. Each fix is its own
   commit at the tier of what it touches; write `.git/PDD_MSG` per fix:
@@ -6993,11 +6993,11 @@ fi
   `STOP` line means nothing was pushed: a leak or an unscanned binary is a stop that never relaxes;
   tell Dan the kind and `file:line`, never the excerpt.
 
-- [ ] **2. The ledger copied:** anything left in `.superpowers/sdd/2026-10-15-plan-driven-development/progress.md`
+- [x] **2. The ledger copied:** anything left in `.superpowers/sdd/2026-10-15-plan-driven-development/progress.md`
   that no closing commit carries goes into this plan, under the task it belongs to, before
   superpowers deletes the workspace.
 
-- [ ] **3. The docs check:** every doc this branch touched is true (`README.md`, `CLAUDE.md`,
+- [x] **3. The docs check:** every doc this branch touched is true (`README.md`, `CLAUDE.md`,
   `TODO.md`, this plan's Now); the spec's status line set to `PR open (#N)`, filled in after Step 5;
   the spec's scenario table's statuses set to `verified` for every scenario that passed GREEN,
   `built` for any whose run waits (S15/S16 if the Spark was down). This repo has no `CHANGELOG.md`:
@@ -7041,7 +7041,7 @@ fi
   `STOP` line means nothing was pushed: a leak or an unscanned binary is a stop that never relaxes;
   tell Dan the kind and `file:line`, never the excerpt.
 
-- [ ] **4. The PR [Dan merges].** Write the title, one line, to `.git/PDD_PR_TITLE`:
+- [x] **4. The PR [Dan merges].** Write the title, one line, to `.git/PDD_PR_TITLE`:
   `plan-driven-development: a new skill for planning and building projects in phases`. Write the
   body to `.git/PDD_PR.md`: the spec, the plan, what each task built, the RED and GREEN results,
   anything waiting (the portability runs, if so), and as its last line
@@ -7062,7 +7062,7 @@ fi
   Expected: a PR URL. Dan merges it with a merge commit (never squash or rebase: they change the
   commit IDs this plan cites).
 
-- [ ] **5. After the merge [Dan's yes]:** on `main`, `make install` (expected:
+- [x] **5. After the merge [Dan's yes]:** on `main`, `make install` (expected:
   `linked   plan-driven-development`), and `ls -l ~/.claude/skills/plan-driven-development` shows a
   link into this repo; a new session's skill list shows the skill. Then the spec's status line:
   `merged <commit> <date>`, in its own commit on `main`, written as in Step 3 with the subject
