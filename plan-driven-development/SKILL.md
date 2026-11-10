@@ -73,10 +73,6 @@ in phases, or to adopt this workflow in a repo that has none of it yet.
 5. **Show Dan each file kickoff writes** (in an existing repo, its diff) before writing it.
    `references/kickoff.md` lists what kickoff copies from this skill and where each file goes.
 
-**Not built yet (2026-11-09).** Of the files kickoff copies, only `templates/quarto/` doesn't exist
-yet. Until it does, a Quarto site's files are written by hand in `website/`, each as the table in
-[`references/docs-site.md`](references/docs-site.md) describes it.
-
 ## Planning
 
 **Trigger:** inside kickoff, when the spec is written and then the plans; and at each phase start,

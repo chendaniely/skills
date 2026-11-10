@@ -4,9 +4,7 @@ Read this, and *Asking Dan* in [`templates/AGENTS.md`](../templates/AGENTS.md), 
 first question. Kickoff runs the sections below in order. Where a step commits, pushes, stops or
 asks, the template's section of that name is the rule; this file says only what kickoff adds.
 
-Every file below is written only as [`SKILL.md`](../SKILL.md)'s *Kickoff*, step 5, says. Where a
-file a step copies doesn't exist in this skill yet, follow *Not built yet* in `SKILL.md` in place
-of that step.
+Every file below is written only as [`SKILL.md`](../SKILL.md)'s *Kickoff*, step 5, says.
 
 ## The asking rules, in full
 

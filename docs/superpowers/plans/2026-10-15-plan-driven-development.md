@@ -22,7 +22,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
 
-**Now:** Task 10: the docs templates, open.
+**Now:** waiting on Dan: the isolation task before Task 13 (a separate macOS user; the order note below), then Task 13: GREEN and REFACTOR.
 
 > **Order changed (Dan, 2026-10-16: "is this skill written up yet? i want to test it out"):**
 > after Task 5, run Task 6 (RED), then Tasks 11 and 12 (the skill text), then Dan tries the skill
@@ -5282,9 +5282,9 @@ fi
 - Produces: the files kickoff copies for a site project (placeholders `__PROJECT__`,
   `__SITE_URL__`, `__REPO_URL__`, `__SPEC__`; a wrapper's `__TITLE__` and `__PATH__`).
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: Write the failing test,** `plan-driven-development/tests/test_site.py`:
+- [x] **Step 1: Write the failing test,** `plan-driven-development/tests/test_site.py`:
 
 ```python
 """The docs templates: a sample site rendered from them with real Quarto, and CI's wrapper check run
@@ -5385,11 +5385,11 @@ def test_a_link_quarto_cant_resolve_fails_the_render_check(tmp_path):
     assert "Unable to resolve link target" in result.stdout + result.stderr
 ```
 
-- [ ] **Step 2: Run it; watch it fail.**
+- [x] **Step 2: Run it; watch it fail.**
   `uv run --quiet --with pytest --with pyyaml pytest plan-driven-development/tests/test_site.py -q`.
   Expected: `3 failed` (`FileNotFoundError` for `templates/quarto`).
 
-- [ ] **Step 3: Write the Quarto templates** in `plan-driven-development/templates/quarto/`.
+- [x] **Step 3: Write the Quarto templates** in `plan-driven-development/templates/quarto/`.
   `_quarto.yml`:
 
 ```yaml
@@ -5687,10 +5687,10 @@ pagetitle: "How we work"
 
 - [x] **Step 4: The root and message templates,** built ahead of this task (the note at its head).
 
-- [ ] **Step 5: Run the tests; they pass.** `make test` and `make test-utc`. Expected: all pass,
+- [x] **Step 5: Run the tests; they pass.** `make test` and `make test-utc`. Expected: all pass,
   three more than before this task (the two render tests need Quarto on `PATH`).
 
-- [ ] **Step 6: Commit.** Write `.git/PDD_MSG`:
+- [x] **Step 6: Commit.** Write `.git/PDD_MSG`:
 
 ```text
 plan-driven-development: add the docs templates
@@ -5710,7 +5710,7 @@ git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
 
-- [ ] **Step 7: Review, look forward, close (Tier 2).**
+- [x] **Step 7: Review, look forward, close (Tier 2).**
   1. **Mechanical:** `make test` and `make test-utc`.
   2. **Backward review:** `mattpocock-skills:code-review` from `$(cat .git/PDD_BASE)`, the spec
      being this task and the spec's *Docs and the site*; at most one re-review.
@@ -5748,7 +5748,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 8: Push (standing OK).**
+- [x] **Step 8: Push (standing OK).**
 
   The skill's own leak check scans the range, with Dan's denylist. Push only through this block:
 
