@@ -22,7 +22,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
 
-**Now:** Task 7: the leak check, open.
+**Now:** Task 8: the hooks, open.
 
 > **Order changed (Dan, 2026-10-16: "is this skill written up yet? i want to test it out"):**
 > after Task 5, run Task 6 (RED), then Tasks 11 and 12 (the skill text), then Dan tries the skill
@@ -3254,6 +3254,14 @@ fi
 > a project's `AGENTS.md`, and out of `references/kickoff.md` its two conditionals (the drill, the
 > history scan) on the hooks and `leakcheck.py` being there. Task 9 takes out the note's
 > `Makefile`, `.gitignore` and CI bullets, and Task 10 its Quarto bullet and the note itself.
+>
+> **Built differently (`cf08071`, from this task's Tier 1 review):** the listings below are the port
+> as planned (`68dce57`), and the review found gaps the port inherited from local-ai, so the files
+> now differ from them. A crash printed a private file name whole; any unexpected error now exits 2
+> and names only the exception's type. `--tracked` reads blobs from the index and `--staged` reads
+> by blob id, so a dangling symlink, a submodule or a file named `0:notes.md` no longer crashes or
+> fools them. Binaries renamed and changed, or added in a merge, are named. `--range` accepts only
+> `A..B` and `<sha> --not --remotes`, and its error no longer repeats the range.
 
 **Tier:** 1 · **Scenarios:** S06.
 
@@ -3270,9 +3278,9 @@ fi
   ("not scanned (binary): … — check it by eye") without changing the exit code. Also `scan_text`,
   `load_denylist`, `staged_texts`, `tracked_texts`, `range_text`, `range_binaries`.
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: Write the failing test,** `plan-driven-development/tests/test_leakcheck.py` (ported
+- [x] **Step 1: Write the failing test,** `plan-driven-development/tests/test_leakcheck.py` (ported
   from local-ai's `spark/tests/test_leakcheck.py` at `e32096c`, every test and assertion kept, plus
   the range and its binaries, the environment default, the silent validation, the stop message and
   Review Focus 3 and 5):
@@ -3624,11 +3632,11 @@ def test_a_non_ascii_file_name_is_scanned(tmp_path, monkeypatch, capsys):
     assert "café-notes.md:1: private IPv4 address" in capsys.readouterr().err
 ```
 
-- [ ] **Step 2: Run it; watch it fail.**
+- [x] **Step 2: Run it; watch it fail.**
   `uv run --quiet --with pytest pytest plan-driven-development/tests/test_leakcheck.py -q`.
   Expected: `1 error` at collection: `FileNotFoundError: … scripts/leakcheck.py`.
 
-- [ ] **Step 3: Write `plan-driven-development/scripts/leakcheck.py`** (local-ai's
+- [x] **Step 3: Write `plan-driven-development/scripts/leakcheck.py`** (local-ai's
   `spark/src/spark/leakcheck.py` at `e32096c`, standalone, with every one of its patterns, the
   `--range` mode with its binaries named, this repo's denylist default, and a refusal that tells an
   agent to stop and tell Dan):
@@ -3943,10 +3951,10 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
-- [ ] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: all pass
+- [x] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: all pass
   both times, 56 more than before this task.
 
-- [ ] **Step 5: Validate the real denylist without reading it:**
+- [x] **Step 5: Validate the real denylist without reading it:**
 
 ```bash
 uv run --quiet --script plan-driven-development/scripts/leakcheck.py --message /dev/null; echo "denylist: exit=$?"
@@ -3955,7 +3963,7 @@ uv run --quiet --script plan-driven-development/scripts/leakcheck.py --message /
   Expected: nothing printed, then `denylist: exit=0`. Exit 2 means the link from Task 1 Step 8 is
   missing or the list has no terms: stop and tell Dan.
 
-- [ ] **Step 6: Commit.** Write `.git/PDD_MSG`:
+- [x] **Step 6: Commit.** Write `.git/PDD_MSG`:
 
 ```text
 plan-driven-development: add the leak check, ported from local-ai
@@ -3979,7 +3987,7 @@ git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
 
-- [ ] **Step 7: Review, look forward, close (Tier 1).**
+- [x] **Step 7: Review, look forward, close (Tier 1).**
   1. **Mechanical:** `make test` and `make test-utc`.
   2. **Backward review:** `mattpocock-skills:code-review` from `$(cat .git/PDD_BASE)`, the spec
      being this task, the spec's *Security hooks and the leak check*, and local-ai's source and
@@ -4020,7 +4028,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 8: Push (standing OK).** From here on the push block uses the skill's own leak check:
+- [x] **Step 8: Push (standing OK).** From here on the push block uses the skill's own leak check:
 
   The skill's own leak check scans the range, with Dan's denylist. Push only through this block:
 
