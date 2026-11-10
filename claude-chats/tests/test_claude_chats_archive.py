@@ -210,6 +210,37 @@ class Capture(CaptureBase):
         self.assertEqual(self.manifest["conversations"], {})
         self.assertFalse((self.archive / "conversations").exists())
 
+    def test_a_chat_held_after_it_was_archived_is_marked_held(self):
+        cid = self.ingest(self.drop(a_conv())).uuid
+        src = self.drop(a_conv(name="PRIVATE now", updated="2026-10-16T01:00:00Z"))
+        self.assertEqual(self.ingest(src).status, "held")
+        self.assertEqual(self.trashed, [src])
+        entry = self.manifest["conversations"][cid]
+        self.assertEqual((entry["state"], entry["since"]), ("held", "2026-10-15"))
+
+    def test_a_capture_from_an_unknown_project_is_refused(self):
+        # This older form carries no project name, so its project's hold rules can't be checked.
+        src = self.drop(a_conv(project="p1"))
+        with self.assertRaises(A.BadBundle) as cm:
+            self.ingest(src)
+        self.assertIn("project", str(cm.exception))
+        self.assertTrue(src.exists())
+        self.assertEqual(self.manifest["conversations"], {})
+
+    def test_a_capture_from_a_known_project_is_held_by_its_name(self):
+        self.manifest["projects"]["p1"] = {"name": "PRIVATE letters"}
+        src = self.drop(a_conv(project="p1"))
+        self.assertEqual(self.ingest(src).status, "held")
+        self.manifest["projects"]["p1"] = {"name": "Letters"}
+        self.assertEqual(self.ingest(self.drop(a_conv(project="p1"))).status, "new")
+
+    def test_a_held_chat_fetched_again_unheld_is_active_again(self):
+        cid = self.ingest(self.drop(a_conv())).uuid
+        self.ingest(self.drop(a_conv(name="PRIVATE now")))
+        self.assertEqual(self.ingest(self.drop(a_conv())).status, "unchanged")
+        entry = self.manifest["conversations"][cid]
+        self.assertEqual((entry["state"], entry["since"]), ("active", None))
+
     def test_malformed_names_the_field_and_leaves_the_file(self):
         c = a_conv()
         del c["chat_messages"][1]["sender"]
@@ -305,6 +336,14 @@ class FilesBundle(CaptureBase):
         r = self.ingest_f(src, held={"held-chat-0000"})
         self.assertEqual(r.status, "held")
         self.assertEqual(self.trashed, [src])
+
+    def test_photos_of_a_chat_marked_held_are_trashed(self):
+        cid = self.ingest(self.drop(a_conv())).uuid
+        self.manifest["conversations"][cid]["state"] = "held"
+        src = self.files_bundle(cid, {"f1": ("1326.jpg", b"x")})
+        self.assertEqual(self.ingest_f(src).status, "held")
+        self.assertEqual(self.trashed, [src])
+        self.assertEqual(self.manifest["conversations"][cid].get("files", {}), {})
 
     def test_size_mismatch_and_unknown_type_are_refused(self):
         cid = self.ingest(self.drop(a_conv())).uuid
@@ -406,6 +445,30 @@ class ChatBundle(CaptureBase):
         self.assertEqual(self.trashed, [src])
         self.assertEqual((self.manifest["projects"], self.manifest["conversations"]), ({}, {}))
         self.assertFalse((self.archive / "conversations").exists())
+
+    def test_a_chat_held_after_it_was_archived_is_marked_held(self):
+        cid = self.ingest_c(self.chat_bundle(self.RAW, {})).uuid
+        src = self.chat_bundle(json.dumps(a_conv(name="PRIVATE now")), {"f1": ("1326.jpg", b"x")})
+        self.assertEqual(self.ingest_c(src).status, "held")
+        entry = self.manifest["conversations"][cid]
+        self.assertEqual((entry["state"], entry["since"]), ("held", "2026-10-15"))
+        self.assertEqual(entry.get("files", {}), {})
+
+    def test_a_project_chat_without_its_project_name_is_refused(self):
+        # Its project's hold rule can't be checked, so nothing is written and the file stays.
+        src = self.chat_bundle(json.dumps(a_conv(project="p1")), {})
+        with self.assertRaises(A.BadBundle) as cm:
+            self.ingest_c(src)
+        self.assertIn("project's name", str(cm.exception))
+        self.assertTrue(src.exists())
+        self.assertEqual(self.manifest["conversations"], {})
+
+    def test_a_held_name_already_recorded_for_the_project_holds_the_chat(self):
+        self.manifest["projects"]["p1"] = {"name": "PRIVATE letters"}
+        src = self.chat_bundle(json.dumps(a_conv(project="p1")), {}, project={"uuid": "p1", "name": "Letters"})
+        self.assertEqual(self.ingest_c(src).status, "held")
+        self.assertEqual(self.trashed, [src])
+        self.assertEqual(self.manifest["conversations"], {})
 
     def test_another_kind_is_refused(self):
         src = self.chat_bundle(self.RAW, {}, kind="claude-chat-files")

@@ -57,6 +57,7 @@ output on whole; never edit or retype it.
 | `held: true` | stop for this link: "That chat matches a hold rule, so nothing was saved." Never guess at or repeat the title |
 | `notYours`, or "this account can't open that share link" | stop: it isn't in Dan's account (see When not to use) |
 | "not signed in to claude.ai" | ask Dan to sign in to claude.ai in Chrome, then run it again |
+| "couldn't read the chat's project" | its project's hold rules couldn't be checked, so nothing was saved. Run it again in a new tab; if it fails twice, tell Dan |
 | the tool call times out | don't run it again: the page keeps going and saves the file. Leave the tab open and go to step 3 |
 
 **3. Ingest.** `uv run "$S" ingest --wait 90`.
@@ -78,7 +79,7 @@ output on whole; never edit or retype it.
 | holds `<% … %>` text | that note isn't written, because Templater would run it. Say so and point to the vault's `TODO.md` item |
 | ⚠ non-additive | the chat was edited on claude.ai. The note now follows the current branch, and the old one stays in the archive. Mention it |
 | missing notes | Dan deleted that note. Never pass `--recreate`; mention it |
-| project name unknown | the snippet couldn't read the project. Tell Dan |
+| project name unknown | the chat was archived before its project's name was. Syncing that project fixes it; tell Dan |
 | summary may be out of date | the chat has grown: in step 5, add only what's new, with `--update` |
 | couldn't be rendered | that chat's archived copy has something the renderer can't read (exit 1; the other chats are written). Report its ID and carry on |
 | photos that can't be read | the note says "not downloaded" for it. Mention it |

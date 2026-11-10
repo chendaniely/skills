@@ -349,6 +349,18 @@ def _record_snapshot(archive: Path, manifest: dict, conv: dict, dest: Path, now:
     return status
 
 
+def _set_held(manifest: dict, cfg: Config, cid: str, held: bool, now: datetime) -> None:
+    """Mark an archived chat held, or active again, as a project sync would. A held chat's
+    note is flagged by render and no longer updated, and its photos are refused."""
+    entry = manifest["conversations"].get(cid)
+    if not entry:
+        return
+    if held and entry.get("state") != "held":
+        entry["state"], entry["since"] = "held", now.astimezone(ZoneInfo(cfg.timezone)).date().isoformat()
+    elif not held and entry.get("state") == "held":
+        entry["state"], entry["since"] = "active", None
+
+
 def _keep_download(src: Path, folder: Path, stamp: str, raw: bytes) -> None:
     folder.mkdir(parents=True, exist_ok=True)
     dest = folder / f"{stamp}.json"
@@ -368,10 +380,17 @@ def ingest_capture(archive: Path, cfg: Config, manifest: dict, src: Path, now: d
         raise BadBundle(f"{src.name}: not JSON ({e})") from e
     validate_conversation(conv, src.name)
     cid = str(conv["uuid"])
-    if is_held(conv.get("name"), cfg.hold_prefixes, cfg.hold_patterns):
+    pid = R.sanitize(conv.get("project_uuid")) or None
+    recorded = (manifest["projects"].get(pid) or {}).get("name") if pid else None
+    if any(is_held(t, cfg.hold_prefixes, cfg.hold_patterns) for t in (conv.get("name"), recorded)):
+        _set_held(manifest, cfg, cid, True, now)
         trash(src)  # held: never archived; reported by ID only
         return CaptureReport(src, cid, "held")
+    if pid and not recorded:
+        raise BadBundle(f"{src.name}: its project isn't known yet, so its hold rules can't be checked; "
+                        "fetch the chat by its link instead")
     if _same_as_archived(archive, manifest["conversations"].get(cid), conv):
+        _set_held(manifest, cfg, cid, False, now)
         trash(src)  # an exact duplicate of what is archived
         return CaptureReport(src, cid, "unchanged")
     dest = _snapshot_dest(archive, conv)
@@ -420,10 +439,14 @@ def ingest_chat(archive: Path, cfg: Config, manifest: dict, src: Path, now: date
     project = bundle.get("project") if isinstance(bundle.get("project"), dict) else {}
     pid = R.sanitize(conv.get("project_uuid")) or None
     pname = project.get("name") if pid and project.get("uuid") == pid else None
-    if (is_held(conv.get("name"), cfg.hold_prefixes, cfg.hold_patterns)
-            or is_held(pname, cfg.hold_prefixes, cfg.hold_patterns)):
+    recorded = (manifest["projects"].get(pid) or {}).get("name") if pid else None
+    if any(is_held(t, cfg.hold_prefixes, cfg.hold_patterns) for t in (conv.get("name"), pname, recorded)):
+        _set_held(manifest, cfg, cid, True, now)
         trash(src)
         return ChatReport(src, cid, "held")
+    if pid and not pname:
+        raise BadBundle(f"{src.name}: its project's name is missing, so its hold rules can't be checked; "
+                        "fetch the chat again")
     decoded = _decode_photos(bundle.get("files") or {}, src.name)
     if project.get("created_at") and not is_timestamp(project["created_at"]):
         raise BadBundle(f"{src.name}: its project's created_at is not a timestamp")
@@ -433,6 +456,7 @@ def ingest_chat(archive: Path, cfg: Config, manifest: dict, src: Path, now: date
         if project.get("created_at") and "created_at" not in known:
             known["created_at"] = str(project["created_at"])
     if _same_as_archived(archive, manifest["conversations"].get(cid), conv):
+        _set_held(manifest, cfg, cid, False, now)
         status = "unchanged"
     else:
         dest = _snapshot_dest(archive, conv)
@@ -478,10 +502,10 @@ def ingest_files(archive: Path, cfg: Config, manifest: dict, src: Path, now: dat
             or bundle.get("kind") != "claude-chat-files" or not isinstance(bundle.get("files"), dict)):
         raise BadBundle(f"{src.name}: not a claude-chat-files bundle (schema 1)")
     cid = str(bundle.get("conversation") or "")
-    if cid in held:
+    entry = manifest["conversations"].get(cid)
+    if cid in held or (entry or {}).get("state") == "held":
         trash(src)
         return FilesReport(src, cid, "held")
-    entry = manifest["conversations"].get(cid)
     if not entry or not entry.get("snapshot"):
         raise BadBundle(f"{src.name}: conversation {cid} isn't archived; ingest its claude-conversation file first")
     added = _store_photos(archive, entry, cid, _decode_photos(bundle["files"], src.name))

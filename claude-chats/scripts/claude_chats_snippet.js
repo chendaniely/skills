@@ -56,7 +56,9 @@ await (async () => {
   let project = null;
   if (conv.project_uuid) {
     const pr = await get(`/organizations/${org}/projects/${conv.project_uuid}`);
-    const p = pr.ok ? await pr.json() : {};
+    // Without the project's name its hold rules can't be checked, so nothing is saved.
+    if (!pr.ok) return {error: "couldn't read the chat's project, so nothing was saved; run it again", status: pr.status};
+    const p = await pr.json();
     if (isHeld(p.name)) return {held: true};
     project = {uuid: conv.project_uuid, name: p.name || null, created_at: p.created_at || null};
   }

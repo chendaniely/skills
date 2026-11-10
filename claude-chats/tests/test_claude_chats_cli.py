@@ -276,6 +276,53 @@ class Flow(unittest.TestCase):
                              capture_output=True, text=True, check=True)
         self.assertEqual(json.loads(run.stdout), [A.is_held(t, cfg.hold_prefixes, cfg.hold_patterns) for t in titles])
 
+    def run_chat_snippet(self, project_status=200, project_name="Homelab"):
+        """Run the chat snippet under Node against a fake claude.ai: (what it returns, file saved)."""
+        js = self.cli("snippet", f"https://claude.ai/chat/{CID}")[1].strip()
+        project = f"/organizations/o1/projects/{self.PID}"
+        api = {"/organizations": [{"uuid": "o1"}],
+               f"/organizations/o1/chat_conversations/{CID}": {
+                   "uuid": CID, "name": "New", "updated_at": "t2", "project_uuid": self.PID, "chat_messages": []}}
+        program = f"""
+const API = {json.dumps(api)};
+globalThis.location = {{origin: "https://claude.ai"}};
+let saved = null;
+globalThis.document = {{createElement: () => ({{click() {{ saved = this.download; }}, remove() {{}}}}), body: {{appendChild() {{}}}}}};
+URL.createObjectURL = () => "blob:0";
+URL.revokeObjectURL = () => {{}};
+globalThis.fetch = async p => {{
+  const key = String(p).replace(/^\\/api/, "").split("?")[0];
+  if (key === {json.dumps(project)}) return new Response(JSON.stringify({{name: {json.dumps(project_name)}}}), {{status: {project_status}}});
+  return key in API ? new Response(JSON.stringify(API[key])) : new Response("{{}}", {{status: 404}});
+}};
+const result = {js};
+console.log(JSON.stringify({{result, saved}}));
+process.exit(0);
+"""
+        run = subprocess.run(["node", "--input-type=module", "-e", program], capture_output=True, text=True, timeout=30)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        out = json.loads(run.stdout)
+        return out["result"], out["saved"]
+
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_chat_snippet_saves_a_project_chat_with_its_project_name(self):
+        result, saved = self.run_chat_snippet()
+        self.assertEqual((result["saved"], saved), (f"claude-chat-{CID[:8]}.json",) * 2)
+
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_chat_snippet_saves_nothing_when_its_project_cant_be_read(self):
+        # Without the project's name its hold rule can't be checked, so it fails closed.
+        for status in (429, 500):
+            with self.subTest(status=status):
+                result, saved = self.run_chat_snippet(project_status=status)
+                self.assertIsNone(saved)
+                self.assertIn("project", result["error"])
+                self.assertEqual(result["status"], status)
+
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_chat_snippet_saves_nothing_from_a_held_project(self):
+        self.assertEqual(self.run_chat_snippet(project_name="PRIVATE letters"), ({"held": True}, None))
+
     def test_ingest_waits_for_a_download_to_land(self):
         def land():
             tmp = self.downloads / "landing.part"
