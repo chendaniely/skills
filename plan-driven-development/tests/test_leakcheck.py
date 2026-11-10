@@ -5,7 +5,10 @@ import re
 
 import pytest
 
-from helpers import denylist, git, git_repo, ip, ipv6, load_script, mac
+import subprocess
+import sys
+
+from helpers import SCRIPTS, denylist, git, git_repo, ip, ipv6, load_script, mac
 
 leakcheck = load_script("leakcheck")
 scan_text = leakcheck.scan_text
@@ -273,7 +276,7 @@ def test_a_range_scans_each_commits_patch_and_message(tmp_path, monkeypatch, cap
     git(repo, "commit", "-q", "-m", "base")
     (repo / "b.md").write_text(f"box at {ip(10, 0, 0, 7)}\n")
     git(repo, "add", "b.md")
-    git(repo, "commit", "-q", "-m", f"note secret-project")
+    git(repo, "commit", "-q", "-m", "note secret-project")
     monkeypatch.chdir(repo)
     assert leakcheck.main(["--range", "HEAD~1..HEAD", "--denylist", str(denylist(tmp_path))]) == 1
     err = capsys.readouterr().err
@@ -281,7 +284,7 @@ def test_a_range_scans_each_commits_patch_and_message(tmp_path, monkeypatch, cap
     assert "private IPv4 address" in err and "denylisted term" in err
 
 
-def test_a_new_branch_range_scans_everything_the_remote_lacks(tmp_path, monkeypatch, capsys):
+def test_a_new_branch_range_scans_everything_the_remote_lacks(tmp_path, monkeypatch):
     repo = git_repo(tmp_path)
     (repo / "b.md").write_text(f"box at {ip(10, 0, 0, 7)}\n")
     git(repo, "add", "b.md")
@@ -342,3 +345,243 @@ def test_a_non_ascii_file_name_is_scanned(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(repo)
     assert leakcheck.main(["--staged", "--denylist", str(denylist(tmp_path))]) == 1
     assert "café-notes.md:1: private IPv4 address" in capsys.readouterr().err
+
+
+# ---- Fix round 1 -----------------------------------------------------------------------------
+
+LEAK = f"box at {ip(192, 168, 50, 7)}\n"
+FAKE_SHA = "1" * 40
+
+
+def run_script(*args, env=None, cwd=None):
+    return subprocess.run(
+        [sys.executable, str(SCRIPTS / "leakcheck.py"), *args],
+        capture_output=True, text=True, env=env, cwd=cwd,
+    )
+
+
+def commit_file(repo, name, content, message="c", binary=False):
+    path = repo / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(content) if binary else path.write_text(content)
+    git(repo, "add", "--", name)
+    git(repo, "commit", "-q", "-m", message)
+
+
+# F1: a crash must never print a private name, and must exit 2.
+def test_a_missing_message_file_exits_2_and_never_shows_its_name(tmp_path):
+    result = run_script(
+        "--message", str(tmp_path / "secret-project-msg"), "--denylist", str(denylist(tmp_path))
+    )
+    assert result.returncode == 2
+    assert "secret-project" not in result.stdout + result.stderr
+    assert "Traceback" not in result.stderr
+    assert "FileNotFoundError" in result.stderr
+    assert "stop and tell Dan" in result.stderr
+
+
+def test_an_unexpected_error_prints_only_its_type(tmp_path, monkeypatch, capsys):
+    def boom(cwd=None):
+        raise ValueError("secret-project-plan.md")
+
+    monkeypatch.setattr(leakcheck, "staged_texts", boom)
+    assert leakcheck.main(["--staged", "--denylist", str(denylist(tmp_path))]) == 2
+    captured = capsys.readouterr()
+    assert "secret-project" not in captured.out + captured.err
+    assert "ValueError" in captured.err
+
+
+def test_a_missing_git_exits_2(tmp_path, monkeypatch, capsys):
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    monkeypatch.setenv("PATH", str(empty))
+    assert leakcheck.main(["--staged", "--denylist", str(denylist(tmp_path))]) == 2
+    assert "FileNotFoundError" in capsys.readouterr().err
+
+
+def test_a_denylist_that_is_not_utf8_exits_2(tmp_path, capsys):
+    path = tmp_path / "denylist"
+    path.write_bytes(b"\xff\xfe\x80 broken\n")
+    message = tmp_path / "msg"
+    message.write_text("hello\n")
+    assert leakcheck.main(["--message", str(message), "--denylist", str(path)]) == 2
+    assert "UnicodeDecodeError" in capsys.readouterr().err
+
+
+def test_a_message_path_that_is_a_directory_exits_2(tmp_path, capsys):
+    assert leakcheck.main(["--message", str(tmp_path), "--denylist", str(denylist(tmp_path))]) == 2
+    assert "IsADirectoryError" in capsys.readouterr().err
+
+
+# F2: --tracked reads blobs from the index.
+def test_tracked_survives_a_dangling_symlink_and_scans_its_target(tmp_path):
+    repo = git_repo(tmp_path)
+    (repo / "link").symlink_to(f"/mnt/{ip(192, 168, 50, 7)}/nowhere")
+    git(repo, "add", "link")
+    texts = dict(leakcheck.tracked_texts(cwd=repo))
+    assert texts == {"link": f"/mnt/{ip(192, 168, 50, 7)}/nowhere"}
+
+
+def test_tracked_survives_a_directory_symlink(tmp_path):
+    repo = git_repo(tmp_path)
+    (repo / "real").mkdir()
+    (repo / "real" / "a.md").write_text("clean\n")
+    (repo / "dir-link").symlink_to("real")
+    git(repo, "add", ".")
+    texts = dict(leakcheck.tracked_texts(cwd=repo))
+    assert texts == {"real/a.md": "clean\n", "dir-link": "real"}
+
+
+def test_tracked_skips_a_submodule_entry(tmp_path):
+    repo = git_repo(tmp_path)
+    (repo / "a.md").write_text("clean\n")
+    git(repo, "add", "a.md")
+    git(repo, "update-index", "--add", "--cacheinfo", f"160000,{FAKE_SHA},sub")
+    assert dict(leakcheck.tracked_texts(cwd=repo)) == {"a.md": "clean\n"}
+
+
+def test_tracked_scans_a_file_deleted_from_the_working_tree(tmp_path):
+    repo = git_repo(tmp_path)
+    (repo / "a.md").write_text(LEAK)
+    git(repo, "add", "a.md")
+    (repo / "a.md").unlink()
+    assert dict(leakcheck.tracked_texts(cwd=repo)) == {"a.md": LEAK}
+
+
+def test_tracked_from_a_subfolder_scans_the_whole_repo(tmp_path, monkeypatch, capsys):
+    repo = git_repo(tmp_path)
+    (repo / "sub").mkdir()
+    (repo / "sub" / "ok.md").write_text("clean\n")
+    (repo / "root.md").write_text(LEAK)
+    git(repo, "add", ".")
+    monkeypatch.chdir(repo / "sub")
+    assert leakcheck.main(["--tracked", "--denylist", str(denylist(tmp_path))]) == 1
+    assert "root.md:1: private IPv4 address" in capsys.readouterr().err
+
+
+# F3: staged blobs are read by id, not by name.
+def test_a_staged_file_named_like_a_stage_spec_is_scanned(tmp_path):
+    repo = git_repo(tmp_path)
+    (repo / "notes.md").write_text("clean\n")
+    (repo / "0:notes.md").write_text(LEAK)
+    git(repo, "add", "--", "notes.md", "0:notes.md")
+    assert dict(leakcheck.staged_texts(cwd=repo)) == {"notes.md": "clean\n", "0:notes.md": LEAK}
+
+
+def test_a_staged_submodule_entry_is_skipped(tmp_path):
+    repo = git_repo(tmp_path)
+    (repo / "a.md").write_text("clean\n")
+    git(repo, "add", "a.md")
+    git(repo, "update-index", "--add", "--cacheinfo", f"160000,{FAKE_SHA},sub")
+    assert leakcheck.staged_texts(cwd=repo) == [("a.md", "clean\n")]
+
+
+# F4: binaries are named even when renamed and changed, or added only in a merge.
+def test_a_renamed_and_changed_binary_is_named(tmp_path, monkeypatch, capsys):
+    repo = git_repo(tmp_path)
+    data = b"\0" + bytes(range(1, 256)) * 8
+    commit_file(repo, "old.bin", data, "base", binary=True)
+    git(repo, "mv", "old.bin", "new.bin")
+    (repo / "new.bin").write_bytes(data + b"\0\1\2")
+    git(repo, "add", "new.bin")
+    git(repo, "commit", "-q", "-m", "move")
+    monkeypatch.chdir(repo)
+    assert leakcheck.main(["--range", "HEAD~1..HEAD", "--denylist", str(denylist(tmp_path))]) == 0
+    assert "not scanned (binary): new.bin" in capsys.readouterr().err
+
+
+def test_a_binary_added_only_in_a_merge_is_named(tmp_path, monkeypatch, capsys):
+    repo = git_repo(tmp_path)
+    commit_file(repo, "a.md", "clean\n", "base")
+    base = git(repo, "rev-parse", "HEAD").stdout.strip()
+    git(repo, "checkout", "-q", "-b", "side")
+    commit_file(repo, "side.md", "side\n", "side")
+    git(repo, "checkout", "-q", "main")
+    commit_file(repo, "main.md", "main\n", "main")
+    git(repo, "merge", "-q", "--no-ff", "--no-commit", "side")
+    (repo / "evil.bin").write_bytes(b"\x89PNG\0\0\0")
+    git(repo, "add", "evil.bin")
+    git(repo, "commit", "-q", "-m", "merge")
+    monkeypatch.chdir(repo)
+    assert leakcheck.main(["--range", f"{base}..HEAD", "--denylist", str(denylist(tmp_path))]) == 0
+    assert "not scanned (binary): evil.bin" in capsys.readouterr().err
+
+
+# F5: --range accepts revisions, never git options.
+def leaking_repo(tmp_path):
+    repo = git_repo(tmp_path)
+    commit_file(repo, "a.md", "clean\n", "base")
+    commit_file(repo, "b.md", LEAK, "leak")
+    return repo
+
+
+def test_range_option_that_writes_a_file_is_refused(tmp_path, monkeypatch, capsys):
+    repo = leaking_repo(tmp_path)
+    out = tmp_path / "written.txt"
+    monkeypatch.chdir(repo)
+    assert leakcheck.main(["--range", f"--output={out} HEAD", "--denylist", str(denylist(tmp_path))]) == 2
+    assert not out.exists()
+    assert "can't read the range" in capsys.readouterr().err
+
+
+def test_range_option_that_skips_everything_is_refused(tmp_path, monkeypatch):
+    repo = leaking_repo(tmp_path)
+    monkeypatch.chdir(repo)
+    assert leakcheck.main(["--range", "--max-count=0 HEAD", "--denylist", str(denylist(tmp_path))]) == 2
+
+
+def test_an_unsplittable_range_is_refused(tmp_path, monkeypatch):
+    repo = leaking_repo(tmp_path)
+    monkeypatch.chdir(repo)
+    assert leakcheck.main(["--range", "'HEAD", "--denylist", str(denylist(tmp_path))]) == 2
+
+
+def test_a_sha_not_remotes_range_still_works(tmp_path, monkeypatch):
+    repo = leaking_repo(tmp_path)
+    sha = git(repo, "rev-parse", "HEAD").stdout.strip()
+    monkeypatch.chdir(repo)
+    assert leakcheck.main(["--range", f"{sha} --not --remotes", "--denylist", str(denylist(tmp_path))]) == 1
+
+
+# F6: an unreadable range's name may be private.
+def test_an_unreadable_range_never_prints_the_range(tmp_path, monkeypatch, capsys):
+    repo = leaking_repo(tmp_path)
+    monkeypatch.chdir(repo)
+    rc = leakcheck.main(["--range", "secret-project-branch..HEAD", "--denylist", str(denylist(tmp_path))])
+    err = capsys.readouterr().err
+    assert rc == 2 and "can't read the range" in err and "secret-project" not in err
+
+
+# F7: a short term is not shown at all.
+def test_a_term_of_three_characters_or_fewer_is_not_shown():
+    deny = [re.compile("abc", re.IGNORECASE)]
+    assert scan_text("t.md", "an abc here", deny)[0].excerpt == "…"
+    assert leakcheck.shown_path("x-abc-y.md", deny) == "x-…-y.md"
+
+
+# F8: a non-ASCII term in a file name is found in a range.
+def test_a_non_ascii_denylisted_term_in_a_file_name_is_found_in_a_range(tmp_path, monkeypatch, capsys):
+    repo = git_repo(tmp_path)
+    commit_file(repo, "a.md", "clean\n", "base")
+    commit_file(repo, "caf\u00e9-plan.md", "nothing\n", "named")
+    path = tmp_path / "denylist"
+    path.write_bytes("caf\u00e9\n".encode())
+    monkeypatch.chdir(repo)
+    assert leakcheck.main(["--range", "HEAD~1..HEAD", "--denylist", str(path)]) == 1
+    assert "denylisted term" in capsys.readouterr().err
+
+
+# F9: the denylist is read as UTF-8 whatever the locale.
+def test_a_non_ascii_term_is_found_under_the_c_locale(tmp_path):
+    path = tmp_path / "denylist"
+    path.write_bytes("caf\u00e9\n".encode())
+    message = tmp_path / "msg"
+    message.write_bytes("we met at the caf\u00e9\n".encode())
+    env = {"PATH": "/usr/bin:/bin", "LC_ALL": "C", "PYTHONUTF8": "0", "PYTHONCOERCECLOCALE": "0"}
+    result = run_script("--message", str(message), "--denylist", str(path), env=env)
+    assert result.returncode == 1 and "denylisted term" in result.stderr
+
+
+# F10
+def test_the_help_pointer_names_the_template_heading():
+    assert leakcheck.HELP == "see AGENTS.md, Docs and security"

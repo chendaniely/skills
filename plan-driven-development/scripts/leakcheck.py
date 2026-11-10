@@ -10,7 +10,8 @@ well as contents. The git hooks run it on every commit (`--staged`, `--message F
 push (`--range REVS`, `--tracked`); CI runs it over every tracked file (`--tracked --ci`) and every
 commit's patches and messages (`--message FILE --ci`). It fails closed: a missing, empty or
 malformed denylist is an error, never a pass, and so is a range git can't read. A binary file
-can't be read, so it is named for a person to check. Ported from chendaniely/local-ai's
+can't be read, so it is named for a person to check. A crash never prints a private name: any
+unexpected error prints only its type and exits 2. Ported from chendaniely/local-ai's
 `spark leakcheck` (spark/src/spark/leakcheck.py at e32096c).
 """
 
@@ -28,7 +29,7 @@ from pathlib import Path
 
 ALLOW_MARKER = "leakcheck: allow"
 DEFAULT_DENYLIST = "~/.config/leakcheck/denylist"
-HELP = "see AGENTS.md, Security"
+HELP = "see AGENTS.md, Docs and security"
 
 # The IPv4 lookaheads reject a longer dotted string (a version number) but not a sentence-final
 # period, so "at <address>." is still caught.
@@ -87,7 +88,7 @@ def load_denylist(path: Path) -> list[re.Pattern[str]]:
     if not path.is_file():
         raise DenylistMissing(f"denylist not found at {path} — ask Dan ({HELP})")
     patterns = []
-    for number, raw in enumerate(path.read_text().splitlines(), start=1):
+    for number, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
         line = raw.strip()
         if line and not line.startswith("#"):
             try:
@@ -110,7 +111,8 @@ def load_denylist(path: Path) -> list[re.Pattern[str]]:
 
 
 def _redact(text: str) -> str:
-    return text[:3] + "…"
+    # A term of 3 characters or fewer would be shown whole, so it is not shown at all.
+    return text[:3] + "…" if len(text) > 3 else "…"
 
 
 def shown_path(path: str, denylist: list[re.Pattern[str]]) -> str:
@@ -182,41 +184,75 @@ def _decode(blob: bytes) -> str | None:
     return _text(blob)
 
 
-def _texts(names: list[bytes], read) -> list[tuple[str, str | None]]:
-    """(name, text) for each file; the text is None for a binary file."""
-    return [(raw.decode(), _decode(read(raw.decode()))) for raw in names if raw]
+def _texts(entries: list[tuple[bytes, bytes]], cwd: Path | None) -> list[tuple[str, str | None]]:
+    """(name, text) for each (name, blob id), read from git's object store; the text is None for a
+    binary file. A name is only displayed, so an undecodable byte is replaced, not an error."""
+    return [
+        (name.decode(errors="replace"), _decode(_git(["cat-file", "blob", blob.decode()], cwd)))
+        for name, blob in entries
+    ]
 
 
 def staged_texts(cwd: Path | None = None) -> list[tuple[str, str | None]]:
-    # Every staged change but a deletion: added, copied, modified, renamed, and a type change (a
-    # symlink turned into a file, or a file into a symlink, whose blob is its target path).
-    names = _git(["diff", "--cached", "--name-only", "--diff-filter=ACMRT", "-z"], cwd).split(b"\0")
-    return _texts(names, lambda name: _git(["show", f":{name}"], cwd))
+    # Every staged change but a deletion: added, copied, modified and type-changed (a symlink
+    # turned into a file, or a file into a symlink, whose blob is its target path). A rename shows
+    # as a deletion and an addition. Blobs are read by id, never by name: `git show :0:notes.md`
+    # means stage 0 of `notes.md`. A submodule (mode 160000) has no blob to read.
+    raw = _git(
+        ["diff", "--cached", "--raw", "-z", "--no-abbrev", "--no-renames", "--diff-filter=ACMT"], cwd
+    ).split(b"\0")
+    entries = []
+    for meta, name in zip(raw[0::2], raw[1::2]):
+        _, new_mode, _, new_id, _ = meta.lstrip(b":").split(b" ")
+        if new_mode != b"160000":
+            entries.append((name, new_id))
+    return _texts(entries, cwd)
 
 
 def tracked_texts(cwd: Path | None = None) -> list[tuple[str, str | None]]:
-    names = _git(["ls-files", "-z"], cwd).split(b"\0")
-    root = Path(cwd or ".")
-    return _texts(names, lambda name: (root / name).read_bytes())
+    # From the index, not the working tree: a dangling or directory symlink, a submodule or a file
+    # deleted from disk can't crash it, a symlink's blob (its target path) is scanned, and `:/`
+    # makes a run from a subfolder cover the whole repository.
+    raw = _git(["ls-files", "--stage", "-z", "--full-name", "--", ":/"], cwd).split(b"\0")
+    entries = []
+    for record in raw:
+        if record:
+            meta, _, name = record.partition(b"\t")
+            mode, blob, _ = meta.split(b" ")
+            if mode != b"160000":
+                entries.append((name, blob))
+    return _texts(entries, cwd)
+
+
+_RANGE_FLAGS = frozenset({"--not", "--remotes"})
+
+
+def _range_log(options: list[str], revs: str, cwd: Path | None) -> bytes:
+    """`git log` over `revs`. Callers pass `A..B` or `<sha> --not --remotes`, so any other token
+    that starts with `-` is refused before git runs (`--output=FILE` writes a file, `--max-count=0`
+    scans nothing). The message never holds the range: a ref name can be private."""
+    try:
+        tokens = shlex.split(revs)
+        if any(t.startswith("-") and t not in _RANGE_FLAGS for t in tokens):
+            raise ValueError
+        # core.quotePath=false keeps a non-ASCII file name readable in the patch headers.
+        return _git(["-c", "core.quotePath=false", "log", *options, *tokens, "--"], cwd)
+    except (ValueError, subprocess.CalledProcessError):
+        raise RangeUnreadable("git can't read the range, so what is going out is unknown") from None
 
 
 def range_text(revs: str, cwd: Path | None = None) -> str:
     """Every commit's patch (with a merge's conflict resolutions) and whole message in `revs`,
     for example `abc123..def456` or `def456 --not --remotes`. A range git can't read (a missing
-    base, a bad ref) raises RangeUnreadable: the caller can't tell what is going out."""
-    try:
-        return _text(_git(["log", "-p", "--cc", "--format=%H%n%B", *shlex.split(revs)], cwd))
-    except subprocess.CalledProcessError:
-        raise RangeUnreadable(f"git can't read the range {revs!r}, so what is going out is unknown") from None
+    base, a bad ref, an option) raises RangeUnreadable: the caller can't tell what is going out."""
+    return _text(_range_log(["-p", "--cc", "--format=%H%n%B"], revs, cwd))
 
 
 def range_binaries(revs: str, cwd: Path | None = None) -> list[str]:
     """The files in `revs` whose changes git shows as binary (`-` in --numstat): their content
-    can't be scanned, so they are named for a person to check."""
-    try:
-        out = _git(["log", "--format=", "--numstat", "-z", *shlex.split(revs)], cwd)
-    except subprocess.CalledProcessError:
-        raise RangeUnreadable(f"git can't read the range {revs!r}, so what is going out is unknown") from None
+    can't be scanned, so they are named for a person to check. Renames are off, so a renamed and
+    changed binary is named, and -m shows a merge's own changes, which are otherwise skipped."""
+    out = _range_log(["--format=", "--numstat", "--no-renames", "-m", "-z"], revs, cwd)
     names: list[str] = []
     for record in out.split(b"\0"):
         fields = record.lstrip(b"\n").split(b"\t")
@@ -288,6 +324,15 @@ def main(argv: list[str] | None = None) -> int:
             findings = scan_files(staged_texts() if args.staged else tracked_texts(), denylist)
     except (DenylistMissing, DenylistInvalid, RangeUnreadable) as err:
         print(f"leakcheck: {err}", file=sys.stderr)
+        return 2
+    except Exception as err:
+        # Only the type: the text of an error can hold a private file name, and this output can
+        # land in an agent's context.
+        print(
+            f"leakcheck: unexpected {type(err).__name__} — nothing was fully scanned. An agent must "
+            f"stop and tell Dan.",
+            file=sys.stderr,
+        )
         return 2
     for f in findings:
         print(f"leakcheck: {f.source}:{f.line}: {f.kind} ({f.excerpt})", file=sys.stderr)
