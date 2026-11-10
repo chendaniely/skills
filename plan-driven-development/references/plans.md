@@ -85,7 +85,7 @@ The additions, in place:
 **Files:** …
 **Interfaces:** Consumes: … Produces: …
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/TASK_BASE`.
+- [ ] **Step 0: Record the base:** `git rev-parse HEAD > "$(git rev-parse --git-dir)/TASK_BASE"`.
 - [ ] **Step 1: Write the failing test,** `tests/test_<x>.py`: <the full test>
 - [ ] **Step 2: Run it; watch it fail.** `make test`. Expected: <the failure>.
 - [ ] **Step 3: Write the code,** `<file>`: <the full code>

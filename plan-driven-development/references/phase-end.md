@@ -31,10 +31,14 @@ and a ticked box never runs again.
 8. **The PR** (*The PR*, below); whether it waits for Dan or merges is the mode's (*Stops*).
 9. **After the merge,** on a site project: the live URL serves the new site. The status line's
    `merged` entry comes with the next phase's start (*Phase start*, step 3).
+10. **[Dan] The closing commit, when no next phase follows** (a small project, or the last phase):
+    The agent never commits to `main`, so it hands Dan the edit and the message, and he makes the one
+    commit that sets the status line to `merged <commit> <date>`, with `--no-verify`, or says to leave it
+    at `PR open (#N)`.
 
 **A small project** has no council, metrics or retro. Its Phase end task holds steps 1 and 2, then
 **3. The docs check** (step 4's docs part: every doc the branch touched is true, built parts
-solid), then steps 7, 8 and 9 as boxes 4, 5 and 6.
+solid), then steps 7, 8, 9 and 10 as boxes 4 to 7.
 
 ## Councils
 
@@ -99,29 +103,30 @@ git log --format= --numstat origin/main..HEAD |
   awk '$1 == "-" { print "not scanned, check by eye: " $3 }'
 ```
 
-**Then, in the same folder,** with the title in `.git/PR_TITLE` and the body in `.git/PR_BODY.md`,
+**Then, in the same folder,** with the title in `$(git rev-parse --git-dir)/PR_TITLE` and the body in
+`$(git rev-parse --git-dir)/PR_BODY.md` (`.git` is a file in a worktree),
 the scans and the PR:
 
 ```bash
-if uv run --quiet --script scripts/leakcheck.py --message .git/PR_TITLE &&
-   uv run --quiet --script scripts/leakcheck.py --message .git/PR_BODY.md &&
-   cat .git/PR_TITLE .git/PR_BODY.md |
-     gitleaks stdin --redact --no-banner --config .githooks/gitleaks.toml; then
+if uv run --quiet --script scripts/leakcheck.py --message "$(git rev-parse --git-dir)/PR_TITLE" &&
+   uv run --quiet --script scripts/leakcheck.py --message "$(git rev-parse --git-dir)/PR_BODY.md" &&
+   cat "$(git rev-parse --git-dir)/PR_TITLE" "$(git rev-parse --git-dir)/PR_BODY.md" |
+     gitleaks stdin --redact --no-banner --ignore-gitleaks-allow --config .githooks/gitleaks.toml; then
   gh pr create --base main --head phase-N \
-    --title "$(cat .git/PR_TITLE)" --body-file .git/PR_BODY.md
+    --title "$(cat "$(git rev-parse --git-dir)/PR_TITLE")" --body-file "$(git rev-parse --git-dir)/PR_BODY.md"
 else
   echo "STOP: the PR text has a finding; tell Dan its kind and where, never the matched text"
 fi
 ```
 
 **The merge,** when the mode has the agent merge it (*Stops*), with *Commits*' phase-merge subject
-in `.git/MERGE_SUBJECT`. **In the project's root folder,** the subject's scan, then the merge:
+in `$(git rev-parse --git-dir)/MERGE_SUBJECT`. **In the project's root folder,** the subject's scan, then the merge:
 
 ```bash
-if uv run --quiet --script scripts/leakcheck.py --message .git/MERGE_SUBJECT &&
-   gitleaks stdin --redact --no-banner --config .githooks/gitleaks.toml < .git/MERGE_SUBJECT; then
+if uv run --quiet --script scripts/leakcheck.py --message "$(git rev-parse --git-dir)/MERGE_SUBJECT" &&
+   gitleaks stdin --redact --no-banner --ignore-gitleaks-allow --config .githooks/gitleaks.toml < "$(git rev-parse --git-dir)/MERGE_SUBJECT"; then
   gh pr merge <N> --merge --match-head-commit <the scanned SHA> \
-    --subject "$(cat .git/MERGE_SUBJECT)" --body-file .git/PR_BODY.md
+    --subject "$(cat "$(git rev-parse --git-dir)/MERGE_SUBJECT")" --body-file "$(git rev-parse --git-dir)/PR_BODY.md"
 else
   echo "STOP: the merge subject has a finding; tell Dan its kind, never the matched text"
 fi

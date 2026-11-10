@@ -1,5 +1,5 @@
 # Made from plan-driven-development's template. Kickoff replaces __PROJECT__, __SITE_URL__ and
-# __REPO_URL__. The pages show the repo's own files through includes and wrappers (AGENTS.md, Docs).
+# __REPO_URL__. The pages show the repo's own files through includes and wrappers (AGENTS.md, Docs and security).
 project:
   type: website
   output-dir: _site

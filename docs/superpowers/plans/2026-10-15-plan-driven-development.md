@@ -22,7 +22,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
 
-**Now:** Task 14: portability, open. Task 17 stays written and unrun: GREEN ran without it, as subagents.
+**Now:** merged into `main` (2026-11-10). Waiting on Dan: Task 14's Steps 2 and 3, when the Spark has room; Task 13's fewer questions and shorter messages; Task 17, if he wants clean headless runs.
 
 > **Order changed (Dan, 2026-10-16: "is this skill written up yet? i want to test it out"):**
 > after Task 5, run Task 6 (RED), then Tasks 11 and 12 (the skill text), then Dan tries the skill
@@ -6699,6 +6699,10 @@ fi
 
 ### Task 14: Portability in OpenCode and pi
 
+> **Run so far (2026-11-10; `tests/green-results.md`):** S04 passes in OpenCode on the one Spark model that
+> fit. S02 in OpenCode hit its time limit. pi and Hermes (added at Dan's request) wait for room on the
+> Spark, so Steps 2 and 3 stay open.
+
 **Tier:** 3 · **Scenarios:** S15, S16.
 
 **Files:**
@@ -6708,9 +6712,9 @@ fi
 - Consumes: `portability.py` (Task 5), the template (Task 11).
 - Produces: evidence that "How we work" carries the workflow without the skill.
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: [Dan] Name the model and check the Spark's model is up** (or a cloud model he picks
+- [x] **Step 1: [Dan] Name the model and check the Spark's model is up** (or a cloud model he picks
   for OpenCode). If it is down: set **Now** to `waiting on Dan: the Spark's model for S15/S16`,
   commit that (Step 5's close, with `Phase-end: S15/S16 waiting on the Spark`), and go on to Task 15.
   Come back here when it is up. If it is still down at the phase end, the PR says S15 and S16 are
@@ -6724,7 +6728,7 @@ fi
 - [ ] **Step 3: S16, S04 in OpenCode, then in pi [Dan's OK for pi, which has no per-command
   allow-list]:** the same command with `s04`, then `--harness pi`. Expected: PASS or SKIP.
 
-- [ ] **Step 4: Record** the runs in `green-results.md`'s portability section, noting each
+- [x] **Step 4: Record** the runs in `green-results.md`'s portability section, noting each
   harness also read Dan's own global instructions; a failure goes back to the template
   (REFACTOR, as in Task 13 Step 3) and both harnesses re-run. Then
   `grep -nE '/(Users|home|private|var/folders)/' plan-driven-development/tests/green-results.md`
@@ -6746,7 +6750,7 @@ git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
 
-- [ ] **Step 5: Close (Tier 3).** A self-review: each run passed or skipped, or the gap is recorded.
+- [x] **Step 5: Close (Tier 3).** A self-review: each run passed or skipped, or the gap is recorded.
   **Now** → `Task 15: release, open.` Commit
   `plan-driven-development: close Task 14: portability in OpenCode and pi`:
 
@@ -6778,7 +6782,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 6: Push (standing OK).**
+- [x] **Step 6: Push (standing OK).**
 
   The skill's own leak check scans the range, with Dan's denylist. Push only through this block:
 
@@ -6814,16 +6818,16 @@ fi
 - Consumes: the finished skill; this repo's `Makefile` (Task 3).
 - Produces: the skill listed, documented and linked.
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: The marketplace.** In `.claude-plugin/marketplace.json`, the `coding` plugin's
+- [x] **Step 1: The marketplace.** In `.claude-plugin/marketplace.json`, the `coding` plugin's
   `skills` becomes `["./external-app-review", "./plan-driven-development"]` and its `description`
   becomes `"Coding-agent workflows: plan, build and commit a project in phases so the repo and its
   history always hold the full story; and an honest outside review of an application another model
   or agent built, after you have fixed it"`. Check it parses:
   `python3 -c "import json; json.load(open('.claude-plugin/marketplace.json'))"`.
 
-- [ ] **Step 2: The README.** A row after `external-app-review`'s:
+- [x] **Step 2: The README.** A row after `external-app-review`'s:
 
 ```markdown
 | [plan-driven-development](plan-driven-development/) | Coding | Plans a new project with you one question at a time, then builds it task by task with small commits, a backward and a forward review at every step, and docs kept true, so the repo and its history always say where things stand. |
@@ -6833,7 +6837,7 @@ fi
   every coding agent (#9 tracks moving it). `make help` lists this repo's commands: the skill's
   tests, the frontmatter check and the install. ``
 
-- [ ] **Step 3: This repo's `CLAUDE.md` [Dan's yes on the diff].** Under "How the skills fit
+- [x] **Step 3: This repo's `CLAUDE.md` [Dan's yes on the diff].** Under "How the skills fit
   together", **Standalone** gains: `` `plan-driven-development` writes into each new project (its
   templates and scripts are copied at kickoff) and is read every session through that project's
   `AGENTS.md`; `preferences.md` (this repo's root) is wired into each harness's global instructions,
@@ -6843,7 +6847,7 @@ fi
   (`tests/harness/`; RED and GREEN results in `tests/`). Other skills have no tests. `` Under
   **Editing a skill**, the frontmatter check gains: `` (`make check-skills` runs it.) ``
 
-- [ ] **Step 4: Validate every skill and link it:**
+- [x] **Step 4: Validate every skill and link it:**
 
 ```bash
 make check-skills
@@ -6854,7 +6858,7 @@ CLAUDE_SKILLS_DIR="$(mktemp -d)" make install | grep plan-driven-development
   prints `linked   plan-driven-development`. The real `make install` runs at the phase end, after
   the merge.
 
-- [ ] **Step 5: Commit.** Write `.git/PDD_MSG`:
+- [x] **Step 5: Commit.** Write `.git/PDD_MSG`:
 
 ```text
 plan-driven-development: list it in the marketplace, the README and CLAUDE.md
@@ -6874,7 +6878,7 @@ git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
 
-- [ ] **Step 6: Review, look forward, close (Tier 3).**
+- [x] **Step 6: Review, look forward, close (Tier 3).**
   1. **Mechanical:** Step 4; `make test`.
   2. **Backward review:** a self-review under Matt's two headings (Standards; Spec), the spec being
      this task and the spec's *Work outline* step 7.
@@ -6912,7 +6916,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 7: Push (standing OK).**
+- [x] **Step 7: Push (standing OK).**
 
   The skill's own leak check scans the range, with Dan's denylist. Push only through this block:
 
@@ -6946,9 +6950,9 @@ fi
 - Consumes: the finished branch.
 - Produces: an open PR against `main`, and after Dan merges it, the skill installed.
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **1. The final whole-branch review:** `mattpocock-skills:code-review` from
+- [x] **1. The final whole-branch review:** `mattpocock-skills:code-review` from
   `git merge-base main HEAD`, the spec being the spec; then one fix dispatch, one scoped re-review
   (superpowers' `re-review-prompt.md`), and a Ruling on whatever is left. Each fix is its own
   commit at the tier of what it touches; write `.git/PDD_MSG` per fix:
@@ -6989,11 +6993,11 @@ fi
   `STOP` line means nothing was pushed: a leak or an unscanned binary is a stop that never relaxes;
   tell Dan the kind and `file:line`, never the excerpt.
 
-- [ ] **2. The ledger copied:** anything left in `.superpowers/sdd/2026-10-15-plan-driven-development/progress.md`
+- [x] **2. The ledger copied:** anything left in `.superpowers/sdd/2026-10-15-plan-driven-development/progress.md`
   that no closing commit carries goes into this plan, under the task it belongs to, before
   superpowers deletes the workspace.
 
-- [ ] **3. The docs check:** every doc this branch touched is true (`README.md`, `CLAUDE.md`,
+- [x] **3. The docs check:** every doc this branch touched is true (`README.md`, `CLAUDE.md`,
   `TODO.md`, this plan's Now); the spec's status line set to `PR open (#N)`, filled in after Step 5;
   the spec's scenario table's statuses set to `verified` for every scenario that passed GREEN,
   `built` for any whose run waits (S15/S16 if the Spark was down). This repo has no `CHANGELOG.md`:
@@ -7037,7 +7041,7 @@ fi
   `STOP` line means nothing was pushed: a leak or an unscanned binary is a stop that never relaxes;
   tell Dan the kind and `file:line`, never the excerpt.
 
-- [ ] **4. The PR [Dan merges].** Write the title, one line, to `.git/PDD_PR_TITLE`:
+- [x] **4. The PR [Dan merges].** Write the title, one line, to `.git/PDD_PR_TITLE`:
   `plan-driven-development: a new skill for planning and building projects in phases`. Write the
   body to `.git/PDD_PR.md`: the spec, the plan, what each task built, the RED and GREEN results,
   anything waiting (the portability runs, if so), and as its last line
@@ -7058,7 +7062,7 @@ fi
   Expected: a PR URL. Dan merges it with a merge commit (never squash or rebase: they change the
   commit IDs this plan cites).
 
-- [ ] **5. After the merge [Dan's yes]:** on `main`, `make install` (expected:
+- [x] **5. After the merge [Dan's yes]:** on `main`, `make install` (expected:
   `linked   plan-driven-development`), and `ls -l ~/.claude/skills/plan-driven-development` shows a
   link into this repo; a new session's skill list shows the skill. Then the spec's status line:
   `merged <commit> <date>`, in its own commit on `main`, written as in Step 3 with the subject

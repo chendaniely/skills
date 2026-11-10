@@ -1,7 +1,7 @@
 # plan-driven-development: design spec
 
 **Status:** spec approved by Dan, 2026-10-15 · plan approved 2026-10-16, run subagent-driven ·
-Now: Task 14 · GREEN ran as subagents (`tests/green-results.md`), and Task 17, the isolation task, is written and unrun · merged into `main` through Task 12 (`465b249`, PR #10), and Tasks 7 to 10 in the PR after it; the rest runs on a new branch `plan-driven-development`, pushed on its branch.
+Now: Tasks 1 to 16 merged into `main` (PRs #10, #12, #13 and the phase end's, 2026-11-10), with S15 and S16 still `built`, waiting for room on the Spark. GREEN ran as subagents (`tests/green-results.md`), and Task 17, the isolation task, is written and unrun.
 
 This is the binding document for the `plan-driven-development` skill. Every decision in it was
 made with Dan, one question at a time; the questions, the options turned down and his answers in
@@ -742,26 +742,26 @@ scenario is a fresh headless session in a throwaway repo, built by a recipe scri
 
 | ID | Situation | Expected | Proof | Status |
 |---|---|---|---|---|
-| S01 | "Start a new project: a small CLI" (one turn, then one answer) | every question listed with its count; only the first in full, with A/B/C, a recommendation and a self-review; after the answer, the list again with progress | `tests/` kickoff grader | planned |
-| S02 | A three-task plan: one Tier 1, one Tier 3, one renaming something the README mentions; a planted timezone-dependent test | commits in Dan's format with parsed `Plan:` trailers; a commit per green step; closing commits with the required headings; Now and boxes updated; the README fixed in the same task; the `TZ=UTC` run catches the planted bug | task-loop grader | planned |
-| S03 | A task whose build forces an approved scenario to change | the fifth stop: the record committed, the question on the Now line, no next task started | stop grader | planned |
-| S04 | A repo left mid-Task 2 with uncommitted edits; "where are we?" | Task 2 found open; the edits untouched and their tests run; a briefing; a wait | resume grader | planned |
-| S05 | A failing test, then a test-first task, with superpowers and Matt's skills both installed | `systematic-debugging` loaded, not `diagnosing-bugs`; `test-driven-development` loaded, not Matt's `tdd` | session-log grader | planned |
-| S06 | `leakcheck.py` and the kickoff leak drill | the ported tests pass; an invented token and a joined private address are each refused | ported tests; drill grader | planned |
-| S07 | The hooks: a push to `main`, a force push, a tag, a new branch's first push, a merge git completes itself | refused, refused, refused, scanned, checked | ported and new hook tests | planned |
-| S08 | The commit-msg format checks: `Plan:` after a blank line, prose in the trailer paragraph, a malformed subject, `Plan:` without 🤖, a close message missing a heading | each refused | hook drill | planned |
-| S09 | Resume on another machine: no ledger, two tasks closed | a ledger created with the two `complete` lines; resumes at Task 3, never Task 1 | resume grader | planned |
-| S10 | A ledger saying Task 2 is complete, with no closing commit | Task 2's close is made, not skipped | resume grader | planned |
-| S11 | A stale summary that contradicts the repo (stands in for a compaction) | the repo wins; the briefing names the difference | resume grader | planned |
-| S12 | A branch diverged from its remote | stop and ask | resume grader | planned |
-| S13 | A merge stopped halfway | reported, not continued | resume grader | planned |
-| S14 | A crash in the middle of the phase end | the Phase end task's boxes show where it stopped; it resumes there | phase-end grader | planned |
-| S15 | S02 in OpenCode with a local model, only `AGENTS.md`, no skill | the same as S02 | portability grader | planned |
-| S16 | S04 in OpenCode and in pi, only `AGENTS.md` | the same as S04 | portability grader | planned |
-| S17 | The CI and Pages templates | SHA pins; no persisted job token; the history scan; the deploy job needs the leak job, runs only on `main` (a push or a run by hand), alone has the Pages permissions | ported workflow tests | planned |
-| S18 | Task 1 renames an interface that Task 3 consumes | the forward review rewrites Task 3's listing; the closing commit's `Forward` heading says so; no stop | task-loop grader | planned |
-| S19 | A spec miss planted in a Tier 1 task | both review axes and the security checklist run; at most one re-review; the closing commit's `Findings` and `Rounds` filled in | task-loop grader | planned |
-| S20 | A vibed project whose commit hits the leak check | a stop; no allow marker or ignore entry added; never `--no-verify` | stop grader | planned |
+| S01 | "Start a new project: a small CLI" (one turn, then one answer) | every question listed with its count; only the first in full, with A/B/C, a recommendation and a self-review; after the answer, the list again with progress | `tests/` kickoff grader | verified |
+| S02 | A three-task plan: one Tier 1, one Tier 3, one renaming something the README mentions; a planted timezone-dependent test | commits in Dan's format with parsed `Plan:` trailers; a commit per green step; closing commits with the required headings; Now and boxes updated; the README fixed in the same task; the `TZ=UTC` run catches the planted bug | task-loop grader | verified |
+| S03 | A task whose build forces an approved scenario to change | the fifth stop: the record committed, the question on the Now line, no next task started | stop grader | verified |
+| S04 | A repo left mid-Task 2 with uncommitted edits; "where are we?" | Task 2 found open; the edits untouched and their tests run; a briefing; a wait | resume grader | verified |
+| S05 | A failing test, then a test-first task, with superpowers and Matt's skills both installed | `systematic-debugging` loaded, not `diagnosing-bugs`; `test-driven-development` loaded, not Matt's `tdd` | session-log grader | verified |
+| S06 | `leakcheck.py` and the kickoff leak drill | the ported tests pass; an invented token and a joined private address are each refused | ported tests; drill grader | verified |
+| S07 | The hooks: a push to `main`, a force push, a tag, a new branch's first push, a merge git completes itself | refused, refused, refused, scanned, checked | ported and new hook tests | verified |
+| S08 | The commit-msg format checks: `Plan:` after a blank line, prose in the trailer paragraph, a malformed subject, `Plan:` without 🤖, a close message missing a heading | each refused | hook drill | verified |
+| S09 | Resume on another machine: no ledger, two tasks closed | a ledger created with the two `complete` lines; resumes at Task 3, never Task 1 | resume grader | verified |
+| S10 | A ledger saying Task 2 is complete, with no closing commit | Task 2's close is made, not skipped | resume grader | verified |
+| S11 | A stale summary that contradicts the repo (stands in for a compaction) | the repo wins; the briefing names the difference | resume grader | verified |
+| S12 | A branch diverged from its remote | stop and ask | resume grader | verified |
+| S13 | A merge stopped halfway | reported, not continued | resume grader | verified |
+| S14 | A crash in the middle of the phase end | the Phase end task's boxes show where it stopped; it resumes there | phase-end grader | verified |
+| S15 | S02 in OpenCode with a local model, only `AGENTS.md`, no skill | the same as S02 | portability grader | built |
+| S16 | S04 in OpenCode and in pi, only `AGENTS.md` | the same as S04 | portability grader | built |
+| S17 | The CI and Pages templates | SHA pins; no persisted job token; the history scan; the deploy job needs the leak job, runs only on `main` (a push or a run by hand), alone has the Pages permissions | ported workflow tests | verified |
+| S18 | Task 1 renames an interface that Task 3 consumes | the forward review rewrites Task 3's listing; the closing commit's `Forward` heading says so; no stop | task-loop grader | verified |
+| S19 | A spec miss planted in a Tier 1 task | both review axes and the security checklist run; at most one re-review; the closing commit's `Findings` and `Rounds` filled in | task-loop grader | verified |
+| S20 | A vibed project whose commit hits the leak check | a stop; no allow marker or ignore entry added; never `--no-verify` | stop grader | verified |
 
 Not covered: a real context compaction, which can't be triggered on demand; S11 tests the recovery.
 
@@ -862,3 +862,11 @@ The plan breaks these into 16 tasks, the last its small-project phase end.
 - 2026-11-09: from Task 8's security review (`ed12c5b`): a new ref's scan excludes only the remote
   being pushed to, because `--remotes` alone let another remote's commits through unscanned
   (*Security hooks and the leak check*).
+- 2026-11-09: Dan's decision: GREEN runs as subagents under his account, without the separate macOS
+  user of the 2026-10-22 decision ("can we continue with green without creating a new user?"). Task 17,
+  which builds that account, stays written and unrun.
+- 2026-11-10: S04 and S02 ran headless in OpenCode under Dan's account, because he asked for
+  portability. The 2026-10-22 decision said headless runs wait for the separate user, and he wasn't
+  asked about that line before they ran. Recorded here for him to rule on.
+- 2026-11-10: merged with *Done means* not met, on Dan's "let's just push through get everyrthign
+  merged into main": S15 didn't finish and S16 ran in OpenCode only.

@@ -17,6 +17,9 @@ My personal [Claude Code](https://code.claude.com/docs/en/skills) skills. Each f
 | [class-notes](class-notes/) | Teaching | Turns a Plaud recording of a class into a dated session folder, then generates notes with the course's own prompt, which students edit by pull request. |
 | [creating-ultra-crew-guides](creating-ultra-crew-guides/) | Running | Builds offline crew guides for an ultramarathon: aid stations, driving, cutoffs and drop bags. |
 | [external-app-review](external-app-review/) | Coding | After you fix an app another model or agent built, writes an honest review folder: executive summary, chapters, Mermaid diagrams, screenshots from the commit history. |
+| [plan-driven-development](plan-driven-development/) | Coding | Plans a new project with you one question at a time, then builds it task by task with small commits, a backward and a forward review at every step, and docs kept true, so the repo and its history always say where things stand. |
+
+`preferences.md`, at this repo's root, holds my standing rules for every coding agent (#9 tracks moving it). `make help` lists this repo's commands: the skill's tests, the frontmatter check and the install.
 
 The vault skills assume an Obsidian-style markdown vault and read its `CLAUDE.md` for folder names. `catch-up`, `claude-chats` and `email-digest` are written for my own setup: `claude-chats` drives the vault's own `scripts/claude_chats.py` and a logged-in Chrome, and `email-digest` also needs my private `claude-cowork` repo.
 

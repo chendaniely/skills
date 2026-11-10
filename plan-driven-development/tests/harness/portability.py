@@ -3,22 +3,23 @@
 # requires-python = ">=3.11"
 # dependencies = []
 # ///
-"""Portability runs (S15, S16): a scenario in OpenCode or pi with only the project's AGENTS.md, no
+"""Portability runs (S15, S16): a scenario in OpenCode, pi or Hermes with only the project's AGENTS.md, no
 skill installed, then graded on the repo and the final answer.
 
-    uv run --script portability.py s02|s04 --harness opencode|pi --model PROVIDER/MODEL --dan-ok
+    uv run --script portability.py s02|s04 --harness opencode|pi|hermes --model PROVIDER/MODEL --dan-ok
                                    [--dry-run] [--timeout SECONDS]
 
 Dan names the model and checks the Spark's model is up first. A session starts only with `--dan-ok`
-(Dan's explicit go for this run); without it the runner stops with a HARNESS FAIL. Neither harness has
-a turn or budget cap, so each session has a timeout (default 30 minutes), and the child process gets
+(Dan's explicit go for this run); without it the runner stops with a HARNESS FAIL. None of the three harnesses has
+a budget cap (Hermes has only a 60-turn cap, and has not run yet),
+so each session has a timeout (default 30 minutes), and the child process gets
 a filtered environment (run.child_env: the basics, where uv's Pythons are, git without Dan's global
 and system config, and SPARK_API_KEY; none of Dan's tokens or uv settings). OpenCode gets the
 fixture's own deny-by-default `opencode.json` (V2's ordered `permissions` rules, the last match
 winning): no edits to its own config, `.opencode/`, `.githooks/` or `.git/` (apart from the
 commit-message files at `.git`'s top level that the fixture's plan writes), and no `-c`, `git
 config`, hooksPath or fsmonitor setting, `--no-verify` prefix or `-n` cluster on `git commit`.
-Neither harness has an OS sandbox: OpenCode's rules are its only guard, and agent-written code run
+None of the three has an OS sandbox: OpenCode's rules are its only guard, and agent-written code run
 by an allowed command (`make check`, pytest) runs as Dan with no filesystem or network limit. pi
 has no per-command allow-list, so a pi run happens only with Dan's OK, in the throwaway repo. OpenCode
 fails closed: a measured 2026-10-16 run showed OpenCode 2.0.25 ignoring a project `opencode.json`'s
@@ -82,6 +83,8 @@ def opencode_config() -> dict:
 def command(harness: str, model: str, prompt: str) -> list[str]:
     if harness == "opencode":
         return ["opencode", "run", "--model", model, prompt]
+    if harness == "hermes":  # no --yolo: anything Hermes would ask about is simply not approved
+        return ["hermes", "chat", "-q", prompt, "--oneshot", "-Q", "-m", model, "--max-turns", "60"]
     return ["pi", "-p", "--model", model, "--no-session", "--no-skills", "--no-extensions",
             "--tools", "read,bash,edit,write", prompt]
 
@@ -101,7 +104,7 @@ def opencode_honours_denies(repo: Path) -> bool:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser()
     p.add_argument("scenario", choices=sorted(PROMPTS))
-    p.add_argument("--harness", choices=["opencode", "pi"], required=True)
+    p.add_argument("--harness", choices=["opencode", "pi", "hermes"], required=True)
     p.add_argument("--model", required=True)
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--dan-ok", action="store_true", help="Dan's explicit go to start a session in this harness")

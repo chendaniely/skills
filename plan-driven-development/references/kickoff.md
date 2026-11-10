@@ -121,7 +121,7 @@ Paths on the left are this skill's; on the right, the project's.
 5. **An existing repo:** the whole history, once, in the project's root folder:
 
    ```bash
-   gitleaks git --redact --no-banner .
+   gitleaks git --redact --no-banner -v --ignore-gitleaks-allow --log-opts="--all --full-history -m" --config .githooks/gitleaks.toml .
    uv run --quiet --script scripts/leakcheck.py --range=--all
    ```
 
@@ -133,7 +133,8 @@ Paths on the left are this skill's; on the right, the project's.
 7. **[Dan] The GitHub repo** (setup answer 4): Dan creates it, or says the agent may; creating a
    repo is a stop that never relaxes (*Stops*). Then `origin` points at it:
    `git remote add origin <its URL>`.
-8. **[Dan] The first push of `main`:** the pre-push hook refuses `main`, so Dan pushes it himself.
+8. **[Dan] The first push of `main`:** the pre-push hook refuses `main`, and a plain push is refused too. Dan pushes it with
+   `git push --no-verify origin main`; this first push is the one case where the hook's refusal is meant to be overridden, and only by him.
 9. **`git switch -c` the work branch.** Every commit from here goes on it.
 
 ## Grilling
@@ -183,7 +184,8 @@ One commit on the work branch, each file shown first:
 
 superpowers:writing-plans, as [`plans.md`](plans.md) gives it. The plan's first tasks are the docs
 and CI, with tiers, reviews and closing commits like any task: the CI task copies `ci.yml` and
-`dependabot.yml` and sets the real test and lint commands; the docs task (the site task, for a
+`dependabot.yml` and sets the real test and lint commands (on a site project it comes first and
+keeps the `site` and `pages` jobs out; the site task adds them back once the wrappers exist); the docs task (the site task, for a
 Quarto site) builds the docs as [`docs-site.md`](docs-site.md) gives them.
 
 ## The review before approval, and approval

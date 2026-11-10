@@ -1,7 +1,7 @@
 ```{mermaid}
 %%| column: page
 %% The overview: one file, included by index.qmd and architecture.qmd, never copied. It changes in
-%% the same commit as any part or path it shows (AGENTS.md, Docs).
+%% the same commit as any part or path it shows (AGENTS.md, Docs and security).
 flowchart TB
   classDef planned stroke-dasharray: 5 5
   person["a person"] --> app["__PROJECT__"]

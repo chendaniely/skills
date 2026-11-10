@@ -33,7 +33,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
       exit 1 ;;
   esac
   if [ "$local_sha" = "$zero" ]; then
-    echo "push guard: deleting $remote_ref is refused; deleting branches is Dan's (AGENTS.md, Pushing)." >&2
+    echo "push guard: deleting $remote_ref is refused; deleting branches is Dan's (AGENTS.md, Stops)." >&2
     exit 1
   fi
   case "$remote_ref" in
