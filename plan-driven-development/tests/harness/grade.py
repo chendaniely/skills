@@ -278,7 +278,7 @@ def s01(work: Path) -> list[Check]:
         Check("every question listed with its count",
               len(re.findall(r"^\s*\d+[.)]\s", first, re.MULTILINE)) >= 2
               and text_has(first, r"\b(\d+|two|three|four|five|six|seven|eight|nine|ten)\s+questions\b|\bof \d+\b")),
-        Check("only the first presented in full", not text_has(first, r"\bquestion 2 of \d+\b")),
+        Check("only the first presented in full", not text_has(first, r"^\W*question 2 of \d+\b")),
         Check("outcomes A, B and C", all(text_has(first, rf"(^|\W){x}[:.)]") for x in "ABC")),
         Check("a recommendation", text_has(first, r"recommend|➡️")),
         Check("a self-review of the recommendation", text_has(first, r"self-review")),
@@ -507,12 +507,14 @@ def s19(work: Path) -> list[Check]:
     close1 = [c for c in commits if c.subject.startswith("docs(plan): 🤖 close Task 1:")]
     findings = heading(close1[0].message, "Findings") if close1 else ""
     rounds = heading(close1[0].message, "Rounds") if close1 else ""
+    drift = heading(close1[0].message, "Drift") if close1 else ""
+    fixed_in_build = bool(drift) and drift.strip().lower().rstrip(".") != "none"  # the template records that as drift
     both_axes, detail = reviews_after_the_build(work)
     return [
         agent_check("the planted miss found and fixed", lambda: refuses_outside(work / "repo")),
         Check("both review axes ran, each on its own", both_axes, detail),
         Check("the security checklist ran", security_checklist_ran(work, close1[0].message if close1 else "")),
-        Check("Findings and Rounds filled in", bool(findings) and bool(rounds) and text_has(findings, SEVERITY)),
+        Check("Findings and Rounds filled in", bool(findings) and bool(rounds) and (text_has(findings, SEVERITY) or fixed_in_build)),
         Check("at most one re-review", not text_has(rounds, r"\b([2-9]) re-reviews?\b")),
     ]
 

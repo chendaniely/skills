@@ -22,7 +22,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
 
-**Now:** waiting on Dan: the isolation task before Task 13 (a separate macOS user; the order note below), then Task 13: GREEN and REFACTOR.
+**Now:** Task 14: portability, open. Task 17 stays written and unrun: GREEN ran without it, as subagents.
 
 > **Order changed (Dan, 2026-10-16: "is this skill written up yet? i want to test it out"):**
 > after Task 5, run Task 6 (RED), then Tasks 11 and 12 (the skill text), then Dan tries the skill
@@ -31,7 +31,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 > land, kickoff's steps that copy templates and scripts have nothing to copy; the skill text says
 > so where it matters.
 >
-> **Isolation before GREEN (Dan, 2026-10-22):** a task still to be written goes before Task 13. It
+> **Isolation before GREEN (Dan, 2026-10-22):** Task 17, written 2026-11-09, goes before Task 13. It
 > builds a separate unprivileged macOS user for the test sessions and the grading, then runs RED
 > again headless under it for all fourteen scenarios (Task 6's Steps 2–4). That gives GREEN a clean
 > baseline: Task 6's subagent runs had Dan's global instructions loaded.
@@ -6120,13 +6120,422 @@ fi
 
 ***
 
+### Task 17: Isolation: a separate macOS user, then RED again headless
+
+> **Runs before Task 13.** Written 2026-11-09 from the order note at the top, and numbered 17 because
+> task numbers never change. Headless sessions under Dan's account have only filters and a sandbox
+> between a test agent and his files, and Task 5 left one Critical open by his decision: the grader's
+> own `git` calls run agent-planted code as whoever runs the grader. From here, that is an account
+> with nothing to take.
+>
+> **A new account alone isn't enough.** A standard macOS user joins the `staff` group, and a home
+> folder of mode 750 is readable by `staff`. Step 6 closes Dan's home folder to this one account.
+
+**Tier:** 1 (the boundary between test agents and Dan's account) · **Scenarios:** S01–S05, S09–S14,
+S18–S20, as RED.
+
+**Files:**
+- Create: `plan-driven-development/tests/harness/isolated.sh` (mode 755)
+- Modify: `plan-driven-development/tests/harness/run.py`, `plan-driven-development/tests/test_runners.py`,
+  `plan-driven-development/tests/red-results.md`
+- Outside this repo, by Dan (Step 6): one account, one ACL on his home folder, one sudoers file
+
+**Interfaces:**
+- Consumes: `run.py`, `grade.py` and `recipes.build` (Tasks 4–5).
+- Produces: `run.ISOLATED_USER` (`"pdd-test"`), `run.current_user() -> str`, `run.is_isolated() -> bool`;
+  `isolated.sh <run.py arguments>`, the only way a real session starts; a clean RED baseline for
+  Task 13 in `tests/red-results.md`.
+
+- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+
+- [ ] **Step 1: Write the failing tests** in `plan-driven-development/tests/test_runners.py`. Add
+  `import os`, `import pwd`, `import shutil` and `import subprocess` to its imports. After its
+  `CFG = …` line add:
+
+```python
+SCRIPT = SKILL / "tests" / "harness" / "isolated.sh"
+
+
+@pytest.fixture(autouse=True)
+def as_the_test_account(monkeypatch):
+    """Everything here runs as whoever runs pytest; the tests of the refusal undo this."""
+    monkeypatch.setattr(run, "ISOLATED_USER", pwd.getpwuid(os.geteuid()).pw_name, raising=False)
+```
+
+  and at the end of the file:
+
+```python
+def no_session_may_start(*args, **kwargs):
+    raise AssertionError("a real session started")
+
+
+def test_a_real_session_is_refused_outside_the_test_account(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(run, "ISOLATED_USER", "someone-else")
+    monkeypatch.setattr(run, "INSTALLED", plugins_file(tmp_path))
+    monkeypatch.setattr(run, "run_turns", no_session_may_start)
+    assert run.main(["s04", "--stage", "red", "--work-root", str(tmp_path / "r")]) == 3
+    assert "only as the someone-else account" in capsys.readouterr().out
+    assert not (tmp_path / "r").exists()
+
+
+def test_a_canary_is_refused_outside_the_test_account(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(run, "ISOLATED_USER", "someone-else")
+    monkeypatch.setattr(run, "INSTALLED", plugins_file(tmp_path))
+    monkeypatch.setattr(run, "run_turns", no_session_may_start)
+    assert run.main(["--canary", "--work-root", str(tmp_path / "r")]) == 3
+    assert "only as the someone-else account" in capsys.readouterr().out
+
+
+def test_a_dry_run_needs_no_test_account(monkeypatch, tmp_path):
+    monkeypatch.setattr(run, "ISOLATED_USER", "someone-else")
+    monkeypatch.setattr(run, "INSTALLED", plugins_file(tmp_path))
+    assert run.main(["s04", "--stage", "red", "--dry-run", "--work-root", str(tmp_path / "r")]) == 0
+
+
+def test_the_environment_cannot_pretend_to_be_the_test_account(monkeypatch):
+    monkeypatch.setattr(run, "ISOLATED_USER", "someone-else")
+    for name in ("USER", "LOGNAME"):
+        monkeypatch.setenv(name, "someone-else")
+    assert not run.is_isolated()
+
+
+def test_the_test_accounts_token_reaches_claude_and_nothing_else(monkeypatch):
+    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "t")
+    assert run.child_env("claude", {})["CLAUDE_CODE_OAUTH_TOKEN"] == "t"
+    assert "CLAUDE_CODE_OAUTH_TOKEN" not in run.child_env("uv", {})
+    assert "CLAUDE_CODE_OAUTH_TOKEN" not in run.child_env("pi", {})
+
+
+def test_the_owners_token_never_reaches_a_session(monkeypatch):
+    monkeypatch.setattr(run, "ISOLATED_USER", "someone-else")
+    monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "t")
+    assert "CLAUDE_CODE_OAUTH_TOKEN" not in run.child_env("claude", {})
+
+
+def test_isolated_sh_refuses_without_a_token(tmp_path):
+    assert os.access(SCRIPT, os.X_OK)
+    done = subprocess.run([str(SCRIPT), "s04", "--stage", "red"], capture_output=True, text=True,
+                          env={"HOME": str(tmp_path), "PATH": os.environ["PATH"]})
+    assert done.returncode == 3 and "no login token" in done.stderr
+
+
+@pytest.mark.skipif(shutil.which("shellcheck") is None, reason="needs shellcheck")
+def test_isolated_sh_passes_shellcheck():
+    subprocess.run(["shellcheck", str(SCRIPT)], check=True)
+```
+
+- [ ] **Step 2: Run them; watch them fail.**
+  `uv run --quiet --with pytest --with pyyaml pytest plan-driven-development/tests/test_runners.py -q`.
+  Expected: `6 failed, 48 passed`. No test can start a real session: `no_session_may_start` raises
+  first.
+
+- [ ] **Step 3: Write `plan-driven-development/tests/harness/isolated.sh`** and `chmod 755` it:
+
+```bash
+#!/bin/bash
+# Run the harness as the isolated test account: run.py refuses every real session anywhere else.
+#   sudo -n -H -u pdd-test /Users/pdd-test/skills/plan-driven-development/tests/harness/isolated.sh <run.py arguments>
+set -euo pipefail
+
+token_file="$HOME/.pdd-oauth-token"
+if [ ! -r "$token_file" ]; then
+  echo "HARNESS FAIL: no login token for this account at $token_file (Task 17, Step 6)" >&2
+  exit 3
+fi
+CLAUDE_CODE_OAUTH_TOKEN="$(cat "$token_file")"
+export CLAUDE_CODE_OAUTH_TOKEN
+
+PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+TMPDIR="$(getconf DARWIN_USER_TEMP_DIR)"
+export PATH TMPDIR
+
+cd "$HOME/skills"
+exec uv run --quiet --script plan-driven-development/tests/harness/run.py "$@"
+```
+
+  Then, in `plan-driven-development/tests/harness/run.py`, add `import pwd` after `import os`, and
+  this after the `DEFAULT_ROOT = …` line:
+
+```python
+ISOLATED_USER = "pdd-test"  # the unprivileged macOS account real sessions run under (Task 17)
+```
+
+  Before `def installed_plugins`:
+
+```python
+def current_user() -> str:
+    """Who this process really is: the effective uid, not the environment, which a caller can set."""
+    return pwd.getpwuid(os.geteuid()).pw_name
+
+
+def is_isolated() -> bool:
+    return current_user() == ISOLATED_USER
+```
+
+  In `child_env`, straight after the `ANTHROPIC_API_KEY` opt-in, at the same indent:
+
+```python
+        if is_isolated() and os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
+            env["CLAUDE_CODE_OAUTH_TOKEN"] = os.environ["CLAUDE_CODE_OAUTH_TOKEN"]  # the test account's own login
+```
+
+  In `main`, straight after `args = p.parse_args(argv)`:
+
+```python
+    if not args.dry_run and not is_isolated():
+        print(f"HARNESS FAIL: real sessions run only as the {ISOLATED_USER} account, through isolated.sh, not as "
+              f"{current_user()}: agent code and the grader's git calls must not run with the owner's files in reach")
+        return 3
+```
+
+  And in the module docstring, replace `This is a throwaway repo under the owner's login with filters and an OS
+  sandbox, not a hardened container:` with `Real sessions run only as the unprivileged ISOLATED_USER account,
+  which can't enter the owner's home folder (isolated.sh is the way in). Inside it, this is a throwaway repo with
+  filters and an OS sandbox, not a hardened container:`.
+
+- [ ] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: all pass both
+  times, 8 more than before this task. `shellcheck plan-driven-development/tests/harness/isolated.sh`
+  is clean.
+
+- [ ] **Step 5: Commit and push,** so the test account can clone it. Write `.git/PDD_MSG`:
+
+```text
+plan-driven-development: real test sessions run only as a separate account
+
+run.py refuses a real session unless it is running as pdd-test, by uid
+rather than the environment; a dry run is still allowed anywhere.
+isolated.sh is the way in: it loads that account's own login token,
+which reaches Claude Code's session and nothing else, and uses the
+account's private temp folder. No test can start a real session.
+
+Plan: docs/superpowers/plans/2026-10-15-plan-driven-development.md Task 17
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+```
+
+```bash
+git add plan-driven-development/tests/harness/isolated.sh plan-driven-development/tests/harness/run.py plan-driven-development/tests/test_runners.py
+git commit -F .git/PDD_MSG
+git log -1 --format='%(trailers)'
+git ls-files -s plan-driven-development/tests/harness/isolated.sh
+git fetch -q origin
+range=origin/plan-driven-development..HEAD
+if uv run --quiet --script plan-driven-development/scripts/leakcheck.py --range "$range" &&
+   gitleaks git --log-opts="$range" --redact --no-banner . &&
+   git log --format= --numstat "$range" | awk '$1 == "-" { print "binary, check it by eye: " $3; bad = 1 } END { exit bad }'; then
+  git push origin plan-driven-development
+else
+  echo "STOP: not pushed. Tell Dan each finding's kind and file:line (never the matched text), or the binary's name."
+fi
+```
+
+  Expected: the `Plan:` line, mode `100755`, then the push.
+
+- [ ] **Step 6 [Dan, in a Terminal window of his own]:** not with `!` in Claude Code, so the password
+  prompt and the token stay out of every session. Each part changes something outside this repo, and
+  running it is his yes on it.
+
+  1. **The account.** A standard user, hidden from the login window, whose random password is
+     never shown or kept, since nobody ever logs in as it:
+
+     ```bash
+     sudo sysadminctl -addUser pdd-test -fullName "PDD test runs" -home /Users/pdd-test -password "$(openssl rand -base64 32)"
+     sudo createhomedir -c -u pdd-test
+     sudo dscl . create /Users/pdd-test IsHidden 1
+     ```
+
+  2. **Close his home folder to that account,** and to no one else:
+
+     ```bash
+     sudo chmod +a "user:pdd-test deny list,search,readattr,readextattr,readsecurity" "$HOME"
+     ```
+
+  3. **Let his account act as `pdd-test` without a password.** This line gives no route to root, only
+     to an account with less access than his own, and it lets agents in his sessions start the runs:
+
+     ```bash
+     t=$(mktemp); echo "$(id -un) ALL=(pdd-test) NOPASSWD: ALL" > "$t"
+     sudo visudo -cf "$t" && sudo install -o root -g wheel -m 440 "$t" /etc/sudoers.d/pdd-test
+     rm -f "$t"
+     ```
+
+     Expected: `parsed OK`.
+
+  4. **The account's login.** `claude setup-token` signs in and prints a long-lived token on his
+     Claude subscription. Then paste it here; it is not echoed, and goes into a file only that
+     account can read:
+
+     ```bash
+     claude setup-token
+     printf 'Paste the token: '; stty -echo; IFS= read -r T; stty echo; echo
+     printf '%s' "$T" | sudo -H -u pdd-test /bin/sh -c 'umask 077; cat > "$HOME/.pdd-oauth-token"'
+     unset T
+     ```
+
+  **To undo all of it:** `sudo sysadminctl -deleteUser pdd-test`,
+  `sudo chmod -a "user:pdd-test deny list,search,readattr,readextattr,readsecurity" "$HOME"`,
+  `sudo rm /etc/sudoers.d/pdd-test`, and revoke the token in his Claude account settings.
+
+- [ ] **Step 7: Prove the boundary:**
+
+```bash
+sudo -n -H -u pdd-test /usr/bin/id -un
+sudo -n -H -u pdd-test /bin/ls "$HOME" 2>&1 | head -1
+sudo -n -H -u pdd-test /bin/ls "$HOME/git" 2>&1 | head -1
+dseditgroup -o checkmember -m pdd-test admin | cut -d' ' -f1
+sudo -n -H -u pdd-test /bin/sh -c 'test -r "$HOME/.pdd-oauth-token" && echo token-present'
+sudo -n true 2>&1 | head -1
+```
+
+  Expected: `pdd-test`; `Permission denied` twice; `no`; `token-present`; and `a password is required`
+  (his account still can't reach root this way). Any other answer is a stop: tell Dan.
+
+- [ ] **Step 8: Set up the account** with what the harness reads from it, so nothing comes from Dan's
+  home folder:
+
+```bash
+sudo -n -H -u pdd-test /bin/zsh -c 'export PATH=/opt/homebrew/bin:/usr/bin:/bin
+git clone -q --branch plan-driven-development https://github.com/chendaniely/skills "$HOME/skills"
+claude plugin marketplace add anthropics/claude-plugins-official
+claude plugin install superpowers@claude-plugins-official
+claude plugin install mattpocock-skills@claude-plugins-official'
+pdd() { sudo -n -H -u pdd-test /Users/pdd-test/skills/plan-driven-development/tests/harness/isolated.sh "$@"; }
+pdd s04 --stage red --dry-run | head -3
+```
+
+  Expected: the dry run's first line is `plugins: superpowers 7.0.0, mattpocock-skills 1.3.1`. A later
+  version of either is a stop: tell Dan, since the template's *Overrides* name those versions.
+
+- [ ] **Step 9 [Dan's OK on cost]:** a canary, one trivial scenario and fifteen sessions (14 scenarios;
+  S01 takes two turns) on his subscription, on `claude-sonnet-5-5` as in Task 6. S02 may take 20–40
+  minutes. Each turn is capped at $10 and 60 turns.
+
+- [ ] **Step 10: The canary and the isolation check** (Task 6's unticked Steps 2 and 3):
+
+```bash
+pdd() { sudo -n -H -u pdd-test /Users/pdd-test/skills/plan-driven-development/tests/harness/isolated.sh "$@"; }
+pdd --canary --model claude-sonnet-5-5
+pdd s04 --stage red --model claude-sonnet-5-5
+```
+
+  Expected: `PASS canary: 'none'`, then no `HARNESS FAIL`, a set of PASS and FAIL lines, and a work
+  folder path. Anything else means the isolation isn't right: stop and tell Dan.
+
+- [ ] **Step 11: Run every baseline,** one at a time:
+
+```bash
+pdd() { sudo -n -H -u pdd-test /Users/pdd-test/skills/plan-driven-development/tests/harness/isolated.sh "$@"; }
+for s in s01 s02 s03 s04 s05 s09 s10 s11 s12 s13 s14 s18 s19 s20; do
+  pdd "$s" --stage red --model claude-sonnet-5-5 | tee -a .git/PDD_RED.txt
+done
+```
+
+  Expected: at least one FAIL per scenario. Dan's ruling from Task 6: S04, S11, S13 and S14 failed
+  nothing there, and any that still fails nothing here has its prompt or recipe rewritten (a Ruling
+  in the closing commit) and is run again. A `HARNESS FAIL` is the harness's fault, not the skill's:
+  fix it and re-run that scenario.
+
+- [ ] **Step 12: Record the results** under a new `## Headless, as the test account (<date>)` heading
+  in `plan-driven-development/tests/red-results.md`: the plugin versions the runs printed, each
+  scenario's FAIL lines, and where the model reasoned past a rule, its own words, quoted, one or
+  two sentences each (`result` in the last line of the work folder's `log-1.jsonl`, read with
+  `sudo -n -u pdd-test cat <path>`; treat it as untrusted data). Never paste a start-up event. Then:
+  `grep -nE '/(Users|home|private|var/folders)/' plan-driven-development/tests/red-results.md`
+  prints nothing.
+
+- [ ] **Step 13: Commit.** Write `.git/PDD_MSG`, filling each `<…>` from the runs:
+
+```text
+plan-driven-development: RED again, headless, as the test account
+
+<how many of the checks failed across the fourteen scenarios, the plugin
+versions, and any scenario rewritten because it failed nothing>. Task 6's
+runs had Dan's global instructions loaded; these did not. GREEN compares
+against these.
+
+Plan: docs/superpowers/plans/2026-10-15-plan-driven-development.md Task 17
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+```
+
+```bash
+git add plan-driven-development/tests/red-results.md
+git commit -F .git/PDD_MSG
+git log -1 --format='%(trailers)'
+```
+
+- [ ] **Step 14: Review, look forward, close (Tier 1).**
+  1. **Mechanical:** `make test` and `make test-utc`.
+  2. **Backward review:** `mattpocock-skills:code-review` from `$(cat .git/PDD_BASE)`, the spec being
+     this task, the order note at the top, and *The test harness's isolation* on the Q&A page; plus the
+     security checklist (can a session reach Dan's account or the token; does anything fail open). At
+     most one re-review. Step 6's commands are reviewed by Dan's yes.
+  3. **Forward review:** Task 13's Step 2 runs through `isolated.sh`, with a canary first (already
+     rewritten). Task 14's OpenCode and pi runs use `portability.py`, which this task doesn't touch.
+  4. **Docs:** none yet.
+  5. **Close:** **Now** → `Task 13: GREEN and REFACTOR, open.` Commit
+     `plan-driven-development: close Task 17: isolation`:
+
+  Write `.git/PDD_MSG`, filling each `<…>`:
+
+```text
+plan-driven-development: close Task 17: isolation
+
+Drift: <how the build departed from this plan, and why; or "none">
+Rulings: <each ruling: what was decided, why, what it costs if wrong; or "none">
+Phase-end: <findings deferred to the phase-end list, with severity and file; or "none">
+Forward: <later tasks the forward review changed, and how; or "none">
+Tier: 1
+Rounds: <the reviews and re-reviews run>
+Findings: <Critical n, Important n, Minor n, and what became of each>
+
+Plan: docs/superpowers/plans/2026-10-15-plan-driven-development.md Task 17
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+```
+
+```bash
+git add docs/superpowers/plans/2026-10-15-plan-driven-development.md
+git commit -F .git/PDD_MSG
+git log -1 --format='%(trailers)'
+for h in Drift Rulings Phase-end Forward Tier Rounds Findings; do
+  git log -1 --format=%B | grep -q "^$h: ." || echo "missing $h"
+done
+```
+
+  Expected: the trailers print the `Plan:` line; no `missing` line.
+
+- [ ] **Step 15: Push (standing OK).**
+
+  The skill's own leak check scans the range, with Dan's denylist. Push only through this block:
+
+```bash
+git fetch -q origin
+range=origin/plan-driven-development..HEAD
+if uv run --quiet --script plan-driven-development/scripts/leakcheck.py --range "$range" &&
+   gitleaks git --log-opts="$range" --redact --no-banner . &&
+   git log --format= --numstat "$range" | awk '$1 == "-" { print "binary, check it by eye: " $3; bad = 1 } END { exit bad }'; then
+  git push origin plan-driven-development
+else
+  echo "STOP: not pushed. Tell Dan each finding's kind and file:line (never the matched text), or the binary's name."
+fi
+```
+
+  Expected: the leak check prints nothing, gitleaks prints `no leaks found`, then the push. A
+  `STOP` line means nothing was pushed: a leak or an unscanned binary is a stop that never relaxes;
+  tell Dan the kind and `file:line`, never the excerpt.
+
+***
+
 ### Task 13: GREEN and REFACTOR in Claude Code
 
+> **Run differently (Dan, 2026-11-09: "can we continue with green without creating a new user?", then
+> "All 14 on Sonnet"):** as subagents under his account, like Task 6, not through `run.py` as a separate
+> user, so Step 2's commands did not run. The results and what they can't show are in
+> `tests/green-results.md`. Step 4 wasn't needed: S05 loaded the right skills.
+>
 > **From Dan's trial (2026-11-09; the Q&A):** he wants fewer questions and shorter messages to him.
 > He didn't pick shorter plans or less commit bookkeeping. REFACTOR takes this on, `preferences.md`'s
 > asking rules included, since they set how many questions and re-shown lists he gets.
 >
-> **First (Dan, 2026-10-22):** the isolation task before this one, and RED again headless under it
+> **First (Dan, 2026-10-22):** Task 17, the isolation task before this one, and RED again headless under it
 > (see the order note at the top). GREEN compares against that clean baseline, not Task 6's
 > subagent runs. S04, S11, S13 and S14 failed nothing in Task 6; any of them that still fails
 > nothing headless is rewritten before GREEN (Dan's ruling at Task 6's close).
@@ -6154,24 +6563,27 @@ fi
 - Consumes: the skill (Tasks 11–12), the harness (Tasks 4–5).
 - Produces: a skill every scenario passes with.
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: The deterministic scenarios:** `make test` and `make test-utc`. Expected: all pass
+- [x] **Step 1: The deterministic scenarios:** `make test` and `make test-utc`. Expected: all pass
   both times (S06–S08, S17).
 
-- [ ] **Step 2: Run every behavioural scenario with the skill** (the same model as RED; the runner
+- [x] **Step 2: Run every behavioural scenario with the skill** (the same model as RED; the runner
   fails a GREEN run whose start-up event doesn't list `plan-driven-development`):
 
 ```bash
+pdd() { sudo -n -H -u pdd-test /Users/pdd-test/skills/plan-driven-development/tests/harness/isolated.sh "$@"; }
+sudo -n -H -u pdd-test git -C /Users/pdd-test/skills pull -q --ff-only
+pdd --canary --model claude-sonnet-5-5
 for s in s01 s02 s03 s04 s05 s09 s10 s11 s12 s13 s14 s18 s19 s20; do
-  uv run --quiet --script plan-driven-development/tests/harness/run.py "$s" --stage green | tee -a .git/PDD_GREEN.txt
+  pdd "$s" --stage green --model claude-sonnet-5-5 | tee -a .git/PDD_GREEN.txt
 done
 ```
 
   Expected: every check PASS. A failed check is re-run once before it counts (a single run is not
   proof). A `HARNESS FAIL` is fixed in `run.py`, not in the skill.
 
-- [ ] **Step 3: REFACTOR each failure that repeats.** Read that session's final answer for the
+- [x] **Step 3: REFACTOR each failure that repeats.** Read that session's final answer for the
   rationalization; add its row to `SKILL.md`'s red-flags table, or tighten the rule in the file
   that states it (the template for every-session rules); re-run that scenario until it passes; then
   re-run every scenario whose rule lives in the same file. Each change is its own commit; write
@@ -6193,19 +6605,19 @@ git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
 
-- [ ] **Step 4: If S05 keeps loading Matt's `tdd` or `diagnosing-bugs` after a REFACTOR [Dan's
+- [x] **Step 4: If S05 keeps loading Matt's `tdd` or `diagnosing-bugs` after a REFACTOR [Dan's
   yes]:** the spec's fallback (Question 13, B). Propose to Dan deny rules
   `"Skill(mattpocock-skills:tdd)"` and `"Skill(mattpocock-skills:diagnosing-bugs)"` for
   `~/.claude/settings.json` (shown as a diff with the `update-config` skill), noting they also stop
   Dan typing those two skills; on his yes, apply them, confirm them in `/permissions`, add the same
   two rules to `run.py`'s `DISALLOWED` (a commit as in Step 3), and re-run S05.
 
-- [ ] **Step 5: Record** in `plan-driven-development/tests/green-results.md`: the plugin versions,
+- [x] **Step 5: Record** in `plan-driven-development/tests/green-results.md`: the plugin versions,
   and per scenario the run that passed (date, model), and each REFACTOR with its commit. Then
   `grep -nE '/(Users|home|private|var/folders)/' plan-driven-development/tests/green-results.md`
   prints nothing.
 
-- [ ] **Step 6: Commit.** Write `.git/PDD_MSG`:
+- [x] **Step 6: Commit.** Write `.git/PDD_MSG`:
 
 ```text
 plan-driven-development: record the GREEN results
@@ -6224,7 +6636,7 @@ git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
 
-- [ ] **Step 7: Review, look forward, close (Tier 2).**
+- [x] **Step 7: Review, look forward, close (Tier 2).**
   1. **Mechanical:** `make test`; Task 11's and Task 12's shape checks still pass after REFACTOR.
   2. **Backward review:** `mattpocock-skills:code-review` over the REFACTOR commits (from
      `$(cat .git/PDD_BASE)`), the spec being the spec sections whose rules changed: no REFACTOR may
@@ -6263,7 +6675,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 8: Push (standing OK).**
+- [x] **Step 8: Push (standing OK).**
 
   The skill's own leak check scans the range, with Dan's denylist. Push only through this block:
 

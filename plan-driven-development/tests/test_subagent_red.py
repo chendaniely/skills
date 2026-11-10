@@ -43,7 +43,7 @@ def fake_transcript(path: Path) -> None:
 
 def test_prepare_builds_repo_without_skill(tmp_path, monkeypatch):
     out = prepared(tmp_path, monkeypatch)
-    assert set(out) == {"repo", "work", "prompt"}
+    assert set(out) == {"repo", "work", "denylist", "prompt"}
     repo, work, prompt = Path(out["repo"]), Path(out["work"]), Path(out["prompt"])
     assert repo.is_absolute() and (repo / ".git").exists()
     assert subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True).returncode == 0
@@ -125,3 +125,17 @@ def test_grade_takes_the_handback_message_as_the_final_reply(tmp_path, monkeypat
     assert r.returncode == 0, r.stderr
     log = [json.loads(l) for l in (work / "log-1.jsonl").read_text().splitlines()]
     assert log[-1] == {"type": "result", "result": "Task 2 is open."}
+
+
+def test_prepare_can_build_a_green_repo(tmp_path, monkeypatch):
+    module = in_process(monkeypatch, lambda repo, cache: None)
+    out = kv("\n".join(module.prepare("s04", tmp_path, "green")))
+    assert (Path(out["repo"]) / ".claude/skills/plan-driven-development/SKILL.md").is_file()
+    assert "-green-" in Path(out["work"]).name
+    assert Path(out["denylist"]).read_text() == "an-invented-private-term\n"
+
+
+def test_prepare_stays_red_by_default(tmp_path, monkeypatch):
+    out = prepared(tmp_path, monkeypatch)
+    assert "-red-" in Path(out["work"]).name
+    assert not (Path(out["repo"]) / ".claude/skills").exists()

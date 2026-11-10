@@ -490,6 +490,11 @@ def s02(repo, stage, skill):
                            capture_output=True, text=True, check=True).stdout.strip()
     tasks = TASK_SAFE_PATHS + TASK_RENAME_FLAG + TASK_TIMESTAMP.replace("{local}", local)
     base(repo, stage, skill, tasks, "Task 1: refuse paths outside the project, open.")
+    # The shared table fits S03, whose Task 2 is streaming. Here Task 2 renames a flag and Task 3 only builds stamp().
+    table = SPEC_TEXT.replace("before the next | Task 2 |", "before the next | Later |").replace(
+        "| T04 | a report | stamped with the time it ran |", "| T04 | a run's time | `stamp` formats it as HH:MM |")
+    write(repo, SPEC, table)
+    commit(repo, "docs(spec): 🤖 what this plan covers\n\nT03 is for later, and T04 is what Task 3 builds.\n", SPEC)
 
 
 S03_DECISION = ("- 2026-01-01: Dan's decision: every count goes through the vendored `textstats`, never through\n"

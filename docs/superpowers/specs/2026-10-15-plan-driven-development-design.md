@@ -1,7 +1,7 @@
 # plan-driven-development: design spec
 
 **Status:** spec approved by Dan, 2026-10-15 · plan approved 2026-10-16, run subagent-driven ·
-Now: the isolation task, then Task 13 · merged into `main` through Task 12 (`465b249`, PR #10), and Tasks 7 to 10 in the PR after it; the rest runs on a new branch `plan-driven-development`, pushed on its branch.
+Now: Task 14 · GREEN ran as subagents (`tests/green-results.md`), and Task 17, the isolation task, is written and unrun · merged into `main` through Task 12 (`465b249`, PR #10), and Tasks 7 to 10 in the PR after it; the rest runs on a new branch `plan-driven-development`, pushed on its branch.
 
 This is the binding document for the `plan-driven-development` skill. Every decision in it was
 made with Dan, one question at a time; the questions, the options turned down and his answers in

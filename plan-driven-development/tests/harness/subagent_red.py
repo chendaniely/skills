@@ -3,17 +3,19 @@
 # requires-python = ">=3.11"
 # dependencies = []
 # ///
-"""Grade RED baseline runs done by Claude Code subagents, with the same graders as headless runs.
+"""Grade RED and GREEN runs done by Claude Code subagents, with the same graders as headless runs.
 
-    uv run --script subagent_red.py prepare SCENARIO ROOT
+    uv run --script subagent_red.py prepare SCENARIO ROOT [red|green]
     uv run --script subagent_red.py grade SCENARIO WORK TRANSCRIPT [TRANSCRIPT2]
 
-`prepare` builds the scenario's RED work folder under ROOT with run.py's own `prepare` (the fixture
-repo, start.txt, start.diff, the fixture denylist; no skill in the repo) and launches nothing. It
+`prepare` builds the scenario's work folder under ROOT with run.py's own `prepare` (the fixture
+repo, start.txt, start.diff, the fixture denylist; no skill in a RED repo) and launches nothing. It
 warms the folder's own uv cache as run.py does, outside any sandbox and before the agent starts, so
 the graders' offline test runs find pytest (a failed warm prints HARNESS FAIL and exits 3). It
 writes the turn prompts to WORK/prompt-1.md (and prompt-2.md) and prints `repo=`, `work=`,
-`prompt=` (and `prompt2=`). The subagent is given the repo and the prompt; the caller then passes
+`denylist=`, `prompt=` (and `prompt2=`). A GREEN repo has real hooks, so a subagent's shell must
+set LEAKCHECK_DENYLIST to that fixture, or the hooks would read the owner's own list. The subagent
+is given the repo and the prompt; the caller then passes
 its transcript to `grade`.
 
 `grade` maps each subagent transcript (a JSONL file under .../tasks/*.output) to WORK/log-N.jsonl,
@@ -85,15 +87,15 @@ class WarmFailed(Exception):
     pass
 
 
-def prepare(scenario: str, root: Path) -> list[str]:
+def prepare(scenario: str, root: Path, stage: str = "red") -> list[str]:
     run = _load("run")
     root = root.expanduser().resolve()
-    work, repo = run.prepare(scenario, "red", root)
+    work, repo = run.prepare(scenario, stage, root)
     problem = run.warm_uv_cache(repo, work / "uv-cache")
     if problem:
         raise WarmFailed(f"HARNESS FAIL {scenario}: cannot warm the uv cache: {problem} ({work})")
     names = run.TURNS[scenario]
-    lines = [f"repo={repo.resolve()}", f"work={work.resolve()}"]
+    lines = [f"repo={repo.resolve()}", f"work={work.resolve()}", f"denylist={(work / 'denylist').resolve()}"]
     for n, name in enumerate(names, start=1):
         prompt = work / f"prompt-{n}.md"
         prompt.write_text((HERE / "prompts" / name).read_text())
@@ -114,16 +116,16 @@ def grade(scenario: str, work: Path, transcripts: list[Path]) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
-    usage = "usage: subagent_red.py prepare SCENARIO ROOT | grade SCENARIO WORK TRANSCRIPT [TRANSCRIPT2]"
+    usage = "usage: subagent_red.py prepare SCENARIO ROOT [red|green] | grade SCENARIO WORK TRANSCRIPT [TRANSCRIPT2]"
     if len(argv) < 3 or argv[0] not in ("prepare", "grade"):
         print(usage, file=sys.stderr)
         return 2
     if argv[0] == "prepare":
-        if len(argv) != 3:
+        if len(argv) not in (3, 4) or argv[3:] not in ([], ["red"], ["green"]):
             print(usage, file=sys.stderr)
             return 2
         try:
-            out = prepare(argv[1], Path(argv[2]))
+            out = prepare(argv[1], Path(argv[2]), *argv[3:])
         except WarmFailed as failed:
             print(failed)
             return 3
