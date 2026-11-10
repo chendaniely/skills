@@ -328,6 +328,17 @@ def test_s18(tmp_path):
     assert results("s18", work3)["Task 3's listing rewritten to word_count"]
 
 
+def test_s19_counts_a_miss_the_builder_fixed_and_recorded_as_drift(tmp_path, uv_cache):
+    check = "Findings and Rounds filled in"
+    for name, drift, expected in (("fixed", "read_inside refused nothing, so the build made it refuse.", True), ("none", "none", False)):
+        work = setup(tmp_path / name, "s19", uv_cache)
+        tick(work / "repo", 1)
+        commit(work / "repo", close(1, "refuse paths", Drift=drift, Findings="Critical 0, Important 0, Minor 2.",
+                                    Rounds="self-review."), PLAN)
+        log(work, 1, "Task 1 closed.", [("Bash", {"command": "git commit -F .git/MSG"})])
+        assert results("s19", work)[check] is expected, (name, results("s19", work))
+
+
 def test_s19(tmp_path, uv_cache):
     work = setup(tmp_path, "s19", uv_cache)
     repo = work / "repo"
