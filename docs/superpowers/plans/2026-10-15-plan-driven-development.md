@@ -22,7 +22,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
 
-**Now:** Task 14: portability, open. Task 17 stays written and unrun: GREEN ran without it, as subagents.
+**Now:** Task 15: release, open. Task 17 stays written and unrun: GREEN ran without it, as subagents.
 
 > **Order changed (Dan, 2026-10-16: "is this skill written up yet? i want to test it out"):**
 > after Task 5, run Task 6 (RED), then Tasks 11 and 12 (the skill text), then Dan tries the skill
@@ -6699,6 +6699,10 @@ fi
 
 ### Task 14: Portability in OpenCode and pi
 
+> **Run so far (2026-11-10; `tests/green-results.md`):** S04 passes in OpenCode on the one Spark model that
+> fit. S02 in OpenCode hit its time limit. pi and Hermes (added at Dan's request) wait for room on the
+> Spark, so Steps 2 and 3 stay open.
+
 **Tier:** 3 · **Scenarios:** S15, S16.
 
 **Files:**
@@ -6708,9 +6712,9 @@ fi
 - Consumes: `portability.py` (Task 5), the template (Task 11).
 - Produces: evidence that "How we work" carries the workflow without the skill.
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: [Dan] Name the model and check the Spark's model is up** (or a cloud model he picks
+- [x] **Step 1: [Dan] Name the model and check the Spark's model is up** (or a cloud model he picks
   for OpenCode). If it is down: set **Now** to `waiting on Dan: the Spark's model for S15/S16`,
   commit that (Step 5's close, with `Phase-end: S15/S16 waiting on the Spark`), and go on to Task 15.
   Come back here when it is up. If it is still down at the phase end, the PR says S15 and S16 are
@@ -6724,7 +6728,7 @@ fi
 - [ ] **Step 3: S16, S04 in OpenCode, then in pi [Dan's OK for pi, which has no per-command
   allow-list]:** the same command with `s04`, then `--harness pi`. Expected: PASS or SKIP.
 
-- [ ] **Step 4: Record** the runs in `green-results.md`'s portability section, noting each
+- [x] **Step 4: Record** the runs in `green-results.md`'s portability section, noting each
   harness also read Dan's own global instructions; a failure goes back to the template
   (REFACTOR, as in Task 13 Step 3) and both harnesses re-run. Then
   `grep -nE '/(Users|home|private|var/folders)/' plan-driven-development/tests/green-results.md`
@@ -6746,7 +6750,7 @@ git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
 
-- [ ] **Step 5: Close (Tier 3).** A self-review: each run passed or skipped, or the gap is recorded.
+- [x] **Step 5: Close (Tier 3).** A self-review: each run passed or skipped, or the gap is recorded.
   **Now** → `Task 15: release, open.` Commit
   `plan-driven-development: close Task 14: portability in OpenCode and pi`:
 
@@ -6778,7 +6782,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 6: Push (standing OK).**
+- [x] **Step 6: Push (standing OK).**
 
   The skill's own leak check scans the range, with Dan's denylist. Push only through this block:
 

@@ -96,3 +96,23 @@ Twenty-two sessions in all. On each scenario's first run, 47 of the 57 checks pa
   the Q&A records that what to cut is still to be asked.
 - Carried to Task 17, since subagents don't go through `run.py`: its allow-lists for `make hooks` and
   a bare `git fetch`, and how a headless AskUserQuestion counts.
+
+## Portability (2026-11-10)
+
+S15 and S16: a scenario with only the project's `AGENTS.md` and no skill installed. Each harness also
+read Dan's own global instructions and config. Checks that need a tool log are SKIP, because these
+harnesses don't write Claude Code's log.
+
+| Scenario | Harness | Result |
+|---|---|---|
+| S16, S04 "where are we?" | OpenCode 2.2.5 | 3 passed, 2 skipped |
+| S15, S02 three tasks | OpenCode 2.2.5 | not finished: the 30-minute limit, with no commit made |
+| S16, S04 | pi 1.4.0 | waiting on the Spark |
+| S16, S04 | Hermes | waiting on the Spark; the runner can drive it, but it hasn't run |
+
+OpenCode ran on `spark-sglang/qwen3.8-27b-sglang`, the one Spark model that fit. The other Spark
+models refused for lack of room, and freeing it would evict models other jobs may be using. pi and
+Hermes are only configured for those.
+
+**Other harnesses:** Codex, Gemini CLI, Cursor and Copilot have no command-line tool on this machine.
+They would read a project's `AGENTS.md`, but that is untested.
