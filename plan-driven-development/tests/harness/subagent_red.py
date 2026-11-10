@@ -14,7 +14,8 @@ warms the folder's own uv cache as run.py does, outside any sandbox and before t
 the graders' offline test runs find pytest (a failed warm prints HARNESS FAIL and exits 3). It
 writes the turn prompts to WORK/prompt-1.md (and prompt-2.md) and prints `repo=`, `work=`,
 `denylist=`, `prompt=` (and `prompt2=`). A GREEN repo has real hooks, so a subagent's shell must
-set LEAKCHECK_DENYLIST to that fixture, or the hooks would read the owner's own list. The subagent is given the repo and the prompt; the caller then passes
+set LEAKCHECK_DENYLIST to that fixture, or the hooks would read the owner's own list. The subagent
+is given the repo and the prompt; the caller then passes
 its transcript to `grade`.
 
 `grade` maps each subagent transcript (a JSONL file under .../tasks/*.output) to WORK/log-N.jsonl,
