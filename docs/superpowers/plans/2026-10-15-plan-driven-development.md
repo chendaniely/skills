@@ -22,7 +22,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
 
-**Now:** Task 8: the hooks, open.
+**Now:** Task 9: the project templates, open.
 
 > **Order changed (Dan, 2026-10-16: "is this skill written up yet? i want to test it out"):**
 > after Task 5, run Task 6 (RED), then Tasks 11 and 12 (the skill text), then Dan tries the skill
@@ -4052,6 +4052,14 @@ fi
 
 ### Task 8: The four git hooks
 
+> **Built differently (`ed12c5b`, from this task's Tier 1 review):** the listings below are the
+> hooks as planned (`8e434dd`), and the files now differ from them. A new branch's scan excludes
+> only the remote being pushed to, because `--not --remotes` let another remote's commits through
+> unscanned. gitleaks ignores allow comments and sees merge diffs; an untracked `.gitleaksignore`
+> is refused; ref names are scanned; only `refs/heads/*` may be pushed; a refusal names the rule
+> and the file. Messages cite the template's real sections. `leakcheck.py` accepts
+> `--remotes=<name>`, and `--all` again (`460af29`), which kickoff's whole-history scan uses.
+
 **Tier:** 1 · **Scenarios:** S06 (the drill), S07, S08 (through the hook).
 
 **Files:**
@@ -4065,9 +4073,9 @@ fi
 - Produces: the hooks a project's `.githooks/` gets at kickoff; each refuses without gitleaks 8.19+
   or uv; `pre-push` refuses `main`, tags, deletions and force pushes and scans what goes out.
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: Write the failing tests,** `plan-driven-development/tests/test_hooks.py` (local-ai's
+- [x] **Step 1: Write the failing tests,** `plan-driven-development/tests/test_hooks.py` (local-ai's
   `spark/tests/test_hooks.py` at `e32096c`, ported, plus the new hooks, the commit-msg checks, the
   drill with its findings named, and Review Focus 1 and 4):
 
@@ -4355,7 +4363,7 @@ def test_a_green_fixture_gets_the_hooks_and_the_template(tmp_path):
     assert subprocess.run(["git", "config", "core.hooksPath"], cwd=repo, capture_output=True, text=True).stdout.strip() == ".githooks"
 ```
 
-- [ ] **Step 2: Run them; watch them fail.**
+- [x] **Step 2: Run them; watch them fail.**
 
 ```bash
 uv run --quiet --with pytest --with pyyaml pytest plan-driven-development/tests/test_hooks.py plan-driven-development/tests/test_green_fixture.py -q
@@ -4363,7 +4371,7 @@ uv run --quiet --with pytest --with pyyaml pytest plan-driven-development/tests/
 
   Expected: `23 failed`, each for want of `templates/githooks`.
 
-- [ ] **Step 3: Write the hooks.** `plan-driven-development/templates/githooks/pre-commit`:
+- [x] **Step 3: Write the hooks.** `plan-driven-development/templates/githooks/pre-commit`:
 
 ```bash
 #!/usr/bin/env bash
@@ -4494,11 +4502,11 @@ chmod 755 plan-driven-development/templates/githooks/pre-commit plan-driven-deve
 shellcheck plan-driven-development/templates/githooks/pre-commit plan-driven-development/templates/githooks/commit-msg plan-driven-development/templates/githooks/pre-push plan-driven-development/templates/githooks/pre-merge-commit
 ```
 
-- [ ] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: all pass
+- [x] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: all pass
   both times, 23 more than before this task. On a machine without gitleaks 8.19+ or uv the tool-dependent tests skip:
   install them, as the hooks require.
 
-- [ ] **Step 5: Prove the hooks read this machine's real denylist (Decision 11).** After Task 1's
+- [x] **Step 5: Prove the hooks read this machine's real denylist (Decision 11).** After Task 1's
   guard, a commit in a throwaway project must still run the leak check, which reads the denylist
   itself; the agent never names or reads it. In a shell where `LEAKCHECK_DENYLIST` is not set:
 
@@ -4521,7 +4529,7 @@ rm -rf "$d"
   Expected: `commit: exit=0`. `denylist not found` or a refusal from Dan's own guard is a stop: tell
   Dan.
 
-- [ ] **Step 6: Commit.** Write `.git/PDD_MSG`:
+- [x] **Step 6: Commit.** Write `.git/PDD_MSG`:
 
 ```text
 plan-driven-development: add the four git hooks
@@ -4549,7 +4557,7 @@ git ls-files -s plan-driven-development/templates/githooks
 
   Expected: mode `100755` for the four hooks.
 
-- [ ] **Step 7: Review, look forward, close (Tier 1).**
+- [x] **Step 7: Review, look forward, close (Tier 1).**
   1. **Mechanical:** `make test` and `make test-utc`; shellcheck clean.
   2. **Backward review:** `mattpocock-skills:code-review` from `$(cat .git/PDD_BASE)`, the spec
      being this task, the spec's *Security hooks*, *Pushing, PRs and modes* and *Commits*, and
@@ -4591,7 +4599,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 8: Push (standing OK).**
+- [x] **Step 8: Push (standing OK).**
 
   The skill's own leak check scans the range, with Dan's denylist. Push only through this block:
 
@@ -4935,7 +4943,7 @@ jobs:
           echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tar.gz" | sha256sum -c -
           tar -xzf gitleaks.tar.gz gitleaks
       - name: gitleaks over the whole history
-        run: ./gitleaks git --redact --no-banner -v --config .githooks/gitleaks.toml .
+        run: ./gitleaks git --redact --no-banner -v --ignore-gitleaks-allow --log-opts="--all --full-history -m" --config .githooks/gitleaks.toml .
       - name: the leak check over every tracked file
         env:
           CI: "true"

@@ -622,7 +622,8 @@ lose:
   - it scans file names, type changes and UTF-16/32 text, names binaries instead of scanning them,
     and prints 3-character excerpts only;
   - modes `--staged`, `--message <file>`, `--range <revs>` (failing closed when its base is
-    missing; a new ref is `<sha> --not --remotes`), `--tracked`, `--ci` (no denylist);
+    missing; a new ref is `<sha> --not --remotes=<the remote pushed to>`), `--tracked`, `--ci` (no
+    denylist);
   - the allow marker excuses a line from the generic patterns only, never from the denylist, and
     adding one is a stop;
   - the denylist is `$LEAKCHECK_DENYLIST` if set, else `~/.config/leakcheck/denylist`; it fails
@@ -858,3 +859,6 @@ The plan breaks these into 16 tasks, the last its small-project phase end.
   prompt gains a purpose, and `preferences.md` the same condition.
 - 2026-11-09: Dan's feedback from using the skill on `3d-models` (the Q&A): the repo's own pages
   move into a `Repo` menu on the right of the navbar (*Docs and the site*).
+- 2026-11-09: from Task 8's security review (`ed12c5b`): a new ref's scan excludes only the remote
+  being pushed to, because `--remotes` alone let another remote's commits through unscanned
+  (*Security hooks and the leak check*).

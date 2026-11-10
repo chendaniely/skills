@@ -99,10 +99,7 @@ Paths on the left are this skill's; on the right, the project's.
 3. **`make hooks`,** run and handled as the template's *Resume*, step 1, says; the denylist as its
    *Docs and security* says.
 4. **The leak drill,** which proves the hooks refuse what they should, before anything is
-   committed. **If `.githooks/pre-commit` is not in the project,** skip it, and tell Dan the drill
-   was skipped because the hooks aren't built yet: an accepted drill commit would become the root
-   commit, and removing it would take a history rewrite. **If it is,** in the project's root
-   folder, on the machine kickoff runs on:
+   committed. In the project's root folder, on the machine kickoff runs on:
 
    ```bash
    printf 'drill %s_%s\n' ghp aB3dE6gH9jK2mN5pQ8sT1vW4yZ7bC0eF3hJ6 > drill-token.md
@@ -123,16 +120,14 @@ Paths on the left are this skill's; on the right, the project's.
    `git status` shows no drill file and no commit was added. **A `STOP` line, or a refusal that
    names no finding, is a stop:** exit 1 alone is also what a missing gitleaks or uv gives. Tell
    Dan (*Stops*).
-5. **An existing repo:** the whole history, once. **If `scripts/leakcheck.py` is in the project,**
-   in the project's root folder:
+5. **An existing repo:** the whole history, once, in the project's root folder:
 
    ```bash
    gitleaks git --redact --no-banner .
    uv run --quiet --script scripts/leakcheck.py --range=--all
    ```
 
-   **If it is not,** run only the first line, and tell Dan the denylist scan didn't run. Expected:
-   `no leaks found`, then nothing. Any hit is a stop: its kind and `file:line` to Dan.
+   Expected: `no leaks found`, then nothing. Any hit is a stop: its kind and `file:line` to Dan.
 6. **The root commit on `main`** holds the root commit's files from the table and nothing else,
    committed as *Commits* gives it, subject
    `chore(repo): 🤖 add the leak guards, the Makefile and the agent templates`. Kickoff's commits
