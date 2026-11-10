@@ -93,6 +93,18 @@ class Escaping(unittest.TestCase):
         self.assertIn("[site](https://x.org)", out)
         self.assertIn("[top](#a)", out)
 
+    def test_remote_images_in_prose_do_not_load(self):
+        # Obsidian fetches a remote image as soon as the note opens, so text a chat picked up
+        # from a web page could carry a tracking pixel, or a URL with data in it, into the vault.
+        out = R.escape_prose("![a](https://img.example/p.png?d=1) and ![b](<http://img.example/q.png>)")
+        self.assertIn(r"\![a](https://img.example/p.png?d=1)", out)
+        self.assertIn(r"\![b](<http://img.example/q.png>)", out)
+
+    def test_links_other_than_the_web_are_neutralised(self):
+        out = R.escape_prose("[a](obsidian://open?vault=v) [b](file:///tmp/x) [c](javascript:void(0)) [d](<obsidian://x>)")
+        for inert in (r"\[a]", r"\[b]", r"\[c]", r"\[d]"):
+            self.assertIn(inert, out)
+
     def test_code_is_left_alone(self):
         text = "Use `[[x]]` inline\n```toml\n[[allow]]\n#comment <vg>\n```\nafter [[y]]"
         out = R.escape_prose(text)
@@ -298,6 +310,17 @@ class Turns(unittest.TestCase):
         r = self.region([a])
         self.assertNotIn("SECRET OTHER CHAT", r.region)
         self.assertIn("kept in the raw archive", r.region)
+
+    def test_a_url_from_a_tool_or_a_citation_stays_inside_its_link(self):
+        url = "https://kb.example/a) ![p](https://img.example/p.png"
+        a = msg("m1", ROOT, "assistant", "", "2026-10-15T16:00:00Z")
+        a["content"] = [
+            {"type": "tool_use", "id": "t1", "name": "web_search", "input": {"query": "q"}},
+            {"type": "tool_result", "tool_use_id": "t1", "content": [{"type": "knowledge", "title": "T", "url": url}]},
+            {"type": "text", "text": "Done.", "citations": [{"url": url, "title": "T"}]},
+        ]
+        r = self.region([a])
+        self.assertEqual(r.region.count("[T](https://kb.example/a%29%20![p]%28https://img.example/p.png)"), 2)
 
     def test_unclosed_fence_does_not_swallow_the_next_turn(self):
         msgs = [msg("m1", ROOT, "assistant", "```bash\nmdadm --detail", "2026-10-15T16:00:00Z"),

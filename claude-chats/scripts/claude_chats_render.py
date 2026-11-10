@@ -60,7 +60,11 @@ _INLINE_CODE = re.compile(r"(?<!`)(`+)(?!`).+?(?<!`)\1(?!`)")
 _TAG = re.compile(r"(?<=\s)#(?=[^\s#])")
 _TAG_START = re.compile(r"^#(?=[^\s#])")
 _HTML = re.compile(r"(?<!\\)<(?!https?://|mailto:)(?=[A-Za-z!/?])")
-_REL_LINK = re.compile(r"(?<!\\)(!?)\[(?=[^\]\n]*\]\((?![A-Za-z][A-Za-z0-9+.-]*:|#|<))")
+# Only web and mail links stay live in prose; a link to a note, a file or an app's URI scheme is
+# made inert. A web image does too, since Obsidian fetches it as soon as the note opens.
+_REL_LINK = re.compile(r"(?<!\\)(!?)\[(?=[^\]\n]*\]\((?!<?(?i:https?|mailto):|#))")
+_WEB_IMAGE = re.compile(r"(?<!\\)!(?=\[[^\]\n]*\]\(<?(?i:https?):)")
+_URL_UNSAFE = re.compile(r"[\s()<>\\]")
 _UNSAFE_NAME = re.compile(r'[/\\:*?"<>|#^\[\]]')
 _KEY = re.compile(r"^([^\s#:\-][^:]*):(?:\s|$)")
 _PLAIN_ITEM = re.compile(r"[A-Za-z0-9_/\-]+")
@@ -169,6 +173,7 @@ def open_fence(text: str) -> str | None:
 
 def _escape_segment(s: str, line_start: bool) -> str:
     s = s.replace("[[", r"\[\[")
+    s = _WEB_IMAGE.sub(r"\\!", s)
     s = _REL_LINK.sub(lambda m: m.group(1) + "\\[", s)
     s = _TAG.sub(r"\\#", s)
     if line_start:
@@ -254,6 +259,11 @@ def _link_text(s: str) -> str:
     return s.replace("[", "\\[").replace("]", "\\]").replace("\n", " ")
 
 
+def _link_url(url: str) -> str:
+    """A URL as a Markdown link's destination: nothing in it can close the link or open another."""
+    return _URL_UNSAFE.sub(lambda m: "".join(f"%{b:02X}" for b in m.group(0).encode("utf-8")), url)
+
+
 def _results(result: dict | None) -> list[dict]:
     if result is None:
         return []
@@ -321,7 +331,7 @@ def _tool_pair(use: dict | None, result: dict | None) -> str:
             url = str(item.get("url") or "")
             text = str(item.get("title") or url or (item.get("text") or "")[:200])
             if url.startswith(("http://", "https://")):
-                rows.append(f"- [{_link_text(text)}]({url})")
+                rows.append(f"- [{_link_text(text)}]({_link_url(url)})")
             elif text:
                 rows.append(f"- {escape_line(text)}")
         return callout("info", title, "\n".join(rows) or "_No results._")
@@ -352,7 +362,7 @@ def _citations(block: dict) -> str:
         title = str(c.get("title") or details.get("title") or url)
         if url.startswith(("http://", "https://")) and url not in seen:
             seen.add(url)
-            rows.append(f"- [{_link_text(title)}]({url})")
+            rows.append(f"- [{_link_text(title)}]({_link_url(url)})")
     return callout("quote", "Sources", "\n".join(rows)) if rows else ""
 
 
