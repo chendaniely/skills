@@ -22,7 +22,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
 
-**Now:** Task 9: the project templates, open.
+**Now:** Task 10: the docs templates, open.
 
 > **Order changed (Dan, 2026-10-16: "is this skill written up yet? i want to test it out"):**
 > after Task 5, run Task 6 (RED), then Tasks 11 and 12 (the skill text), then Dan tries the skill
@@ -4623,6 +4623,12 @@ fi
 
 ### Task 9: The project templates: CI, Dependabot, `.gitignore` and the `Makefile`
 
+> **Built differently (`558d3c5`, from this task's Tier 1 review):** the listings below are the
+> templates as planned (`961e622`), and the files now differ from them. `make hooks` requires all
+> four hooks to be executable before turning them on; `test-utc` exports `TZ`; Dependabot waits seven
+> days; setup-uv's cache is off; the filled test command sits in a block scalar; comments cite the
+> template's real headings; the `make hooks` tests from local-ai are ported.
+
 **Tier:** 1 (CI's leak jobs and the Pages permissions) · **Scenarios:** S17; Dan's Makefile
 preference.
 
@@ -4639,9 +4645,9 @@ preference.
   the `docs` target deleted in the same case; its targets `help`, `hooks`, `check`, `test`,
   `test-utc`, `lint`, `leaks`, `docs` (Task 11's template names them).
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: Write the failing test,** `plan-driven-development/tests/test_templates.py` (ported
+- [x] **Step 1: Write the failing test,** `plan-driven-development/tests/test_templates.py` (ported
   from local-ai's `spark/tests/test_workflows.py` at `e32096c`, plus the site, the deploy, the
   `.gitignore` patterns and the Makefile):
 
@@ -4883,12 +4889,12 @@ def test_docs_checks_wrappers_unresolved_links_and_internal_links(tmp_path):
         assert fragment in out, fragment
 ```
 
-- [ ] **Step 2: Run it; watch it fail.**
+- [x] **Step 2: Run it; watch it fail.**
   `uv run --quiet --with pytest --with pyyaml pytest plan-driven-development/tests/test_templates.py -q`.
   Expected: `21 failed`, each with `FileNotFoundError: … templates/ci.yml` (or `dependabot.yml`,
   `gitignore`, `Makefile`).
 
-- [ ] **Step 3: Write the templates.** `plan-driven-development/templates/ci.yml`:
+- [x] **Step 3: Write the templates.** `plan-driven-development/templates/ci.yml`:
 
 ```yaml
 name: ci
@@ -5143,10 +5149,10 @@ docs: ## Render the site; every doc has its wrapper, no unresolved link, every i
 	else echo "lychee isn't installed here: CI checks every internal link"; fi
 ```
 
-- [ ] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: all pass
+- [x] **Step 4: Run the tests; they pass.** `make test` and `make test-utc`. Expected: all pass
   both times, 21 more than before this task.
 
-- [ ] **Step 5: Run the Makefile on Linux too** (Ubuntu 24.04's GNU make 4.3), if Docker is up; if
+- [x] **Step 5: Run the Makefile on Linux too** (Ubuntu 24.04's GNU make 4.3), if Docker is up; if
   it isn't, record "Linux run pending" under `Phase-end:` in the closing commit:
 
 ```bash
@@ -5166,7 +5172,7 @@ make -f /src/Makefile
   Expected: `GNU Make 4.3`, the target list, the four `check` commands, `tests-ran` twice and
   `lint-ran`, `no wrapper for docs/superpowers/specs/x.md …`, and this repo's own target list.
 
-- [ ] **Step 6: Commit.** Write `.git/PDD_MSG`:
+- [x] **Step 6: Commit.** Write `.git/PDD_MSG`:
 
 ```text
 plan-driven-development: add the CI, Dependabot, .gitignore and Makefile templates
@@ -5190,7 +5196,7 @@ git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
 
-- [ ] **Step 7: Review, look forward, close (Tier 1).**
+- [x] **Step 7: Review, look forward, close (Tier 1).**
   1. **Mechanical:** `make test` and `make test-utc`; Step 5.
   2. **Backward review:** `mattpocock-skills:code-review` from `$(cat .git/PDD_BASE)`, the spec
      being this task, the spec's *Docs and the site* (deploy), *Security hooks* (CI) and local-ai's
@@ -5231,7 +5237,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 8: Push (standing OK).**
+- [x] **Step 8: Push (standing OK).**
 
   The skill's own leak check scans the range, with Dan's denylist. Push only through this block:
 

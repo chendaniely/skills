@@ -73,30 +73,9 @@ in phases, or to adopt this workflow in a repo that has none of it yet.
 5. **Show Dan each file kickoff writes** (in an existing repo, its diff) before writing it.
    `references/kickoff.md` lists what kickoff copies from this skill and where each file goes.
 
-**Not built yet (2026-11-09).** Of the files kickoff copies, `templates/AGENTS.md` and
-`templates/CLAUDE.md`, the three that go in `docs/agents/` (`issue-tracker.md`, `close-task.txt`,
-`wip.txt`), `templates/githooks/`, `scripts/commitmsg.py` and `scripts/leakcheck.py` exist so far.
-Until the rest does, a trial project runs like this:
-
-- **Its `Makefile` is written by hand**, with the targets `AGENTS.md` names. `hooks` checks the
-  denylist with `scripts/leakcheck.py --message /dev/null` and runs
-  `git config core.hooksPath .githooks`; `leaks` runs `gitleaks git --redact` over the history and
-  `scripts/leakcheck.py --tracked`; `check` runs the tests, the tests under `TZ=UTC`, and `leaks`.
-- **Its `.gitignore` is written by hand** (appended in an existing repo), standing in for
-  `templates/gitignore`. It lists all of: `*.pem`,
-  `*.key`, `*.crt`, `*.p12`, `*.pfx`, `id_rsa*`, `id_ecdsa*`, `id_ed25519*`, `*.kdbx`, `secrets.*`,
-  `*secret*.yml`, `*secret*.yaml`, `*credentials*.json`, `*.env`, `.env`, `.env.*`,
-  `.claude/settings.local.json`, `.mcp.local.json`, `.vscode/settings.json`, `*-inventory.txt`,
-  `ip-addr.txt`, `tailscale-status.txt`, `.superpowers/`, `website/_site/`, `website/.quarto/` and
-  `website/.render.log`.
-- **The plan's CI task writes `ci.yml` (running `make check`) and `dependabot.yml` by hand.** A
-  Quarto site's `ci.yml` also has the `site` and `pages` jobs, as *The checks* and *The deploy* in
-  [`references/docs-site.md`](references/docs-site.md) describe. With no Quarto site, the plan may
-  drop that task, and the local checks are the gate (`AGENTS.md`, *Each task's loop*, step 7).
-- **A Quarto site's files are written by hand** in `website/`, each as the table in
-  [`references/docs-site.md`](references/docs-site.md) describes it, since `templates/quarto/`
-  doesn't exist yet.
-- **Before the root commit,** kickoff tells Dan the project has no CI yet.
+**Not built yet (2026-11-09).** Of the files kickoff copies, only `templates/quarto/` doesn't exist
+yet. Until it does, a Quarto site's files are written by hand in `website/`, each as the table in
+[`references/docs-site.md`](references/docs-site.md) describes it.
 
 ## Planning
 
