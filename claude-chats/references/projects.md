@@ -13,7 +13,7 @@ and his records are at hand.
 their photos, its instructions and its file names, and only for a project listed in `allow`
 in the archive's `config.toml`.
 
-**1. Snippet.** `uv run scripts/claude_chats.py snippet --project '<name>'`.
+**1. Snippet.** `uv run "$S" snippet --project '<name>'`.
 
 If it refuses because the project isn't in `allow`, ask Dan, for that project: could chats
 here discuss a student, a therapy subject, or anyone he is forming a judgment about? Add the
@@ -29,6 +29,7 @@ returns at once. Then call `await window.__claudeProject.wait()` until `state` i
 | `state` | Then |
 |---|---|
 | `saved` | go on. `held` counts chats a hold rule kept out; never try to find out which |
+| `unchanged` | nothing has changed and no file was saved. Say so and stop, after saying how many chats are waiting to be processed |
 | `held` | the project's name matches a hold rule. Stop: "That project matches a hold rule, so nothing was saved." |
 | `auth` | ask Dan to sign in to claude.ai in Chrome, then run it again |
 | `failed` | report its error and stop |
@@ -36,19 +37,20 @@ returns at once. Then call `await window.__claudeProject.wait()` until `state` i
 `errors` lists chats that failed, by ID. They stay out of the file and the next run fetches
 them, so mention how many and carry on.
 
-**3. Ingest.** `uv run scripts/claude_chats.py ingest --wait 90`. Exit 66 means Chrome is
+**3. Ingest.** `uv run "$S" ingest --wait 90`. Exit 66 means Chrome is
 holding the file, as in `SKILL.md` step 3. Close the tab once ingest has it. Note whether
 ingest says this is the project's first sync.
 
-**4. If the job reported `more: true`,** the file reached its size limit. Repeat steps 2 and 3
-in a new tab until it doesn't. Chats already archived are skipped.
+**4. If the job reported `more: true`,** the file reached its size limit. Repeat steps 1 to 3
+in a new tab until it doesn't. The snippet is told what's already archived when it's
+generated, so it has to be a fresh one each time.
 
 **5. Render and summaries,** as in `SKILL.md` steps 4 and 5. A first sync can leave many notes
 waiting. Subagents may read notes and write summary files, and must never touch the browser.
 
-**6. Daily notes.** `uv run scripts/claude_chats.py daily` lists the links it would add, and
-`daily --apply` writes them under `## Log` in the note for each day Dan had each chat. Then
-add `render --apply`'s line to today's note, as in `SKILL.md` step 6.
+**6. Daily notes.** `uv run "$S" daily --project '<name>'` lists the links it would add, and
+the same command with `--apply` writes them under `## Log` in the note for each day Dan had
+each chat. Then add `render --apply`'s line to today's note, as in `SKILL.md` step 6.
 
 **7. Follow-ups.** On a project's first sync, add none: they stay in each summary's **Still
 open**, because many will be stale. On later syncs, follow `SKILL.md` step 7.
@@ -62,7 +64,7 @@ Only when Dan asks. Never start it on your own after a sync.
 
 The vault's `CLAUDE.md` names where a project's photos and the notes made from its chats go.
 
-**1. See what's waiting.** `uv run scripts/claude_chats.py queue --project '<name>'`. A chat
+**1. See what's waiting.** `uv run "$S" queue --project '<name>'`. A chat
 waits until it is stamped, and comes back if it gets a new reply.
 
 **2. Take a few chats at a time.** Read each chat and its photos, and sort the photos into
@@ -93,7 +95,7 @@ owns.
 with a link back to the chat.
 
 **6. Stamp each chat when it's done,** including one with nothing to log:
-`uv run scripts/claude_chats.py processed <id>`. If Dan stops partway, the rest stay waiting.
+`uv run "$S" processed <id>`. If Dan stops partway, the rest stay waiting.
 
 ## Common mistakes
 

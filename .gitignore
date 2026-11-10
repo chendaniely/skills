@@ -3,3 +3,6 @@ __pycache__/
 
 # Private guard copies, kept for Dan to review before anything is published.
 /guards/
+
+# Worktrees made by Claude Code's own worktree tool.
+/.claude/worktrees/
