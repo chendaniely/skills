@@ -53,6 +53,11 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 > how many tests each task adds. These fixes merge with the rest of this branch's work, not in a
 > PR of their own (Dan, the same day: "there's already a PR in the project. let's plan to merge
 > them all together"), so public `main` names the guard's files until that PR merges.
+>
+> **Merged after Task 10 (Dan, 2026-11-09: "i'd like to get all these things committed and
+> merged"):** the branch goes to `main` in a PR of its own, with GREEN not yet run. The isolation
+> task and Tasks 13 to 16 run on a new `plan-driven-development` branch cut from `main`. The Q&A
+> records the seven decisions.
 
 ## Global Constraints
 

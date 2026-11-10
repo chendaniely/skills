@@ -1129,3 +1129,22 @@ and moved towards the right side of the menu bar since it's not the main contnet
   Shorter messages to me". He didn't pick the recommended "Shorter plans", or less commit
   bookkeeping.
 
+## The decisions before the merge (2026-11-09)
+
+After Tasks 7 to 10, Dan asked: "what other thigns do you need me to decide? i'd like to get all
+these things committed and merged". Seven decisions, each with a recommendation. **Dan took all
+seven.**
+
+1. **When to merge:** now, in a PR that says GREEN hasn't run. The isolation task and Tasks 13 to 16
+   run on a new branch afterwards.
+2. **His uncommitted work:** `claude-chats` and `class-notes`, as two commits in that PR.
+3. **The two lines the leak check flagged:** replaced with generic values (`15699ce`).
+4. **Commit identities:** scanned, after a run with the real denylist found no match on this repo's.
+5. **Checksums for Quarto, lychee and setup-uv:** left for now, in `TODO.md`.
+6. **A tracked `.gitleaksignore`:** left, since it shows in the diff.
+7. **The spec's wording for a new branch's scan:** kept.
+
+**The push of `15699ce`.** The leak check refused it, because a patch shows the lines it deletes.
+Shown the two values, **Dan:** the address "seems to be a fake IP address", and the path "is fine as
+a path". So that stop was lifted for that commit: its deleted lines were left out of the leak
+check, and everything else went through as usual.
