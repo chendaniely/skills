@@ -1,7 +1,7 @@
 # __PROJECT__: the front door for every command, for agents and people alike. `make help` lists
 # the targets. Made from plan-driven-development's template, kept to GNU make 3.81 features so it
 # runs on macOS as well as Linux. Kickoff fills __TEST_COMMAND__ and __LINT_COMMAND__, and deletes
-# the docs target (and its .PHONY entry) when the docs are read on GitHub instead (AGENTS.md, Docs).
+# the docs target (and its .PHONY entry) when the docs are read on GitHub instead (AGENTS.md, Docs and security).
 # A command anyone will run more than once becomes a target here.
 
 SHELL := /bin/bash
@@ -17,6 +17,9 @@ hooks: ## Turn this clone's leak and commit-message hooks on, after checking the
 	@gitleaks git --help >/dev/null 2>&1 || { echo "this gitleaks has no 'git' command: the hooks need 8.19 or later"; exit 1; }
 	@command -v uv >/dev/null || { echo "install uv first"; exit 1; }
 	@$(LEAKCHECK) --message /dev/null || { echo "the denylist is missing or invalid: stop and tell Dan"; exit 1; }
+	@for hook in pre-commit commit-msg pre-push pre-merge-commit; do \
+	  [ -x ".githooks/$$hook" ] || { echo ".githooks/$$hook is missing or not executable: copy the hooks in first"; exit 1; }; \
+	done
 	git config core.hooksPath .githooks
 	@echo "hooks on for this clone"
 
@@ -26,7 +29,7 @@ test: ## Run the test suite
 	__TEST_COMMAND__
 
 test-utc: ## Run the test suite again under TZ=UTC, as CI does
-	TZ=UTC __TEST_COMMAND__
+	export TZ=UTC; __TEST_COMMAND__
 
 lint: ## Run the linters
 	__LINT_COMMAND__

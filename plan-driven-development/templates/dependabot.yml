@@ -10,5 +10,7 @@ updates:
       interval: weekly
       day: friday
     open-pull-requests-limit: 3
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: "ci(repo)"
