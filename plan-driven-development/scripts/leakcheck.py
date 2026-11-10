@@ -224,7 +224,7 @@ def tracked_texts(cwd: Path | None = None) -> list[tuple[str, str | None]]:
     return _texts(entries, cwd)
 
 
-_RANGE_FLAGS = frozenset({"--not", "--remotes"})
+_RANGE_FLAGS = frozenset({"--not", "--remotes", "--all"})
 _REMOTES_NAME = re.compile(r"--remotes=[A-Za-z0-9._/-]+")  # one named remote; no glob characters
 
 

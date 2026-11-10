@@ -543,6 +543,13 @@ def test_a_sha_not_remotes_range_still_works(tmp_path, monkeypatch):
     assert leakcheck.main(["--range", f"{sha} --not --remotes", "--denylist", str(denylist(tmp_path))]) == 1
 
 
+def test_kickoffs_whole_history_scan_still_works(tmp_path, monkeypatch):
+    # references/kickoff.md scans an existing repo's history with exactly this argument.
+    repo = leaking_repo(tmp_path)
+    monkeypatch.chdir(repo)
+    assert leakcheck.main(["--range=--all", "--denylist", str(denylist(tmp_path))]) == 1
+
+
 def test_a_named_remote_is_allowed_in_a_range_but_a_glob_is_not(tmp_path, monkeypatch):
     repo = leaking_repo(tmp_path)
     sha = git(repo, "rev-parse", "HEAD").stdout.strip()
