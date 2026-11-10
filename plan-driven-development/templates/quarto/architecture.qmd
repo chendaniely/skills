@@ -1,0 +1,21 @@
+---
+title: "Architecture"
+---
+
+Every diagram of the project lives on this page; other pages link here and never draw their own
+copy. Built parts are solid; planned parts are dashed and labelled with the phase that brings them.
+
+## Overview
+
+{{< include _overview.qmd >}}
+
+## How a request flows
+
+```{mermaid}
+flowchart LR
+  classDef planned stroke-dasharray: 5 5
+  person["a person"] --> entry["the entry point"]
+  entry --> work["the work it does"]
+  work --> data[("its data")]
+  entry -.-> later["a later path · Phase 2"]:::planned
+```

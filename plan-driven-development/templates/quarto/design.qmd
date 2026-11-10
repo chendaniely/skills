@@ -1,0 +1,9 @@
+---
+title: "Design"
+---
+
+The spec, the plans, the Q&A pages and the retros, as written in `docs/superpowers/`. Each page here
+shows one of those files through a wrapper; the files themselves are the source. A new plan, Q&A
+page or retro gets its wrapper and its line here in the commit that adds it.
+
+- [The spec](superpowers/specs/__SPEC__.md)
