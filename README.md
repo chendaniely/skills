@@ -21,7 +21,7 @@ My personal [Claude Code](https://code.claude.com/docs/en/skills) skills. Each f
 
 `preferences.md`, at this repo's root, holds my standing rules for every coding agent (#9 tracks moving it). `make help` lists this repo's commands: the skill's tests, the frontmatter check and the install.
 
-The vault skills assume an Obsidian-style markdown vault and read its `CLAUDE.md` for folder names. `catch-up`, `claude-chats` and `email-digest` are written for my own setup: `claude-chats` drives the vault's own `scripts/claude_chats.py` and a logged-in Chrome, and `email-digest` also needs my private `claude-cowork` repo.
+The vault skills assume an Obsidian-style markdown vault and read its `CLAUDE.md` for folder names. `catch-up`, `claude-chats` and `email-digest` are written for my own setup: `claude-chats` carries its own scripts and needs a logged-in Chrome, and `email-digest` also needs my private `claude-cowork` repo.
 
 ## Install
 

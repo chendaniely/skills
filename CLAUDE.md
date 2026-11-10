@@ -39,7 +39,7 @@ When a skill folder is renamed or moved, update all of these in the same sitting
   - `clothing-inventory` hard-codes this vault's `inventory/` paths and defers to `inventory/Inventory.md`.
   - `email-digest` gets its vault settings from claude-cowork's config.
   - Frontmatter changes wait for the vault's Phase 10 migration (see TODO.md).
-- **`claude-chats` and `capture-conversation` split claude.ai links.** `claude-chats` mirrors Dan's own chats by driving the vault's `scripts/claude_chats.py` (its `snippet`, `ingest`, `render`, `summary`, `queue`, `processed` and `daily` subcommands, and the one-file downloads they pass along), and its project flow hands photos to `ootd` and `clothing-inventory`. A change to those commands or their output must be matched in the skill, and the vault's script tests run with `uv run scripts/test_claude_chats_cli.py` from the vault root. `capture-conversation` defers those links to it and keeps someone else's share links, plus thinking notes on top of a mirrored chat.
+- **`claude-chats` and `capture-conversation` split claude.ai links.** `claude-chats` mirrors Dan's own chats with its own `scripts/claude_chats.py` (its `snippet`, `ingest`, `render`, `summary`, `queue`, `processed` and `daily` subcommands, and the one-file downloads they pass along), and its project flow hands photos to `ootd` and `clothing-inventory`. A change to those commands or their output must be matched in the skill, and its tests run with `make test-claude-chats`. `capture-conversation` defers those links to it and keeps someone else's share links, plus thinking notes on top of a mirrored chat.
 - **Inbox and transcripts:**
   - `catch-up` files `inbox/` notes, and `inbox/` is also where `ootd` looks for unlogged outfit photos.
   - Plaud transcripts reach the vault's `sources/transcripts/` through the vault's audio pipeline. `catch-up` never files them, and `capture-conversation` should link them instead of transcribing again (see TODO.md).
@@ -69,6 +69,7 @@ When a skill folder is renamed or moved, update all of these in the same sitting
     - The fixture lives under `/tmp` and doesn't survive a reboot, so rebuild it from the recipe first.
     - Running the grader leaves `ootd/tests/__pycache__/`, which `.gitignore` covers.
   - **`plan-driven-development`** has a pytest suite covering its scripts and the root setup script. Run it with `make test` (`make test-utc` for the same under UTC). Its `tests/harness/` drives sessions graded per scenario, and the RED and GREEN results are in `tests/`.
+  - **`claude-chats`** has tests for its scripts: `make test-claude-chats`.
   - **Other skills have no tests.** Re-read the diff against the rule it implements. For a description change, check that the trigger phrases still match how Dan asks.
   - **Install checks:** test `install.sh` without touching the real links by running `CLAUDE_SKILLS_DIR=<scratch dir> ./install.sh`. A skill is live when `ls -l ~/.claude/skills/` shows a link into this repo and the skill appears in a session's skill list.
 
