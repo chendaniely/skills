@@ -243,10 +243,11 @@ def _range_log(options: list[str], revs: str, cwd: Path | None) -> bytes:
 
 
 def range_text(revs: str, cwd: Path | None = None) -> str:
-    """Every commit's patch (with a merge's conflict resolutions) and whole message in `revs`,
+    """Every commit's patch (with a merge's conflict resolutions), author, committer and whole
+    message in `revs`,
     for example `abc123..def456` or `def456 --not --remotes`. A range git can't read (a missing
     base, a bad ref, an option) raises RangeUnreadable: the caller can't tell what is going out."""
-    return _text(_range_log(["-p", "--cc", "--format=%H%n%B"], revs, cwd))
+    return _text(_range_log(["-p", "--cc", "--format=%H%n%an%n%ae%n%cn%n%ce%n%B"], revs, cwd))
 
 
 def range_binaries(revs: str, cwd: Path | None = None) -> list[str]:

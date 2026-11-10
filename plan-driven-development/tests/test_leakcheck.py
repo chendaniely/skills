@@ -5,6 +5,7 @@ import re
 
 import pytest
 
+import os
 import subprocess
 import sys
 
@@ -541,6 +542,18 @@ def test_a_sha_not_remotes_range_still_works(tmp_path, monkeypatch):
     sha = git(repo, "rev-parse", "HEAD").stdout.strip()
     monkeypatch.chdir(repo)
     assert leakcheck.main(["--range", f"{sha} --not --remotes", "--denylist", str(denylist(tmp_path))]) == 1
+
+
+@pytest.mark.parametrize("variable", ["GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL"])
+def test_a_range_scans_who_wrote_each_commit(tmp_path, monkeypatch, capsys, variable):
+    repo = git_repo(tmp_path)
+    commit_file(repo, "a.md", "clean\n", "base")
+    (repo / "b.md").write_text("clean\n")
+    git(repo, "add", "b.md")
+    git(repo, "commit", "-q", "-m", "clean", env={**os.environ, variable: "secret-project"})
+    monkeypatch.chdir(repo)
+    assert leakcheck.main(["--range", "HEAD~1..HEAD", "--denylist", str(denylist(tmp_path))]) == 1
+    assert "secret-project" not in capsys.readouterr().err
 
 
 def test_kickoffs_whole_history_scan_still_works(tmp_path, monkeypatch):
