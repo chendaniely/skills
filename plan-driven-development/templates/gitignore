@@ -22,6 +22,8 @@ secrets.*
 *.env
 .env
 .env.*
+.envrc
+.pypirc
 
 # Local agent and editor state that can carry paths and tokens
 .claude/settings.local.json
