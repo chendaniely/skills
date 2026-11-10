@@ -22,7 +22,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
 
-**Now:** Task 15: release, open. Task 17 stays written and unrun: GREEN ran without it, as subagents.
+**Now:** Task 16: phase end, open. Task 17 stays written and unrun: GREEN ran without it, as subagents.
 
 > **Order changed (Dan, 2026-10-16: "is this skill written up yet? i want to test it out"):**
 > after Task 5, run Task 6 (RED), then Tasks 11 and 12 (the skill text), then Dan tries the skill
@@ -6818,16 +6818,16 @@ fi
 - Consumes: the finished skill; this repo's `Makefile` (Task 3).
 - Produces: the skill listed, documented and linked.
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: The marketplace.** In `.claude-plugin/marketplace.json`, the `coding` plugin's
+- [x] **Step 1: The marketplace.** In `.claude-plugin/marketplace.json`, the `coding` plugin's
   `skills` becomes `["./external-app-review", "./plan-driven-development"]` and its `description`
   becomes `"Coding-agent workflows: plan, build and commit a project in phases so the repo and its
   history always hold the full story; and an honest outside review of an application another model
   or agent built, after you have fixed it"`. Check it parses:
   `python3 -c "import json; json.load(open('.claude-plugin/marketplace.json'))"`.
 
-- [ ] **Step 2: The README.** A row after `external-app-review`'s:
+- [x] **Step 2: The README.** A row after `external-app-review`'s:
 
 ```markdown
 | [plan-driven-development](plan-driven-development/) | Coding | Plans a new project with you one question at a time, then builds it task by task with small commits, a backward and a forward review at every step, and docs kept true, so the repo and its history always say where things stand. |
@@ -6837,7 +6837,7 @@ fi
   every coding agent (#9 tracks moving it). `make help` lists this repo's commands: the skill's
   tests, the frontmatter check and the install. ``
 
-- [ ] **Step 3: This repo's `CLAUDE.md` [Dan's yes on the diff].** Under "How the skills fit
+- [x] **Step 3: This repo's `CLAUDE.md` [Dan's yes on the diff].** Under "How the skills fit
   together", **Standalone** gains: `` `plan-driven-development` writes into each new project (its
   templates and scripts are copied at kickoff) and is read every session through that project's
   `AGENTS.md`; `preferences.md` (this repo's root) is wired into each harness's global instructions,
@@ -6847,7 +6847,7 @@ fi
   (`tests/harness/`; RED and GREEN results in `tests/`). Other skills have no tests. `` Under
   **Editing a skill**, the frontmatter check gains: `` (`make check-skills` runs it.) ``
 
-- [ ] **Step 4: Validate every skill and link it:**
+- [x] **Step 4: Validate every skill and link it:**
 
 ```bash
 make check-skills
@@ -6858,7 +6858,7 @@ CLAUDE_SKILLS_DIR="$(mktemp -d)" make install | grep plan-driven-development
   prints `linked   plan-driven-development`. The real `make install` runs at the phase end, after
   the merge.
 
-- [ ] **Step 5: Commit.** Write `.git/PDD_MSG`:
+- [x] **Step 5: Commit.** Write `.git/PDD_MSG`:
 
 ```text
 plan-driven-development: list it in the marketplace, the README and CLAUDE.md
@@ -6878,7 +6878,7 @@ git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
 
-- [ ] **Step 6: Review, look forward, close (Tier 3).**
+- [x] **Step 6: Review, look forward, close (Tier 3).**
   1. **Mechanical:** Step 4; `make test`.
   2. **Backward review:** a self-review under Matt's two headings (Standards; Spec), the spec being
      this task and the spec's *Work outline* step 7.
@@ -6916,7 +6916,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 7: Push (standing OK).**
+- [x] **Step 7: Push (standing OK).**
 
   The skill's own leak check scans the range, with Dan's denylist. Push only through this block:
 
