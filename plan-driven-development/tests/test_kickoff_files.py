@@ -1,6 +1,5 @@
 """The files kickoff hands a project. AGENTS.md travels with the repo and is read by harnesses that
-never load this skill, so what it points at has to be in the project, and a file the skill doesn't
-have yet needs a stated way round."""
+never load this skill, so what it points at has to be in the project."""
 
 import re
 
@@ -50,14 +49,6 @@ def kickoff_sources() -> list[str]:
     return sources
 
 
-def not_built_label(source: str) -> str:
-    """What the *Not built yet* section calls a missing file: a template subfolder by its name."""
-    parts = source.split("/")
-    return parts[1] if parts[0] == "templates" and len(parts) > 2 else parts[-1]
-
-
-def test_each_file_kickoff_copies_exists_or_not_built_yet_says_what_to_do():
+def test_each_file_kickoff_copies_exists():
     assert kickoff_sources()
-    not_built = (SKILL / "SKILL.md").read_text().partition("**Not built yet")[2].partition("## Planning")[0]
-    missing = [source for source in kickoff_sources() if not (SKILL / source).exists()]
-    assert [source for source in missing if not_built_label(source) not in not_built] == []
+    assert [source for source in kickoff_sources() if not (SKILL / source).exists()] == []

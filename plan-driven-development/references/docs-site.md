@@ -94,6 +94,9 @@ clean up after a leak.
 
 ## The site task
 
+It adds the `site` and `pages` jobs to `ci.yml` once the wrappers exist, and adds `docs` to the
+`Makefile`'s `check` prerequisites.
+
 It closes on CI's render and link check, the `site` job green. Pages publishes only from `main`, so
 the live-URL check goes on the phase-end list, for right after the merge: the deployed site serves
 the new build ([`phase-end.md`](phase-end.md), step 9).

@@ -10,15 +10,16 @@ skill installed, then graded on the repo and the final answer.
                                    [--dry-run] [--timeout SECONDS]
 
 Dan names the model and checks the Spark's model is up first. A session starts only with `--dan-ok`
-(Dan's explicit go for this run); without it the runner stops with a HARNESS FAIL. Neither harness has
-a turn or budget cap, so each session has a timeout (default 30 minutes), and the child process gets
+(Dan's explicit go for this run); without it the runner stops with a HARNESS FAIL. None of the three harnesses has
+a budget cap (Hermes has only a 60-turn cap, and has not run yet),
+so each session has a timeout (default 30 minutes), and the child process gets
 a filtered environment (run.child_env: the basics, where uv's Pythons are, git without Dan's global
 and system config, and SPARK_API_KEY; none of Dan's tokens or uv settings). OpenCode gets the
 fixture's own deny-by-default `opencode.json` (V2's ordered `permissions` rules, the last match
 winning): no edits to its own config, `.opencode/`, `.githooks/` or `.git/` (apart from the
 commit-message files at `.git`'s top level that the fixture's plan writes), and no `-c`, `git
 config`, hooksPath or fsmonitor setting, `--no-verify` prefix or `-n` cluster on `git commit`.
-Neither harness has an OS sandbox: OpenCode's rules are its only guard, and agent-written code run
+None of the three has an OS sandbox: OpenCode's rules are its only guard, and agent-written code run
 by an allowed command (`make check`, pytest) runs as Dan with no filesystem or network limit. pi
 has no per-command allow-list, so a pi run happens only with Dan's OK, in the throwaway repo. OpenCode
 fails closed: a measured 2026-10-16 run showed OpenCode 2.0.25 ignoring a project `opencode.json`'s

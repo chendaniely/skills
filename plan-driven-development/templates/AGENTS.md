@@ -215,6 +215,7 @@ its list; diagrams never wait. Keep this table true, and extend it as files appe
 |---|---|
 | a name, flag, command or interface | every doc and later listing that names it (grep), the README included |
 | a part or a path: a service, port, account or link | the Architecture diagrams |
+| on a site project, a new `.md` under `docs/superpowers/` (a Q&A page, a retro) | its wrapper and its line on the Design page (the skill's `references/docs-site.md`) |
 | a task's state | the plan's boxes and Now; the spec's status line and scenario statuses |
 
 Never read or create the leak-check denylist: `make hooks` proves it exists and parses. A leak
