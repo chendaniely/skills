@@ -46,6 +46,7 @@ When a skill folder is renamed or moved, update all of these in the same sitting
 - **Standalone:** `capture-learning-moment` (writes to `$LEARNING_MOMENTS_DIR`, else `~/learning-moments/`), `creating-ultra-crew-guides` and `external-app-review` don't use the vault.
   - `external-app-review` writes into the reviewed app's own repo, and its two scripts need Playwright resolvable from that repo (or `NODE_PATH`) plus Google Chrome.
   - When that folder is a Quarto website (it has `_quarto.yml`), `capture-learning-moment` follows the site's own `CLAUDE.md` for the post folder and conventions. Dan's is the public `chendaniely/genai-learning-moments`, whose posts live in `posts/`.
+  - `plan-driven-development` writes into each new project (its templates and scripts are copied at kickoff) and is read every session through that project's `AGENTS.md`. `preferences.md` (this repo's root) is wired into each harness's global instructions, so moving it means updating those wirings (TODO.md, #9).
 - **`class-notes`** doesn't use the vault either: it works inside a course repository, which holds `prompt-notes.md` (the prompt, sent whole), `README-prompt.md` (student docs) and one folder per class session.
   - Class recordings reach course repos through `class-notes fetch`, separately from the vault's audio pipeline.
   - It uses the Plaud CLI (`@plaud-ai/cli`), which has its own login, not the Plaud MCP. After a CLI upgrade, run `fetch --verify` on an existing session (see `references/plaud.md`), since the CLI's text output is parsed with regexes.
@@ -67,7 +68,7 @@ When a skill folder is renamed or moved, update all of these in the same sitting
     - Re-run GREEN after any change to `ootd` or to `clothing-inventory`, which `ootd` runs as a sub-skill.
     - The fixture lives under `/tmp` and doesn't survive a reboot, so rebuild it from the recipe first.
     - Running the grader leaves `ootd/tests/__pycache__/`, which `.gitignore` covers.
-  - **`plan-driven-development`** has a pytest suite covering its scripts and the root setup script. Run it with `make test` (`make test-utc` for the same under UTC).
+  - **`plan-driven-development`** has a pytest suite covering its scripts and the root setup script. Run it with `make test` (`make test-utc` for the same under UTC). Its `tests/harness/` drives sessions graded per scenario, and the RED and GREEN results are in `tests/`.
   - **Other skills have no tests.** Re-read the diff against the rule it implements. For a description change, check that the trigger phrases still match how Dan asks.
   - **Install checks:** test `install.sh` without touching the real links by running `CLAUDE_SKILLS_DIR=<scratch dir> ./install.sh`. A skill is live when `ls -l ~/.claude/skills/` shows a link into this repo and the skill appears in a session's skill list.
 
