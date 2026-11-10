@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Leak guard, run on every push: scans everything going out, and refuses pushes to main, tags,
+# deletions and force pushes. It fails closed: a push whose contents it can't work out is refused.
+# Never bypass it with --no-verify (AGENTS.md, Security).
+set -euo pipefail
+root="$(git rev-parse --show-toplevel)"
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "leak guard: gitleaks is not installed, so this is refused (AGENTS.md, Security)." >&2
+  exit 1
+fi
+if ! gitleaks git --help >/dev/null 2>&1; then
+  echo "leak guard: this gitleaks has no 'git' command; it needs 8.19 or later (AGENTS.md, Security)." >&2
+  exit 1
+fi
+if ! command -v uv >/dev/null 2>&1; then
+  echo "leak guard: uv is not on this shell's PATH, so this is refused (AGENTS.md, Security)." >&2
+  exit 1
+fi
+zero="0000000000000000000000000000000000000000"
+scanned=0
+while read -r _local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/main)
+      echo "push guard: a push to main is refused; main changes only through a merged PR (AGENTS.md)." >&2
+      exit 1 ;;
+    refs/tags/*)
+      echo "push guard: a tag push is refused; tags are Dan's (AGENTS.md)." >&2
+      exit 1 ;;
+  esac
+  if [ "$local_sha" = "$zero" ]; then
+    echo "push guard: deleting $remote_ref is refused; deleting branches is Dan's (AGENTS.md)." >&2
+    exit 1
+  fi
+  if [ "$remote_sha" = "$zero" ]; then
+    revs="$local_sha --not --remotes"
+  else
+    if ! git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+      echo "push guard: the remote's $remote_ref is at a commit this clone doesn't have; fetch first. Refused." >&2
+      exit 1
+    fi
+    if ! git merge-base --is-ancestor "$remote_sha" "$local_sha"; then
+      echo "push guard: this push would rewrite $remote_ref (a force push), refused (AGENTS.md)." >&2
+      exit 1
+    fi
+    revs="$remote_sha..$local_sha"
+  fi
+  uv run --quiet --script "$root/scripts/leakcheck.py" --range "$revs" < /dev/null
+  gitleaks git --redact --no-banner --log-opts="$revs" --config "$root/.githooks/gitleaks.toml" "$root" < /dev/null
+  scanned=1
+done
+if [ "$scanned" = 1 ]; then
+  exec uv run --quiet --script "$root/scripts/leakcheck.py" --tracked < /dev/null
+fi
