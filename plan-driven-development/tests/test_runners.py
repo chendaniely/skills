@@ -680,3 +680,16 @@ def test_portability_needs_dans_go_and_opencode_must_prove_the_deny_rules(tmp_pa
         raise FileNotFoundError()
     monkeypatch.setattr(portability.subprocess, "run", missing)
     assert portability.opencode_honours_denies(tmp_path) is False
+
+
+def test_hermes_runs_one_capped_query_and_approves_nothing_by_itself():
+    cmd = portability.command("hermes", "some-model", "where are we?")
+    assert cmd[:2] == ["hermes", "chat"] and cmd[cmd.index("-q") + 1] == "where are we?"
+    assert "--oneshot" in cmd and cmd[cmd.index("-m") + 1] == "some-model"
+    assert int(cmd[cmd.index("--max-turns") + 1]) > 0
+    assert "--yolo" not in cmd
+
+
+def test_hermes_needs_dans_go_like_the_others(capsys):
+    assert portability.main(["s04", "--harness", "hermes", "--model", "m"]) == 3
+    assert "Dan's explicit go" in capsys.readouterr().out
