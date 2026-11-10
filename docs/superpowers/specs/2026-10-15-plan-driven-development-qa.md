@@ -1157,3 +1157,9 @@ his own global instructions; the skill works without it. Asked with selectable o
 account, run GREEN without it, or skip GREEN for now. **Dan:** "Skip GREEN for now". He gave no
 further reason. Task 17 stays written and unrun, the skill stays ungraded and out of the marketplace,
 and nothing was changed on his machine.
+
+## GREEN without a new account (2026-11-09)
+
+Dan asked: "can we continue with green without creating a new user?" Told yes, as subagents under his
+account like the first baselines, with what that can't show. Asked with selectable options: all 14
+on Sonnet, only the 10 that failed, or not yet. **Dan:** "All 14 on Sonnet" (the recommended option).

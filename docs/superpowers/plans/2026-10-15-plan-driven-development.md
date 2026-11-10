@@ -22,7 +22,7 @@ Pocock's skills 1.3.1, OpenCode 2.0.25 and pi 1.2.0 for the test runs.
 
 **Spec:** `docs/superpowers/specs/2026-10-15-plan-driven-development-design.md`
 
-**Now:** paused by Dan (2026-11-09: "Skip GREEN for now"). Task 17 is written and unrun, and is next when he comes back to this.
+**Now:** Task 14: portability, open. Task 17 stays written and unrun: GREEN ran without it, as subagents.
 
 > **Order changed (Dan, 2026-10-16: "is this skill written up yet? i want to test it out"):**
 > after Task 5, run Task 6 (RED), then Tasks 11 and 12 (the skill text), then Dan tries the skill
@@ -6526,6 +6526,11 @@ fi
 
 ### Task 13: GREEN and REFACTOR in Claude Code
 
+> **Run differently (Dan, 2026-11-09: "can we continue with green without creating a new user?", then
+> "All 14 on Sonnet"):** as subagents under his account, like Task 6, not through `run.py` as a separate
+> user, so Step 2's commands did not run. The results and what they can't show are in
+> `tests/green-results.md`. Step 4 wasn't needed: S05 loaded the right skills.
+>
 > **From Dan's trial (2026-11-09; the Q&A):** he wants fewer questions and shorter messages to him.
 > He didn't pick shorter plans or less commit bookkeeping. REFACTOR takes this on, `preferences.md`'s
 > asking rules included, since they set how many questions and re-shown lists he gets.
@@ -6558,12 +6563,12 @@ fi
 - Consumes: the skill (Tasks 11–12), the harness (Tasks 4–5).
 - Produces: a skill every scenario passes with.
 
-- [ ] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
+- [x] **Step 0: Record the base:** `git rev-parse HEAD > .git/PDD_BASE`.
 
-- [ ] **Step 1: The deterministic scenarios:** `make test` and `make test-utc`. Expected: all pass
+- [x] **Step 1: The deterministic scenarios:** `make test` and `make test-utc`. Expected: all pass
   both times (S06–S08, S17).
 
-- [ ] **Step 2: Run every behavioural scenario with the skill** (the same model as RED; the runner
+- [x] **Step 2: Run every behavioural scenario with the skill** (the same model as RED; the runner
   fails a GREEN run whose start-up event doesn't list `plan-driven-development`):
 
 ```bash
@@ -6578,7 +6583,7 @@ done
   Expected: every check PASS. A failed check is re-run once before it counts (a single run is not
   proof). A `HARNESS FAIL` is fixed in `run.py`, not in the skill.
 
-- [ ] **Step 3: REFACTOR each failure that repeats.** Read that session's final answer for the
+- [x] **Step 3: REFACTOR each failure that repeats.** Read that session's final answer for the
   rationalization; add its row to `SKILL.md`'s red-flags table, or tighten the rule in the file
   that states it (the template for every-session rules); re-run that scenario until it passes; then
   re-run every scenario whose rule lives in the same file. Each change is its own commit; write
@@ -6600,19 +6605,19 @@ git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
 
-- [ ] **Step 4: If S05 keeps loading Matt's `tdd` or `diagnosing-bugs` after a REFACTOR [Dan's
+- [x] **Step 4: If S05 keeps loading Matt's `tdd` or `diagnosing-bugs` after a REFACTOR [Dan's
   yes]:** the spec's fallback (Question 13, B). Propose to Dan deny rules
   `"Skill(mattpocock-skills:tdd)"` and `"Skill(mattpocock-skills:diagnosing-bugs)"` for
   `~/.claude/settings.json` (shown as a diff with the `update-config` skill), noting they also stop
   Dan typing those two skills; on his yes, apply them, confirm them in `/permissions`, add the same
   two rules to `run.py`'s `DISALLOWED` (a commit as in Step 3), and re-run S05.
 
-- [ ] **Step 5: Record** in `plan-driven-development/tests/green-results.md`: the plugin versions,
+- [x] **Step 5: Record** in `plan-driven-development/tests/green-results.md`: the plugin versions,
   and per scenario the run that passed (date, model), and each REFACTOR with its commit. Then
   `grep -nE '/(Users|home|private|var/folders)/' plan-driven-development/tests/green-results.md`
   prints nothing.
 
-- [ ] **Step 6: Commit.** Write `.git/PDD_MSG`:
+- [x] **Step 6: Commit.** Write `.git/PDD_MSG`:
 
 ```text
 plan-driven-development: record the GREEN results
@@ -6631,7 +6636,7 @@ git commit -F .git/PDD_MSG
 git log -1 --format='%(trailers)'
 ```
 
-- [ ] **Step 7: Review, look forward, close (Tier 2).**
+- [x] **Step 7: Review, look forward, close (Tier 2).**
   1. **Mechanical:** `make test`; Task 11's and Task 12's shape checks still pass after REFACTOR.
   2. **Backward review:** `mattpocock-skills:code-review` over the REFACTOR commits (from
      `$(cat .git/PDD_BASE)`), the spec being the spec sections whose rules changed: no REFACTOR may
@@ -6670,7 +6675,7 @@ done
 
   Expected: the trailers print the `Plan:` line; no `missing` line.
 
-- [ ] **Step 8: Push (standing OK).**
+- [x] **Step 8: Push (standing OK).**
 
   The skill's own leak check scans the range, with Dan's denylist. Push only through this block:
 

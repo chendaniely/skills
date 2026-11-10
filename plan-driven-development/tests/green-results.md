@@ -19,19 +19,21 @@ account, is written and unrun.
   loads it automatically. A subagent started elsewhere doesn't, which is why S05's first run never
   saw the project's rules.
 - **Versions:** Claude Code 2.1.316, superpowers 7.0.0, Matt Pocock's skills 1.3.1.
+- **The deterministic scenarios** (S06–S08, S17): `make test` and `make test-utc`, 339 passed each.
 
 ## What makes this less than a clean GREEN
 
 - **Dan's global instructions were loaded,** as they were for RED. This measures what the skill
   adds to his setup, like for like, not a bare model.
 - **Four scenarios can't show improvement.** S04, S11, S13 and S14 failed nothing in RED. Here they
-  only show the skill doesn't make those cases worse.
+  only show the skill doesn't make those cases worse. They weren't rewritten: Dan's ruling tied that
+  to the isolated runs, and this baseline is still Task 6's subagent RED.
 - **Not every scenario was re-run after REFACTOR.** The plan says to re-run every scenario whose
   rule lives in the changed file, and every rule lives in `templates/AGENTS.md`. S02 and S12 ran on
   the final text and S19 on the first change. The others ran before it. The change only stops a
-  session on a diverged branch, and none of their fixtures has one.
-- **Two pieces of the harness changed after RED:** S02's spec table and S19's Findings check, both
-  below.
+  session on a diverged branch, and only S12's fixture has a remote branch to diverge from.
+- **Parts of the harness changed after RED:** S02's spec table, so that row isn't strictly like for
+  like, and the Findings check in S19 and the one-question check in S01, all below.
 - **One passing run per scenario.** A pass is one sample.
 - **`run.py`'s start-up checks don't apply.** A subagent has no start-up event to check, and the
   grader's `git` calls still run as Dan (the Critical Task 5 left open by his decision).
@@ -86,8 +88,11 @@ Twenty-two sessions in all. On each scenario's first run, 47 of the 57 checks pa
 | `4ca7aea` | `subagent_red.py prepare` takes a stage, and prints the fixture denylist's path |
 | `89a50bd` | S19's Findings check accepts a miss the builder fixed and recorded as drift |
 | `31dcf5c` | S02's spec table matches its plan |
+| `3b71e92` | S01's one-question check looks only at a question presented at the start of a line |
 
 ## Not done
 
-Task 13's head says REFACTOR takes on Dan's "fewer questions and shorter messages". It needs him:
-the Q&A records that what to cut is still to be asked.
+- Task 13's head says REFACTOR takes on Dan's "fewer questions and shorter messages". It needs him:
+  the Q&A records that what to cut is still to be asked.
+- Carried to Task 17, since subagents don't go through `run.py`: its allow-lists for `make hooks` and
+  a bare `git fetch`, and how a headless AskUserQuestion counts.
