@@ -62,11 +62,17 @@ Run it from the course repo (or pass `--repo`). `<command> --help` lists every o
    them to `materials.md`: their text and code from the source, each heading linked to
    its published section. The model uses them only if the course prompt describes
    `<course-materials>`.
-4. `python3 $S generate --only <folder>` in the background (`main` × `opus`, a few
-   minutes). Add `--prompt` or `--model` only when Dan asks.
-5. Report each file written, and each notes file's name, line count and model. Suggest a
-   commit message such as `2026-09-17 lecture: transcript, Plaud notes, class notes`.
-   Don't commit or push.
+4. Start every notes run at once, each in its own background command:
+   - `python3 $S generate --only <folder>` (`main` × `opus`, a few minutes). Add
+     `--prompt` or `--model` only when Dan asks.
+   - Each of Dan's local models that is loaded, all at once, run by hand as
+     [references/local-models.md](references/local-models.md) says.
+
+   The step is done when every run has finished or failed, and each local model has
+   either written notes or been reported as skipped, with the check it failed.
+5. Report each file written, each notes file's name, line count and model, and each
+   skipped local model with its reason. Suggest a commit message such as
+   `2026-09-17 lecture: transcript, Plaud notes, class notes`. Don't commit or push.
 
 ## Regenerate and compare
 
@@ -80,13 +86,16 @@ combination runs.
 | The prompt was edited | `generate --force`, or `--force --only <folder>` for one session |
 | A log was added to a session later | `generate --force --only <folder>` |
 | A variant `prompt-notes-<name>.md` | `generate --prompt <name>`; `--prompt all` for every variant |
-| Other models too | `--model opus --model sonnet`. Non-Claude names go to the local backend, a placeholder until the DGX Spark is reachable |
+| Other models too | `--model opus --model sonnet`. Non-Claude names go to the local backend, still a placeholder: for a local model (the DGX Spark's, say), follow [references/local-models.md](references/local-models.md) |
 | Check first | `--dry-run` |
 | Notes render as one run-on block | `tidy --check` lists them; `tidy` fixes them. `fetch` and `generate` already tidy what they write |
 
 A plain run never overwrites: it lists stale notes (older prompt text, or fewer inputs
 than the folder now holds) and suggests `--force`. Notes from an older model stay beside
 the new ones, because the filename carries the model that ran.
+
+Rebuilding a session's notes rebuilds its local notes too: run the loaded local models
+alongside, as in step 4 of [Add a session](#add-a-session-from-a-share-link).
 
 ## Set up a course
 
@@ -110,3 +119,6 @@ targets.
 - [references/plaud.md](references/plaud.md): how `fetch` resolves a link, the formats,
   failure modes, and checking after a Plaud CLI upgrade.
 - [references/init.md](references/init.md): setting up a course repository.
+- [references/local-models.md](references/local-models.md): Dan's local models, how to
+  tell which are loaded, and running them in parallel by hand until `run_local()` is
+  built.
