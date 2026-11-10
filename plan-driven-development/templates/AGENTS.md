@@ -25,7 +25,7 @@ restart, re-read the repo before acting, in this order; a summary drops details,
 3. **git:** `git fetch` (if it fails, say so in one line); the active branch, the newest non-`main`
    one in `git for-each-ref --sort=-committerdate refs/heads`, matching the newest `Plan:` trailer;
    `git rev-list --left-right --count origin/<branch>...HEAD`, upstream set or not (behind, then
-   ahead); worktrees, stashes, a merge or rebase stopped halfway. **Two counts above zero is a
+   ahead; no such ref, nothing to compare); worktrees, stashes, a merge or rebase stopped halfway. **Two counts above zero is a
    diverged branch: stop here, before building anything** (*Stops*).
 4. **GitHub:** the phase PR; CI since the branch's last green run.
 5. **`docs/superpowers/`:** the spec's status lines; the plan's Now and boxes, Phase end's included.

@@ -278,7 +278,7 @@ def s01(work: Path) -> list[Check]:
         Check("every question listed with its count",
               len(re.findall(r"^\s*\d+[.)]\s", first, re.MULTILINE)) >= 2
               and text_has(first, r"\b(\d+|two|three|four|five|six|seven|eight|nine|ten)\s+questions\b|\bof \d+\b")),
-        Check("only the first presented in full", not text_has(first, r"\bquestion 2 of \d+\b")),
+        Check("only the first presented in full", not text_has(first, r"^\W*question 2 of \d+\b")),
         Check("outcomes A, B and C", all(text_has(first, rf"(^|\W){x}[:.)]") for x in "ABC")),
         Check("a recommendation", text_has(first, r"recommend|➡️")),
         Check("a self-review of the recommendation", text_has(first, r"self-review")),

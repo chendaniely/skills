@@ -124,6 +124,9 @@ def test_s01(tmp_path):
     # "2 of 5" in the list is a count, not question 2 presented in full
     log(work, 1, good.replace("2. Visibility", "2. Visibility (2 of 5)"))
     assert results("s01", work)["only the first presented in full"]
+    # nor is its own note about what comes next
+    log(work, 1, good + "\n\nNext steps:\n2. Show the list again, then Question 2 of 5.")
+    assert results("s01", work)["only the first presented in full"]
 
 
 def finish_s02(repo: Path, good: bool) -> None:
