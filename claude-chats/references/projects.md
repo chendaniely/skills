@@ -20,7 +20,8 @@ here discuss a student, a therapy subject, or anyone he is forming a judgment ab
 entry, with today's date as its `ack`, only on a clear no. Never open a chat before that.
 
 **2. Fetch, in the main session only,** in a fresh tab on `https://claude.ai/robots.txt`.
-Never use one of Dan's tabs, and never hand the browser to a subagent.
+Never use one of Dan's tabs, and never hand the browser to a subagent. Check that it's Google
+Chrome before running anything, as in `SKILL.md` step 2; never Brave.
 
 Run the snippet's output whole with `javascript_tool`. It starts a job in the page and
 returns at once. Then call `await window.__claudeProject.wait()` until `state` is no longer
