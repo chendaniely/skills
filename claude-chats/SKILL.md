@@ -45,8 +45,13 @@ output on whole; never edit or retype it.
 
 - `tabs_context_mcp` (createIfEmpty), then `tabs_create_mcp` for a fresh tab. Never use
   one of Dan's tabs.
-- `navigate` that tab to `https://claude.ai/robots.txt`, then `javascript_tool` with the
-  snippet's output.
+- `navigate` that tab to `https://claude.ai/robots.txt`.
+- **Google Chrome only, never Brave.** Dan keeps Brave for himself, and both have the
+  extension. Run `(navigator.userAgentData?.brands || []).map(b => b.brand)` with
+  `javascript_tool`, and go on only if it lists `Google Chrome`. If it lists `Brave`, close
+  the tab and get Chrome connected (`list_connected_browsers` and `select_browser`, or
+  `switch_browser` with Dan clicking Connect in Chrome), then start again in a new tab.
+- `javascript_tool` with the snippet's output.
 - Next link: a new tab. Chrome asks before a page starts a second automatic download.
 - Close each tab only once step 3 has its file: a download Chrome is holding lives in
   that tab, and closing it loses the download.
@@ -161,6 +166,7 @@ Use the same steps for "re-sync <link>", or for a link to a chat that's already 
 | Reading the code to work out the flow first | The steps above are the flow. `--help` lists the flags |
 | Running the snippet again after a timeout | The page is still saving the file; go to step 3 |
 | Two links fetched in one tab | A new tab for each link |
+| Running the snippet in whichever browser is connected | Check it's Google Chrome first (step 2); never Brave |
 | Summarizing from the first screen of a long note | Read it all |
 | Linking notes that might exist | Search first; link only what's there |
 | Linking the chat only from today's note | Also link it from each day Dan had it |
