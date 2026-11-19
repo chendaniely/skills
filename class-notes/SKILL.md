@@ -31,7 +31,7 @@ Run it from the course repo (or pass `--repo`). `<command> --help` lists every o
 | `notes-plaud.md` | `fetch`: Plaud's own AI note |
 | `history.txt` / `history.R` | Dan, by hand (optional): shell or R command history |
 | `terminal.txt` / `*console*.txt` | Dan, by hand (optional): terminal or R console capture |
-| `materials.md` | by hand (optional): the course readings the session used, sent as `<course-materials>` |
+| `materials.md` | by hand (optional): a list of the session's links, then the course readings it used, sent as `<course-materials>` |
 | `notes-class-<variant>--<model>.md` | `generate`: one per prompt variant × the model that actually ran |
 
 ## Add a session from a share link
@@ -59,9 +59,12 @@ Run it from the course repo (or pass `--repo`). `<command> --help` lists every o
      later, run `python3 $S fetch --folder <that folder>`: it reads the link from
      `plaud.md`, so the original flags aren't needed.
 3. When Dan names course readings the class worked from (a textbook chapter, say), write
-   them to `materials.md`: their text and code from the source, each heading linked to
-   its published section. The model uses them only if the course prompt describes
-   `<course-materials>`.
+   them to `materials.md`. Open it with a `## Links` list of every URL for the session:
+   each reading's page, and the class's demo repository with its issues, pull requests
+   and files. Students open the file to find and click those, and the full text below
+   them reads like notes. Then give the readings' text and code from the source, each
+   heading linked to its published section. The model uses them only if the course
+   prompt describes `<course-materials>`.
 4. Start every notes run at once, each in its own background command:
    - `python3 $S generate --only <folder>` (`main` × `opus`, a few minutes). Add
      `--prompt` or `--model` only when Dan asks.
