@@ -32,7 +32,8 @@ as `-lecture` or `-lab` when there were two classes that day:
 | `plaud.md` | share link to the recording |
 | `transcript-plaud.md` | the transcript: machine-generated, lightly cleaned up by Plaud ← input |
 {{LOG_ROWS}}
-| `materials.md` | every link for the session in a list at the top, then the course readings it used, such as a textbook chapter ← input, optional |
+| `materials.md` | every link for the session in a list at the top, then the course readings it used, such as a textbook chapter; readings the class didn't reach are listed last, as links only ← input, optional |
+| `materials-next-class.md` | the text of readings the class didn't reach, kept for the next session; never sent to the model |
 | `notes-plaud.md` | Plaud's own AI notes — the baseline to beat |
 | `notes-class-main--<model>.md` | what `prompt-notes.md` produced, and which model wrote it ← output |
 

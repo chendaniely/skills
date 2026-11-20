@@ -32,6 +32,7 @@ Run it from the course repo (or pass `--repo`). `<command> --help` lists every o
 | `history.txt` / `history.R` | Dan, by hand (optional): shell or R command history |
 | `terminal.txt` / `*console*.txt` | Dan, by hand (optional): terminal or R console capture |
 | `materials.md` | by hand (optional): a list of the session's links, then the course readings it used, sent as `<course-materials>` |
+| `materials-next-class.md` | by hand (optional): the text of readings the class didn't reach; never sent |
 | `notes-class-<variant>--<model>.md` | `generate`: one per prompt variant × the model that actually ran |
 
 ## Add a session from a share link
@@ -64,7 +65,11 @@ Run it from the course repo (or pass `--repo`). `<command> --help` lists every o
    and files. Students open the file to find and click those, and the full text below
    them reads like notes. Then give the readings' text and code from the source, each
    heading linked to its published section. The model uses them only if the course
-   prompt describes `<course-materials>`.
+   prompt describes `<course-materials>`. When the class didn't reach some of them, list
+   those last in the links under **Not reached in class**, titles and links only, and
+   move their text to `materials-next-class.md` beside it, which is never sent: a model
+   given the text can teach it as class content. The next session's `materials.md`
+   starts from that file.
 4. Start every notes run at once, each in its own background command:
    - `python3 $S generate --only <folder>` (`main` × `opus`, a few minutes). Add
      `--prompt` or `--model` only when Dan asks.
