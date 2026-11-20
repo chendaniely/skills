@@ -74,6 +74,7 @@ Some skills use Dan's local-AI stack, [local-ai](https://github.com/chendaniely/
     - Running the grader leaves `ootd/tests/__pycache__/`, which `.gitignore` covers.
   - **`plan-driven-development`** has a pytest suite covering its scripts and the root setup script. Run it with `make test` (`make test-utc` for the same under UTC). Its `tests/harness/` drives sessions graded per scenario, and the RED and GREEN results are in `tests/`.
   - **`claude-chats`** has tests for its scripts: `make test-claude-chats`.
+  - **`class-notes`** has tests for the date line the generator writes: `make test-class-notes`.
   - **Other skills have no tests.** Re-read the diff against the rule it implements. For a description change, check that the trigger phrases still match how Dan asks.
   - **Install checks:** test `install.sh` without touching the real links by running `CLAUDE_SKILLS_DIR=<scratch dir> ./install.sh`. A skill is live when `ls -l ~/.claude/skills/` shows a link into this repo and the skill appears in a session's skill list.
 

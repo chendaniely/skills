@@ -3,7 +3,7 @@
 
 PYTEST := uv run --quiet --with pytest --with pyyaml pytest plan-driven-development/tests -q
 .DEFAULT_GOAL := help
-.PHONY: help test test-utc test-claude-chats check-skills install setup setup-check sync-guards
+.PHONY: help test test-utc test-claude-chats test-class-notes check-skills install setup setup-check sync-guards
 
 # The private config repo that holds the secrets guard. No default: pass it.
 CLAUDE_CONFIG ?=
@@ -19,6 +19,9 @@ test-utc: ## The same tests under TZ=UTC, as CI would run them
 
 test-claude-chats: ## Run claude-chats' tests: its archive, renderer and command line
 	@for t in archive render cli; do uv run claude-chats/tests/test_claude_chats_$$t.py || exit 1; done
+
+test-class-notes: ## Run class-notes' tests: the date stamp
+	uv run --quiet --with pytest pytest class-notes/tests -q
 
 check-skills: ## Check every skill's frontmatter (name = folder, description <= 1024) and line count
 	@for f in */SKILL.md; do uv run -q --with pyyaml python -c "import yaml,re,sys; p=sys.argv[1]; t=open(p).read(); fm=yaml.safe_load(re.match(r'^---\n(.*?)\n---\n',t,re.S).group(1)); assert fm['name']==p.split('/')[0], p+': name != folder'; assert len(fm['description'])<=1024, p+': description too long'; print(fm['name'], len(fm['description']), t.count(chr(10)), 'lines')" "$$f" || exit 1; done

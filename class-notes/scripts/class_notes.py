@@ -364,6 +364,36 @@ MD_QUOTE = re.compile(r"^ {0,3}>")
 MD_TABLE = re.compile(r"^\s*\|")
 MD_ITEM = re.compile(r"^ {0,3}(?:[-*+]|\d{1,9}[.)])(?:\s|$)")
 FOOTER_LINE = re.compile(r"^(?:- )?(?:%s): " % "|".join(re.escape(k) for k in FOOTER_KEYS))
+MODEL_DATE_LINE = re.compile(r"^\**Date( Time| and time)?\**:", re.I)
+
+
+def session_date(folder):
+    """The YYYY-MM-DD a session folder's name starts with (`fetch` names them that way), or None."""
+    m = re.match(r"\d{4}-\d{2}-\d{2}", Path(folder).name)
+    return m.group(0) if m else None
+
+
+def stamp_date(text, date):
+    """Write the notes' date line from the session, not from the model.
+
+    A model asked for a date and time fills in what it can't know (one invented a 14:00
+    start), so every date line it wrote above the first `## ` heading goes, and, when the
+    session's date is known, `Date: <date>` follows the `# ` title (or opens the text when
+    there is none). Lines from the first `## ` on, a due date say, are left alone.
+    """
+    lines = text.split("\n")
+    first_section = next((i for i, line in enumerate(lines) if line.startswith("## ")), len(lines))
+    head = [line for line in lines[:first_section] if not MODEL_DATE_LINE.match(line.strip())]
+    rest = lines[first_section:]
+    if date:
+        stamp = ["Date: %s" % date, ""]
+        title = next((i for i, line in enumerate(head) if line.startswith("# ")), None)
+        if title is None:
+            head = stamp + head
+        else:
+            head = head[:title + 1] + [""] + stamp + head[title + 1:]
+    head = re.sub(r"\n{3,}", "\n\n", "\n".join(head)).split("\n")
+    return "\n".join(head + rest)
 
 
 def tidy_markdown(text, section_titles=()):
@@ -646,8 +676,10 @@ def generate_one(session, prompt, model, args, today, counts):
         "- inputs: %s" % session.inputs,
         "- generated: %s" % today,
     ])
-    # Models write Markdown that mostly renders, but not always: the `Date Time:` and
-    # `Instructor:` lines, for one, run together without a blank line between them.
+    # The date comes from the session folder, never the model, which invents a time it
+    # can't know. Models write Markdown that mostly renders, but not always: header lines
+    # such as `Instructor:` run together without a blank line between them.
+    body = stamp_date(body, session_date(session.folder))
     document = tidy_markdown(body + "\n\n---\n\n" + footer)
     write_atomic(out, document)
     say("            ok -> %s (%d lines, %s)" % (out.name, document.count("\n"), resolved))

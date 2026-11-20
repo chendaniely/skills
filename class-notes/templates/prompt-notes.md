@@ -33,7 +33,6 @@ the inputs give you nothing real for — never emit a placeholder.
 
     # <Short title naming the session's main topic>
 
-    Date Time: <YYYY-MM-DD HH:MM:SS, if stated or inferable; otherwise omit this line>
     Location: <only if actually stated; otherwise omit this line>
     Instructor: <speaker who is clearly teaching>
 
@@ -166,4 +165,5 @@ Output **only** the Markdown document. No preamble, no "Here are the notes", no
 commentary afterwards, and do not wrap the whole document in a code fence.
 
 Do **not** write a provenance footer or a trailing `---` separator. The generator
-appends that automatically.
+appends that automatically. Do not write a date line either: the generator adds the
+session's date under the title.
