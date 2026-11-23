@@ -91,3 +91,79 @@ def test_where(tmp_path, capsys):
     assert capsys.readouterr().out == PUBLIC + "/" + SESSION + "\n"
     cn.main(["where", "--repo", str(root)])
     assert capsys.readouterr().out == PUBLIC + "\n"
+
+
+# --------------------------------------------------------------- writing (generate, fetch, tidy)
+
+
+class FakeClaude:
+    def __init__(self):
+        self.calls = 0
+
+    def __call__(self, message, model):
+        self.calls += 1
+        return "# T\n\nbody\n", "claude-opus-5-5", None
+
+
+@pytest.fixture
+def fake_claude(monkeypatch):
+    fake = FakeClaude()
+    monkeypatch.setitem(cn.BACKENDS, "claude", fake)
+    return fake
+
+
+@pytest.fixture
+def fake_plaud(monkeypatch):
+    info = {"id": "x_" + "0" * 32, "name": "L", "start_at": "2026-11-24T12:00:00Z",
+            "transcript": "available", "summary": "available"}
+    monkeypatch.setattr(cn, "resolve_recording", lambda url: info)
+    monkeypatch.setattr(cn, "fetch_transcript", lambda file_id: "[0:00 - 0:05] Speaker 1: hi\n")
+    monkeypatch.setattr(cn, "fetch_summary", lambda file_id, name: "## Summary\n\nx\n")
+
+
+def test_generate_writes_public(tmp_path, fake_claude):
+    root, priv, pub = course(tmp_path)
+    assert cn.main(["generate", "--repo", str(root), "--only", SESSION]) == 0
+    out = pub / "notes-class-main--claude-opus-5-5.md"
+    assert out.is_file() and not list(priv.glob("notes-class-*"))
+    assert "- inputs: transcript-plaud.md, terminal.txt, materials.md" in out.read_text()
+
+
+def test_generate_creates_missing_public_folder(tmp_path, fake_claude):
+    root, priv, pub = course(tmp_path)
+    shutil.rmtree(pub)
+    cn.main(["generate", "--repo", str(root), "--only", SESSION])
+    assert (pub / "notes-class-main--claude-opus-5-5.md").is_file()
+
+
+def test_generate_skips_current_in_public(tmp_path, fake_claude):
+    root, _, pub = course(tmp_path)
+    prompt = cn.select_prompts(root, [], None, None)[0]
+    (pub / "notes-class-main--claude-opus-5-5.md").write_text(
+        "# T\n\n---\n\n- prompt-hash: %s\n- model: claude-opus-5-5 (requested: opus)\n"
+        "- inputs: transcript-plaud.md, terminal.txt, materials.md\n" % prompt.hash)
+    cn.main(["generate", "--repo", str(root), "--only", SESSION])
+    assert fake_claude.calls == 0
+
+
+def test_no_config_writes_beside_transcript(tmp_path, fake_claude):
+    root, priv, _ = course(tmp_path, config=False)
+    cn.main(["generate", "--repo", str(root), "--only", SESSION])
+    assert (priv / "notes-class-main--claude-opus-5-5.md").is_file()
+
+
+def test_fetch_splits_files(tmp_path, fake_plaud):
+    root, _, _ = course(tmp_path)
+    assert cn.main(["fetch", "https://web.plaud.ai/s/pub_y", "--repo", str(root),
+                    "--suffix", "lecture"]) == 0
+    priv2 = root / "section-02" / "2026-11-24-lecture"
+    pub2 = root / PUBLIC / "section-02" / "2026-11-24-lecture"
+    assert sorted(p.name for p in priv2.iterdir()) == ["plaud.md", "transcript-plaud.md"]
+    assert [p.name for p in pub2.iterdir()] == ["notes-plaud.md"]
+
+
+def test_tidy_finds_public_notes(tmp_path, capsys):
+    root, _, pub = course(tmp_path)
+    (pub / "notes-class-main--m.md").write_text("# T\nInstructor: X\n## A\ntext\n")
+    assert cn.main(["tidy", "--check", "--repo", str(root), "--only", SESSION]) == 1
+    assert PUBLIC + "/" + SESSION + "/notes-class-main--m.md" in capsys.readouterr().out

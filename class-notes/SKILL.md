@@ -18,22 +18,30 @@ python3 $S fetch <share link>      # Plaud -> session folder
 python3 $S generate                # prompt x model -> notes
 python3 $S payload --only <folder> # the exact message, for any other tool
 python3 $S tidy --check            # notes whose Markdown won't render properly
+python3 $S where --only <folder>   # where a session's public files go (class-notes.ini)
 ```
 
 Run it from the course repo (or pass `--repo`). `<command> --help` lists every option.
 
 ## Session folder
 
-| File | Written by |
-|---|---|
-| `plaud.md` | `fetch`: the share link, as `<https://web.plaud.ai/s/…>` |
-| `transcript-plaud.md` | `fetch`: Plaud's polished transcript |
-| `notes-plaud.md` | `fetch`: Plaud's own AI note |
-| `history.txt` / `history.R` | Dan, by hand (optional): shell or R command history |
-| `terminal.txt` / `*console*.txt` | Dan, by hand (optional): terminal or R console capture |
-| `materials.md` | by hand (optional): a list of the session's links, then the course readings it used, sent as `<course-materials>` |
-| `materials-next-class.md` | by hand (optional): the text of readings the class didn't reach; never sent |
-| `notes-class-<variant>--<model>.md` | `generate`: one per prompt variant × the model that actually ran |
+A course with a `class-notes.ini` at its root keeps each session in two halves: the
+transcript and the link in the session folder ("private" below), everything else at the
+same relative path under the public root it names ("public"), usually a submodule of a
+public repo. Without the file, both halves are the session folder.
+`python3 $S where --only <folder>` prints the public half.
+
+| File | Where | Written by |
+|---|---|---|
+| `plaud.md` | private | `fetch`: the share link, as `<https://web.plaud.ai/s/…>` |
+| `transcript-plaud.md` | private | `fetch`: Plaud's polished transcript |
+| `notes-plaud.md` | public | `fetch`: Plaud's own AI note |
+| `history.txt` / `history.R` | public | Dan, by hand (optional): shell or R command history |
+| `terminal.txt` / `*console*.txt` | public | Dan, by hand (optional): terminal or R console capture |
+| `materials.md` | public | by hand (optional): a list of the session's links, then the course readings it used, sent as `<course-materials>` |
+| `materials-next-class.md` | public | by hand (optional): the text of readings the class didn't reach; never sent |
+| `*.png` | public | by hand (optional): diagrams drawn in class |
+| `notes-class-<variant>--<model>.md` | public | `generate`: one per prompt variant × the model that actually ran |
 
 ## Add a session from a share link
 
@@ -60,7 +68,7 @@ Run it from the course repo (or pass `--repo`). `<command> --help` lists every o
      later, run `python3 $S fetch --folder <that folder>`: it reads the link from
      `plaud.md`, so the original flags aren't needed.
 3. When Dan names course readings the class worked from (a textbook chapter, say), write
-   them to `materials.md`. Open it with a `## Links` list of every URL for the session:
+   them to `materials.md`, in the session's public half (`where --only <folder>`). Open it with a `## Links` list of every URL for the session:
    each reading's page, and the class's demo repository with its issues, pull requests
    and files. Students open the file to find and click those, and the full text below
    them reads like notes. Then give the readings' text and code from the source, each
@@ -81,6 +89,9 @@ Run it from the course repo (or pass `--repo`). `<command> --help` lists every o
 5. Report each file written, each notes file's name, line count and model, and each
    skipped local model with its reason. Suggest a commit message such as
    `2026-09-17 lecture: transcript, Plaud notes, class notes`. Don't commit or push.
+   With a public half, the commit is in two repos: the public files in the submodule
+   first, then the transcript, the link and the moved submodule pointer here. Follow the
+   course repo's own instructions for publishing (its Makefile may have a target).
 
 ## Regenerate and compare
 

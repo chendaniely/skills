@@ -110,7 +110,9 @@ it's built:
 
 ## Write it the way `generate` does
 
-- **File:** `notes-class-<variant>--<model slug>.md` (`output_name`).
+- **File:** `notes-class-<variant>--<model slug>.md` (`output_name`), in
+  `session.public`: the session folder, or its public twin when the course has a
+  `class-notes.ini` (`class_notes.py where --only <folder>` prints it).
 - **Contents:** the reply, then `\n\n---\n\n`, then the footer, all passed through
   `tidy_markdown`, then saved with `write_atomic`:
 

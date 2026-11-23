@@ -681,7 +681,7 @@ def check_existing(session, prompt, model):
     """(up-to-date file, reason it is stale) for this prompt x model; (None, None) if the
     session has no notes from it yet."""
     stale_reason = None
-    for path in sorted(session.folder.glob("notes-class-%s--*.md" % prompt.variant)):
+    for path in sorted(session.public.glob("notes-class-%s--*.md" % prompt.variant)):
         footer = read_footer(path)
         if footer["requested"] != model:
             continue
@@ -734,7 +734,10 @@ def generate_one(session, prompt, model, args, today, counts):
         say("            FAILED: %s" % exc)
         counts["failed"] += 1
         return
-    out = session.folder / output_name(prompt.variant, resolved)
+    # The notes go beside the other public files: in the session folder, unless the course
+    # has a public root (class-notes.ini).
+    session.public.mkdir(parents=True, exist_ok=True)
+    out = session.public / output_name(prompt.variant, resolved)
     footer = "\n".join([
         "- prompt: %s @ %s" % (prompt.rel, prompt.version),
         "- prompt-hash: %s" % prompt.hash,
@@ -926,7 +929,7 @@ def fetch_summary(file_id, name):
 def session_parent(root):
     """The one directory that holds dated session folders (section_02/, lectures/)."""
     parents = set()
-    for path, dirnames, _files in walk_dirs(root, 3):
+    for path, dirnames, _files in walk_dirs(root, 3, skip=public_root(root)):
         if any(SESSION_DIR.match(d) for d in dirnames):
             parents.add(path)
     if len(parents) == 1:
@@ -1001,6 +1004,8 @@ def cmd_fetch(args):
 
     transcript_ready = info.get("transcript") == "available"
     summary_ready = info.get("summary") == "available"
+    # Plaud's note is public; the transcript and the link stay in the session folder.
+    public = public_folder(root, folder)
 
     if args.verify:
         # Compare what Plaud serves now with what the folder holds. Writes nothing.
@@ -1012,8 +1017,8 @@ def cmd_fetch(args):
             else:
                 show_diff(old, new, TRANSCRIPT_NAME)
                 status = 1
-        notes = next((folder / n for n in (PLAUD_NOTES_NAME,) + PLAUD_NOTES_OLD_NAMES
-                      if (folder / n).is_file()), None)
+        notes = next((public / n for n in (PLAUD_NOTES_NAME,) + PLAUD_NOTES_OLD_NAMES
+                      if (public / n).is_file()), None)
         if summary_ready and notes:
             old, new = read_text(notes), fetch_summary(info["id"], info.get("name", ""))
             if old == new:
@@ -1033,7 +1038,7 @@ def cmd_fetch(args):
     for name, ready, fetch in (
             (TRANSCRIPT_NAME, transcript_ready, lambda: fetch_transcript(info["id"])),
             (PLAUD_NOTES_NAME, summary_ready, lambda: fetch_summary(info["id"], info.get("name", "")))):
-        target = folder / name
+        target = (public if name == PLAUD_NOTES_NAME else folder) / name
         if target.is_file() and target.stat().st_size and not args.refetch:
             # Kept, not overwritten: someone may have edited it (e.g. to remove a name).
             say("  %-20s kept (exists; --refetch replaces it)" % name)
@@ -1041,8 +1046,10 @@ def cmd_fetch(args):
             say("  %-20s not ready in Plaud yet" % name)
             pending.append(name)
         else:
+            target.parent.mkdir(parents=True, exist_ok=True)
             write_atomic(target, fetch())
-            say("  %-20s written" % name)
+            where = "" if target.parent == folder else " (in %s)" % rel(target.parent, root)
+            say("  %-20s written%s" % (name, where))
     if pending:
         say("\nRun the same command again once Plaud has finished processing.")
         return 2
@@ -1055,9 +1062,9 @@ def cmd_fetch(args):
 def notes_files(root, only):
     """Plaud's notes and the class notes in every session folder (or just --only ones)."""
     if only:
-        folders = discover_sessions(root, only)
+        folders = [public_folder(root, f) for f in discover_sessions(root, only)]
     else:
-        folders = [d for d, _, files in walk_dirs(root, 6)
+        folders = [d for d, _, files in walk_dirs(public_root(root) or root, 6)
                    if PLAUD_NOTES_NAME in files or any(f.startswith("notes-class-") for f in files)]
     found = []
     for folder in folders:
