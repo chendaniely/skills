@@ -15,6 +15,17 @@ Subcommands:
   tidy      Fix the Markdown of existing notes files so they render: blank lines around
             headings, paragraphs and lists. `fetch` and `generate` already do this;
             `tidy --check` lists the files that still need it.
+  where     Print a session's public folder (see class-notes.ini below), or the public root.
+
+A course can keep each session's public files apart from its transcript, in a public
+repository say: class-notes.ini at the repo root names a public root,
+
+  [folders]
+  public = public/<repo>/class-notes/2026-27
+
+and then a session's transcript-plaud.md and plaud.md stay in the session folder while
+everything else (logs, materials, drawings, every notes file) lives at the same relative
+path under that root. With no class-notes.ini, everything is in the session folder.
 
 Run it from inside a course repository -- the one holding prompt-notes.md -- or pass
 --repo. Standard library only; Python 3.9+.
@@ -29,6 +40,7 @@ Run it from inside a course repository -- the one holding prompt-notes.md -- or 
 """
 
 import argparse
+import configparser
 import datetime
 import difflib
 import hashlib
@@ -50,6 +62,10 @@ LINK_NAME = "plaud.md"
 PLAUD_NOTES_NAME = "notes-plaud.md"
 # Earlier folders sometimes saved Plaud's note under this name; only read, never written.
 PLAUD_NOTES_OLD_NAMES = ("summary-plaud.md",)
+# A course with a public root (see the module docstring) names it here, at the repo root.
+CONFIG_NAME = "class-notes.ini"
+# The files that stay in the session folder itself when the course has a public root.
+PRIVATE_NAMES = (TRANSCRIPT_NAME, LINK_NAME)
 
 # An alias, not a version. `opus` means "latest Opus", which changes over time -- which is
 # exactly why each file is named, and its footer stamped, with the model the run actually
@@ -228,15 +244,62 @@ def select_prompts(root, names, prompt_file, variant):
 # --------------------------------------------------------------------------- sessions
 
 
-def walk_dirs(root, max_depth):
+def public_root(root):
+    """The public root named in class-notes.ini, or None when the course has none (then a
+    session's public folder is the session folder itself)."""
+    config = root / CONFIG_NAME
+    if not config.is_file():
+        return None
+    parser = configparser.ConfigParser()
+    parser.read(config, encoding="utf-8")
+    value = parser.get("folders", "public", fallback="").strip()
+    if not value:
+        raise Fail("%s has no `public = <folder>` under [folders]" % CONFIG_NAME)
+    path = (root / value).resolve()
+    if not path.exists():
+        # A year's folder appears with its first session, but an uninitialised submodule is
+        # an empty folder, and a clone without it has none: running on the transcript alone
+        # would quietly drop the logs and readings from every message.
+        existing = path.parent
+        while not existing.exists():
+            existing = existing.parent
+        if existing == root or not any(existing.iterdir()):
+            raise Fail("the public folder %s (from %s) is missing or empty: run "
+                       "git submodule update --init" % (value, CONFIG_NAME))
+    return path
+
+
+def public_folder(root, folder):
+    """A session folder's public twin: the same path relative to the repo, under the public
+    root. Without a public root, the session folder itself."""
+    base = public_root(root)
+    if base is None:
+        return Path(folder)
+    return base / Path(folder).resolve().relative_to(root)
+
+
+def private_twin(root, public, path):
+    """A path under the public root names the session folder at the same relative path."""
+    if public is not None:
+        try:
+            return root / Path(path).resolve().relative_to(public)
+        except ValueError:
+            pass
+    return path
+
+
+def walk_dirs(root, max_depth, skip=None):
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = sorted(d for d in dirnames if not d.startswith("."))
+        here = Path(dirpath)
+        dirnames[:] = sorted(d for d in dirnames
+                             if not d.startswith(".") and (skip is None or here / d != skip))
         if len(Path(dirpath).relative_to(root).parts) >= max_depth:
             dirnames[:] = []
         yield Path(dirpath), dirnames, filenames
 
 
 def discover_sessions(root, only):
+    public = public_root(root)
     if only:
         sessions = []
         for item in only:
@@ -247,13 +310,14 @@ def discover_sessions(root, only):
             for cand in candidates:
                 if cand.is_file() and cand.name == TRANSCRIPT_NAME:
                     cand = cand.parent
+                cand = private_twin(root, public, cand)
                 if cand.is_dir():
                     sessions.append(cand.resolve())
                     break
             else:
                 raise Fail("no session folder at: %s" % item)
         return sessions
-    return sorted(d for d, _, files in walk_dirs(root, 6) if TRANSCRIPT_NAME in files)
+    return sorted(d for d, _, files in walk_dirs(root, 6, skip=public) if TRANSCRIPT_NAME in files)
 
 
 def first_file(folder, names=(), patterns=()):
@@ -272,15 +336,18 @@ def first_file(folder, names=(), patterns=()):
 class Session:
     def __init__(self, folder, root):
         self.folder = folder
+        # Where everything but the transcript and the link lives: the session folder itself,
+        # unless the course has a public root.
+        self.public = public_folder(root, folder)
         self.rel = rel(folder, root)
         self.transcript = folder / TRANSCRIPT_NAME
         # Both logs are optional. Labs rarely have either, and a folder may gain one days
         # after its transcript. The shell history is history.txt; an R course keeps
         # history.R. A terminal capture is terminal.txt, or an R console capture.
-        self.history = first_file(folder, ("history.txt", "history.R"), ("history.*",))
-        self.terminal = first_file(folder, ("terminal.txt",), ("*console*.txt",))
+        self.history = first_file(self.public, ("history.txt", "history.R"), ("history.*",))
+        self.terminal = first_file(self.public, ("terminal.txt",), ("*console*.txt",))
         # The course materials say what the class drew on, not what was run.
-        self.materials = first_file(folder, (MATERIALS_NAME,))
+        self.materials = first_file(self.public, (MATERIALS_NAME,))
         extras = (("history", self.history), ("terminal", self.terminal), ("materials", self.materials))
         names = [TRANSCRIPT_NAME] + [p.name for _, p in extras if p]
         # `inputs` goes into the footer so a set of notes says what it was built from;
@@ -1024,6 +1091,15 @@ def cmd_tidy(args):
     return 0
 
 
+def cmd_where(args):
+    root = repo_root(args.repo)
+    if args.only:
+        say(rel(public_folder(root, discover_sessions(root, [args.only])[0]), root))
+    else:
+        say(rel(public_root(root) or root, root))
+    return 0
+
+
 # --------------------------------------------------------------------------- main
 
 
@@ -1075,6 +1151,11 @@ def main(argv=None):
     t.add_argument("--only", action="append", metavar="FOLDER", help="one session folder; repeatable")
     t.add_argument("--check", action="store_true", help="list the files that need it; change nothing")
     t.set_defaults(func=cmd_tidy)
+
+    w = sub.add_parser("where", parents=[common],
+                       help="print a session's public folder (class-notes.ini), or the public root")
+    w.add_argument("--only", metavar="FOLDER", help="the session folder")
+    w.set_defaults(func=cmd_where)
 
     args = parser.parse_args(argv)
     try:

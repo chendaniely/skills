@@ -20,7 +20,7 @@ test-utc: ## The same tests under TZ=UTC, as CI would run them
 test-claude-chats: ## Run claude-chats' tests: its archive, renderer and command line
 	@for t in archive render cli; do uv run claude-chats/tests/test_claude_chats_$$t.py || exit 1; done
 
-test-class-notes: ## Run class-notes' tests: the date stamp
+test-class-notes: ## Run class-notes' tests: the date stamp and the public folder pairing
 	uv run --quiet --with pytest pytest class-notes/tests -q
 
 check-skills: ## Check every skill's frontmatter (name = folder, description <= 1024) and line count
